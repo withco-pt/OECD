@@ -1,0 +1,8 @@
+<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Top diamond -->
+  <path d="M10 2L3 5.5L10 9L17 5.5L10 2Z" stroke="#0338A2" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Middle diamond -->
+  <path d="M3 10L10 13.5L17 10" stroke="#0338A2" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Bottom diamond -->
+  <path d="M3 14.5L10 18L17 14.5" stroke="#0338A2" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

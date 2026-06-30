@@ -1,0 +1,558 @@
+
+<title>Auditoria de Colunas Excel — OCDE/OPSI</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy:     #021C51;
+    --blue:     #034AD8;
+    --blue-lt:  #E5EEFF;
+    --ground:   #F7F8FA;
+    --rule:     #DDE2EC;
+    --stripe:   #EEF0F4;
+    --text:     #1A2540;
+    --muted:    #64718B;
+
+    --pronta-bg:    #ECFDF3;
+    --pronta-fg:    #14532D;
+    --pronta-rule:  #16A34A;
+
+    --map-bg:   #FFFBEB;
+    --map-fg:   #78350F;
+    --map-rule: #D97706;
+
+    --skip-bg:  #F1F2F4;
+    --skip-fg:  #4B5568;
+    --skip-rule:#9CA3AF;
+  }
+
+  body {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    background: var(--ground);
+    color: var(--text);
+    padding: 48px 24px 80px;
+  }
+
+  .doc {
+    max-width: 880px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  /* ── Header ── */
+  .doc-header {
+    border-bottom: 2px solid var(--navy);
+    padding-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .doc-header .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--blue);
+  }
+  .doc-header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--navy);
+    text-wrap: balance;
+    line-height: 1.3;
+  }
+  .doc-header .meta {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* ── Summary bar ── */
+  .summary {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .stat {
+    flex: 1;
+    min-width: 120px;
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .stat-n {
+    font-size: 28px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .stat.pronta .stat-n  { color: var(--pronta-fg); }
+  .stat.pronta .stat-label { color: var(--pronta-rule); }
+  .stat.map    .stat-n  { color: var(--map-fg); }
+  .stat.map    .stat-label { color: var(--map-rule); }
+  .stat.skip   .stat-n  { color: var(--skip-fg); }
+  .stat.skip   .stat-label { color: var(--skip-fg); }
+
+  /* ── Sections ── */
+  .section { display: flex; flex-direction: column; gap: 12px; }
+
+  .section-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .status-chip {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 3px;
+  }
+  .chip-pronta { background: var(--pronta-bg); color: var(--pronta-fg); }
+  .chip-map    { background: var(--map-bg);    color: var(--map-fg); }
+  .chip-skip   { background: var(--skip-bg);   color: var(--skip-fg); }
+
+  .section-desc {
+    font-size: 13px;
+    color: var(--muted);
+    flex: 1;
+  }
+
+  /* ── Tables ── */
+  .tbl-wrap { overflow-x: auto; border-radius: 6px; border: 1px solid var(--rule); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  thead th {
+    background: var(--navy);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    text-align: left;
+    padding: 9px 14px;
+  }
+  tbody tr { border-bottom: 1px solid var(--rule); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:nth-child(even) { background: var(--stripe); }
+  tbody tr:nth-child(odd)  { background: #fff; }
+
+  td {
+    padding: 10px 14px;
+    vertical-align: top;
+  }
+
+  /* coloured left accent */
+  .pronta-row  td:first-child { border-left: 3px solid var(--pronta-rule); }
+  .map-row     td:first-child { border-left: 3px solid var(--map-rule); }
+  .skip-row    td:first-child { border-left: 3px solid var(--skip-rule); }
+
+  .col-idx {
+    font-variant-numeric: tabular-nums;
+    font-family: "SF Mono", "Menlo", monospace;
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    width: 36px;
+  }
+  .col-name {
+    font-weight: 500;
+    color: var(--navy);
+    min-width: 260px;
+  }
+  .col-note {
+    color: var(--muted);
+    font-size: 12.5px;
+    min-width: 200px;
+  }
+  .file-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: var(--blue-lt);
+    color: var(--blue);
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  /* ── Notes section ── */
+  .notes {
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .notes h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--navy);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-size: 11px;
+  }
+  .notes ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .notes li {
+    font-size: 13px;
+    color: var(--muted);
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .notes li::before {
+    content: "—";
+    color: var(--rule);
+    flex-shrink: 0;
+  }
+  .notes li strong { color: var(--text); }
+
+  /* ── Bottom grid ── */
+  .bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+
+  .info-card {
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--rule);
+  }
+
+  .info-card__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+
+  .info-card--notes .info-card__header  { background: var(--navy); color: #fff; }
+  .info-card--auto  .info-card__header  { background: var(--pronta-fg); color: #fff; }
+  .info-card--impact .info-card__header { background: var(--map-fg); color: #fff; }
+
+  .info-card__list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    padding: 14px 16px;
+    gap: 10px;
+    background: #fff;
+    flex: 1;
+  }
+
+  .info-card__list li {
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.55;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .info-card__list li strong { color: var(--text); }
+
+  .info-card__list code {
+    font-family: "SF Mono", "Menlo", monospace;
+    font-size: 11px;
+    background: var(--stripe);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--navy);
+  }
+
+  .info-card__footer {
+    padding: 10px 16px;
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--stripe);
+    border-top: 1px solid var(--rule);
+    line-height: 1.5;
+  }
+
+  .info-card__footer--accent {
+    background: var(--map-bg);
+    color: var(--map-fg);
+    font-weight: 600;
+    border-top-color: #F6D08A;
+  }
+
+  /* Impact badges */
+  .impact-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 3px;
+    margin-bottom: 2px;
+    width: fit-content;
+  }
+  .impact-badge--block { background: var(--skip-bg); color: #B91C1C; border: 1px solid #FECACA; }
+  .impact-badge--low   { background: var(--map-bg);  color: var(--map-fg); border: 1px solid #FDE68A; }
+  .impact-badge--none  { background: var(--pronta-bg); color: var(--pronta-fg); border: 1px solid #BBF7D0; }
+</style>
+
+<div class="doc">
+
+  <header class="doc-header">
+    <span class="eyebrow">OCDE / OPSI — Matriz para a Inovação nos Serviços Públicos</span>
+    <h1>Levantamento de Colunas — Ficheiros Excel do Cliente</h1>
+    <p class="meta">
+      Ficheiros analisados: <strong>Matriz_ Questionário… (1-632).xlsx</strong> (53 colunas) &amp;
+      <strong>LC_ Questionário… (1-77).xlsx</strong> (52 colunas) · 29 Jun 2026
+    </p>
+  </header>
+
+  <div class="summary">
+    <div class="stat pronta">
+      <span class="stat-n">25</span>
+      <span class="stat-label">Prontas</span>
+    </div>
+    <div class="stat map">
+      <span class="stat-n">22</span>
+      <span class="stat-label">Requerem mapeamento</span>
+    </div>
+    <div class="stat skip">
+      <span class="stat-n">6</span>
+      <span class="stat-label">Não necessárias</span>
+    </div>
+  </div>
+
+  <!-- ── PRONTA ── -->
+  <div class="section">
+    <div class="section-head">
+      <span class="status-chip chip-pronta">Pronta</span>
+      <span class="section-desc">Mapeamento directo para indicadores existentes na plataforma. Sem transformação necessária.</span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Coluna no Excel</th>
+            <th>Indicador na plataforma</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="pronta-row"><td class="col-idx">13</td><td class="col-name">A situação ficou resolvida?</td><td class="col-note">Taxa de resolução</td></tr>
+          <tr class="pronta-row"><td class="col-idx">15</td><td class="col-name">Rapidez do pedido até conclusão</td><td class="col-note">Velocidade de resposta</td></tr>
+          <tr class="pronta-row"><td class="col-idx">16</td><td class="col-name">Atendimento presencial (rating)</td><td class="col-note">Canal — presencial</td></tr>
+          <tr class="pronta-row"><td class="col-idx">17</td><td class="col-name">Telefone (rating)</td><td class="col-note">Canal — telefone</td></tr>
+          <tr class="pronta-row"><td class="col-idx">18</td><td class="col-name">Online / Digital (rating)</td><td class="col-note">Canal — digital</td></tr>
+          <tr class="pronta-row"><td class="col-idx">19</td><td class="col-name">App (rating)</td><td class="col-note">Canal — app</td></tr>
+          <tr class="pronta-row"><td class="col-idx">20</td><td class="col-name">Videochamada (rating)</td><td class="col-note">Canal — videochamada</td></tr>
+          <tr class="pronta-row"><td class="col-idx">21</td><td class="col-name">Chatbox (rating)</td><td class="col-note">Canal — chatbox</td></tr>
+          <tr class="pronta-row"><td class="col-idx">22</td><td class="col-name">Outro (rating)</td><td class="col-note">Canal — outro</td></tr>
+          <tr class="pronta-row"><td class="col-idx">23</td><td class="col-name">Facilidade em encontrar o serviço</td><td class="col-note">Acessibilidade / findability</td></tr>
+          <tr class="pronta-row"><td class="col-idx">24</td><td class="col-name">A linguagem utilizada é simples</td><td class="col-note">Clareza da comunicação</td></tr>
+          <tr class="pronta-row"><td class="col-idx">25</td><td class="col-name">A linguagem utilizada é clara</td><td class="col-note">Clareza da comunicação</td></tr>
+          <tr class="pronta-row"><td class="col-idx">26</td><td class="col-name">A resposta recebida foi clara?</td><td class="col-note">Clareza da comunicação</td></tr>
+          <tr class="pronta-row"><td class="col-idx">30</td><td class="col-name">Facilidade em resolver o pedido</td><td class="col-note">Facilidade de resolução</td></tr>
+          <tr class="pronta-row"><td class="col-idx">32</td><td class="col-name">Facilidade de agendamento</td><td class="col-note">Qualidade do agendamento</td></tr>
+          <tr class="pronta-row"><td class="col-idx">33</td><td class="col-name">Agendamento para data adequada</td><td class="col-note">Qualidade do agendamento</td></tr>
+          <tr class="pronta-row"><td class="col-idx">35</td><td class="col-name">Tempo de espera até ser atendido</td><td class="col-note">Tempo de espera</td></tr>
+          <tr class="pronta-row"><td class="col-idx">36</td><td class="col-name">Duração do atendimento foi adequada</td><td class="col-note">Duração do atendimento</td></tr>
+          <tr class="pronta-row"><td class="col-idx">40</td><td class="col-name">Tratado com justiça e sem discriminação</td><td class="col-note">Imparcialidade</td></tr>
+          <tr class="pronta-row"><td class="col-idx">41</td><td class="col-name">Cortesia, disponibilidade e respeito</td><td class="col-note">Qualidade do atendimento</td></tr>
+          <tr class="pronta-row"><td class="col-idx">42</td><td class="col-name"><strong>Satisfação global</strong></td><td class="col-note"><strong>Índice de satisfação — indicador UX principal</strong></td></tr>
+          <tr class="pronta-row"><td class="col-idx">43</td><td class="col-name">Serviço correspondeu às expectativas</td><td class="col-note">Correspondência de expectativas</td></tr>
+          <tr class="pronta-row"><td class="col-idx">44</td><td class="col-name"><strong>Probabilidade de recomendar</strong></td><td class="col-note"><strong>NPS</strong></td></tr>
+          <tr class="pronta-row"><td class="col-idx">46</td><td class="col-name">Cidadão ou empresa</td><td class="col-note">Segmentação tipo de utilizador</td></tr>
+          <tr class="pronta-row"><td class="col-idx">47</td><td class="col-name">Primeira vez a usar o serviço</td><td class="col-note">Utilizador novo vs. recorrente</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── REQUER MAPEAMENTO ── -->
+  <div class="section">
+    <div class="section-head">
+      <span class="status-chip chip-map">Requer mapeamento</span>
+      <span class="section-desc">Dados úteis mas com trabalho de transformação, agregação ou clarificação antes de entrar na plataforma.</span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Coluna no Excel</th>
+            <th>Problema / acção necessária</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="map-row"><td class="col-idx">6</td><td class="col-name">A que Loja de Cidadão recorreu?</td><td class="col-note">Necessita mapeamento para localização / canal de atendimento</td></tr>
+          <tr class="map-row"><td class="col-idx">7</td><td class="col-name">Que entidade procurou?</td><td class="col-note">Necessita correspondência com IDs de entidades na plataforma</td></tr>
+          <tr class="map-row"><td class="col-idx">8</td><td class="col-name">Serviço da AT realizado</td><td class="col-note" rowspan="4" style="vertical-align:middle">Quatro colunas para um único campo. Precisam ser unificadas num ID de serviço comum antes da ingestão.</td></tr>
+          <tr class="map-row"><td class="col-idx">9</td><td class="col-name">Serviço do ISS realizado</td></tr>
+          <tr class="map-row"><td class="col-idx">10</td><td class="col-name">Serviço do Espaço Cidadão realizado</td></tr>
+          <tr class="map-row"><td class="col-idx">11</td><td class="col-name">Que serviço realizou? (genérico)</td></tr>
+          <tr class="map-row"><td class="col-idx">12</td><td class="col-name">Canais utilizados</td><td class="col-note">Multi-select em texto livre — necessita parsing / split por canal</td></tr>
+          <tr class="map-row"><td class="col-idx">14</td><td class="col-name">Porquê não foi resolvido?</td><td class="col-note">Texto aberto condicional — categorização ou exclusão</td></tr>
+          <tr class="map-row"><td class="col-idx">27</td><td class="col-name">Compreender a decisão</td><td class="col-note" rowspan="3" style="vertical-align:middle">Sub-dimensão de transparência. Definir se agrega num índice ou fica como indicador isolado.</td></tr>
+          <tr class="map-row"><td class="col-idx">28</td><td class="col-name">Saber o estado do pedido</td></tr>
+          <tr class="map-row"><td class="col-idx">29</td><td class="col-name">Compreender os próximos passos</td></tr>
+          <tr class="map-row"><td class="col-idx">31</td><td class="col-name">Realizou agendamento?</td><td class="col-note">Campo de routing — cols 32–34 só se aplicam se "Sim"</td></tr>
+          <tr class="map-row"><td class="col-idx">34</td><td class="col-name">Problemas no agendamento</td><td class="col-note">Texto aberto condicional</td></tr>
+          <tr class="map-row"><td class="col-idx">37</td><td class="col-name">Clareza da informação (staff)</td><td class="col-note" rowspan="3" style="vertical-align:middle">Sub-dimensão de qualidade do staff. Definir lógica de agregação.</td></tr>
+          <tr class="map-row"><td class="col-idx">38</td><td class="col-name">Conhecimento do assunto</td></tr>
+          <tr class="map-row"><td class="col-idx">39</td><td class="col-name">Capacidade de encaminhamento</td></tr>
+          <tr class="map-row"><td class="col-idx">45</td><td class="col-name">Sugestões de melhoria</td><td class="col-note">Texto aberto — fora de âmbito ou módulo separado</td></tr>
+          <tr class="map-row"><td class="col-idx">48</td><td class="col-name">Idade</td><td class="col-note">Demográfico — confirmar se a plataforma segmenta por este critério</td></tr>
+          <tr class="map-row"><td class="col-idx">49</td><td class="col-name">Situação profissional</td><td class="col-note">Demográfico — confirmar se a plataforma segmenta por este critério</td></tr>
+          <tr class="map-row"><td class="col-idx">50</td><td class="col-name">Nível de escolaridade</td><td class="col-note">Demográfico — confirmar se a plataforma segmenta por este critério</td></tr>
+          <tr class="map-row"><td class="col-idx">51</td><td class="col-name">Distrito / Região Autónoma de Residência</td><td class="col-note">Filtro geográfico — definir se é usado na plataforma<br><small>⚠ Label difere entre ficheiros: <em>LC</em> inclui "Região Autónoma", <em>Matriz</em> não.</small></td></tr>
+          <tr class="map-row"><td class="col-idx">52</td><td class="col-name">Número ID <span class="file-badge">só Matriz</span></td><td class="col-note">Finalidade desconhecida — clarificar com o cliente antes de usar</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── NÃO NECESSÁRIA ── -->
+  <div class="section">
+    <div class="section-head">
+      <span class="status-chip chip-skip">Não necessária</span>
+      <span class="section-desc">Metadados do formulário e dados pessoais. Não entram na plataforma.</span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Coluna no Excel</th>
+            <th>Motivo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="skip-row"><td class="col-idx">0</td><td class="col-name">ID</td><td class="col-note">ID interno do formulário</td></tr>
+          <tr class="skip-row"><td class="col-idx">1</td><td class="col-name">Start time</td><td class="col-note">Metadado de submissão</td></tr>
+          <tr class="skip-row"><td class="col-idx">2</td><td class="col-name">Completion time</td><td class="col-note">Metadado de submissão</td></tr>
+          <tr class="skip-row"><td class="col-idx">3</td><td class="col-name">Email</td><td class="col-note">Dado pessoal (PII)</td></tr>
+          <tr class="skip-row"><td class="col-idx">4</td><td class="col-name">Name</td><td class="col-note">Dado pessoal (PII)</td></tr>
+          <tr class="skip-row"><td class="col-idx">5</td><td class="col-name">Last modified time</td><td class="col-note">Metadado de submissão</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Perguntas para a ARTE ── -->
+  <div class="info-card info-card--questions" style="border-radius:8px;overflow:hidden;border:1px solid var(--rule);">
+    <div class="info-card__header" style="background:var(--navy);color:#fff;display:flex;align-items:center;gap:8px;padding:12px 16px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M6.5 6C6.5 5.17 7.17 4.5 8 4.5s1.5.67 1.5 1.5c0 1-1.5 1.5-1.5 2.5M8 11h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Perguntas a resolver com a ARTE antes da Fase 2
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;background:#fff;">
+      <div style="padding:20px 20px;border-right:1px solid var(--rule);">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);margin-bottom:8px;">1 — Formato de entrega</div>
+        <p style="font-size:13px;color:var(--muted);line-height:1.6;">O Excel vai ser sempre esta estrutura exacta, ou o formato pode variar entre entregas? Colunas na mesma ordem? Mesmo número de campos?</p>
+      </div>
+      <div style="padding:20px 20px;border-right:1px solid var(--rule);">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);margin-bottom:8px;">2 — ID de serviço estável</div>
+        <p style="font-size:13px;color:var(--muted);line-height:1.6;">As colunas 8–11 identificam o serviço por nome por extenso, que pode mudar. É necessário um código estável por serviço que sirva de chave permanente na base de dados.</p>
+      </div>
+      <div style="padding:20px 20px;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);margin-bottom:8px;">3 — Chave primária por resposta</div>
+        <p style="font-size:13px;color:var(--muted);line-height:1.6;">Como distinguir uma resposta nova de uma já existente na base de dados? O ficheiro actual não tem um identificador único por resposta que seja fiável entre uploads.</p>
+      </div>
+    </div>
+    <div style="padding:10px 20px;background:var(--blue-lt);border-top:1px solid var(--rule);font-size:12.5px;color:var(--navy);">
+      Com estes três pontos resolvidos, a implementação da base de dados pode avançar com confiança total.
+    </div>
+  </div>
+
+  <!-- ── Bottom 3 sections ── -->
+  <div class="bottom-grid">
+
+    <!-- Notas -->
+    <div class="info-card info-card--notes">
+      <div class="info-card__header">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M8 7v4M8 5h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span>Notas e próximos passos</span>
+      </div>
+      <ul class="info-card__list">
+        <li><strong>Serviço ID unificado:</strong> as colunas 8–11 são mutuamente exclusivas mas separadas — é preciso criar uma coluna derivada única antes da ingestão.</li>
+        <li><strong>Canais (col 12) vs. ratings (cols 16–22):</strong> a col 12 regista quais os canais usados; as 16–22 avaliam cada canal. Podem coexistir.</li>
+        <li><strong>Campos condicionais (31–34):</strong> só existem dados quando col 31 = "Sim". Tratar NaN como "não aplicável", não como dado em falta.</li>
+        <li><strong>Divergência entre ficheiros (col 51):</strong> o label difere — confirmar se os dados são comparáveis antes de agregar.</li>
+        <li><strong>Col 52 — Número ID:</strong> clarificar finalidade com o cliente. Pode ser ID interno da ARTE.</li>
+        <li><strong>Demográficos (48–51):</strong> decisão de produto pendente — podem ficar em standby para a Fase 2.</li>
+      </ul>
+    </div>
+
+    <!-- Automação -->
+    <div class="info-card info-card--auto">
+      <div class="info-card__header">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13 3L6.5 9.5 3.5 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 8v5H3V3h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Mapeamento automático</span>
+      </div>
+      <ul class="info-card__list">
+        <li><strong>Colunas 8–11:</strong> criar coluna derivada <code>service_name</code> — pegar o valor preenchido entre as quatro.</li>
+        <li><strong>Coluna 12:</strong> split do texto em colunas booleanas por canal (<code>canal_presencial</code>, <code>canal_digital</code>, <code>canal_app</code>…).</li>
+        <li><strong>Colunas 27–29:</strong> índice de transparência por média simples das três sub-dimensões.</li>
+        <li><strong>Colunas 37–39:</strong> índice de qualidade do staff por média simples.</li>
+        <li><strong>Colunas 31–34:</strong> marcar 32–34 como <code>null</code> quando col 31 = "Não".</li>
+        <li><strong>Coluna 7:</strong> mapear texto de entidade para IDs da plataforma.</li>
+      </ul>
+      <div class="info-card__footer">
+        Precisam do cliente: col 6 (Loja de Cidadão), col 52 (Número ID), cols 48–51 (demográficos).
+      </div>
+    </div>
+
+    <!-- Impacto -->
+    <div class="info-card info-card--impact">
+      <div class="info-card__header">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2l1.5 4.5H14l-3.5 2.5 1.5 4.5L8 11l-4 2.5 1.5-4.5L2 6.5h4.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+        <span>Impacto na plataforma</span>
+      </div>
+      <ul class="info-card__list">
+        <li><span class="impact-badge impact-badge--block">Bloqueador</span> <strong>Cols 8–11:</strong> sem mapeamento de serviço, os dados chegam órfãos. Resolver antes de qualquer ingestão.</li>
+        <li><span class="impact-badge impact-badge--low">Baixo</span> <strong>Cols 27–29 e 37–39:</strong> indicadores calculam com menos detalhe mas não quebram.</li>
+        <li><span class="impact-badge impact-badge--none">Nenhum</span> <strong>Col 12:</strong> redundante face às cols 16–22.</li>
+        <li><span class="impact-badge impact-badge--none">Nenhum</span> <strong>Cols 48–51:</strong> irrelevantes na Fase 1.</li>
+        <li><span class="impact-badge impact-badge--none">Nenhum</span> <strong>Col 52:</strong> ignorar até clarificação do cliente.</li>
+      </ul>
+      <div class="info-card__footer info-card__footer--accent">
+        O único desbloqueador real é o mapeamento das colunas 8–11.
+      </div>
+    </div>
+
+  </div>
+
+</div>
