@@ -189,7 +189,7 @@ A camada de ícones UI usava `lucide-react`. Foi **totalmente substituída** por
 | AlertCircle | `alert-circle` | | Info | `info-mark` |
 | AlertTriangle | `alert-triangle` | | Layers | `layers-menu` |
 | ArrowLeftRight | `refresh-ccw` | | LifeBuoy | `help-support` |
-| ArrowRight | `arrow-right` | | Lightbulb | `award` |
+| ArrowRight | `arrow-right-anchor` | | Lightbulb | `award` |
 | ArrowUpAZ | `sort-alpha-down` | | List | `list` |
 | BarChart3 | `bar-chart` | | LogOut | `log-out` |
 | Bell | `bell` | | RefreshCw | `refresh-ccw` |
@@ -224,6 +224,43 @@ renderizando cada componente com `fill="currentColor"`.
 
 ---
 
+## Pills de estado (badges)
+
+Os indicadores/serviços mostram pills de estado em cards, chips de filtro,
+tooltips e banners de resumo. **Fonte única de verdade** dos tokens:
+[`src/components/status-pill.ts`](../src/components/status-pill.ts).
+
+| Estado | Significado | Fundo | Foreground (ícone/texto) | Ícone |
+|---|---|---|---|---|
+| **mandatory** | Obrigatório | `primary-100` | `primary-700` | `alert-circle` |
+| **danger** | Incumprimento Legal | `danger-100` | `danger-800` | `x-circle` |
+| **warning** | Dados Incompletos | `warning-100` | `warning-900` | `alert-triangle` |
+
+### Regra de contraste (WCAG AA)
+
+O foreground tem de cumprir **≥ 4.5:1** (texto) sobre o respetivo fundo `-100`
+**e** sobre branco (chips de filtro). Verificado:
+
+| Foreground | sobre `-100` | sobre branco |
+|---|---|---|
+| `warning-900` #80460d | 6.72 ✓ | 7.50 ✓ |
+| `danger-800` #b20917 | 5.81 ✓ | 7.13 ✓ |
+| `primary-700` #0338a2 | 9.28 ✓ | — |
+
+> ⚠️ **Nunca** usar `warning-500` (#fbcb3c) nem `warning-700` (#f2a222) como
+> foreground — falham contraste (1.4–2.1:1). São amarelos claros, só para fundo.
+
+### Correções (auditoria 2026-06-30)
+
+O estado *Dados Incompletos* tinha 3 tratamentos inconsistentes e sem contraste:
+ícones a `warning-500` (1.37:1, invisíveis), texto a `warning-700` (1.89:1), e um
+laranja fora da paleta `#DF3F00` nos badges/tooltips. Unificado para `warning-900`.
+Os três `PILL_STYLES` duplicados foram fundidos em `status-pill.ts`. A `IndicatorCard`
+passou a usar `AgoraIcon` (como `ServiceCard`/`ThematicPriorityCard`), e os SVGs
+custom `icon-alert-circle/x-circle/alert-triangle` foram removidos.
+
+---
+
 ## Histórico
 
 - **2026-06-30** — Substituída a paleta parcial inicial (valores genéricos do
@@ -232,3 +269,6 @@ renderizando cada componente com `fill="currentColor"`.
 - **2026-06-30** — Migrada a camada de ícones UI de `lucide-react` para o set
   Ágora (variante line), via registry local + componente `AgoraIcon`.
   Dependência `lucide-react` removida.
+- **2026-06-30** — Auditoria de contraste aos pills de estado: foreground de
+  *warning* unificado para `warning-900`, `PILL_STYLES` deduplicado em
+  `status-pill.ts`, badges da `IndicatorCard` migrados para `AgoraIcon`.

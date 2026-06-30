@@ -150,7 +150,7 @@ export default function ServiceDetailPage() {
     },
     {
       label: "Dados Incompletos",
-      icon: <AgoraIcon name="alert-triangle" className="size-[14px] text-warning-500" />,
+      icon: <AgoraIcon name="alert-triangle" className="size-[14px] text-warning-900" />,
       active: filterMissingData,
       onToggle: () => { setFilterMissingData(!filterMissingData); setCurrentPage(1); },
     },
@@ -201,8 +201,8 @@ export default function ServiceDetailPage() {
             )}
             {missingDataCount > 0 && (
               <div className="bg-warning-100 flex items-center gap-[6px] px-[10px] py-[5px] rounded-full">
-                <AgoraIcon name="alert-triangle" className="size-[16px] text-warning-500" />
-                <span className="text-[13px] font-medium text-warning-700">
+                <AgoraIcon name="alert-triangle" className="size-[16px] text-warning-900" />
+                <span className="text-[13px] font-medium text-warning-900">
                   {missingDataCount} Indicador{missingDataCount !== 1 ? "es" : ""} com Dados Incompletos
                 </span>
               </div>

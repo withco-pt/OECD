@@ -105,7 +105,7 @@ export default function MeusServicosPage() {
           <div className="flex gap-[12px] flex-wrap items-center">
             {[
               { label: "Incumprimento Legal", icon: <AgoraIcon name="x-circle" className="size-[14px] text-danger-800" />, active: filterNonCompliance, toggle: () => { setFilterNonCompliance(!filterNonCompliance); setCurrentPage(1); } },
-              { label: "Dados Incompletos", icon: <AgoraIcon name="alert-triangle" className="size-[14px] text-warning-500" />, active: filterMissingData, toggle: () => { setFilterMissingData(!filterMissingData); setCurrentPage(1); } },
+              { label: "Dados Incompletos", icon: <AgoraIcon name="alert-triangle" className="size-[14px] text-warning-900" />, active: filterMissingData, toggle: () => { setFilterMissingData(!filterMissingData); setCurrentPage(1); } },
               { label: "Matriz Adotada", icon: null, active: filterMatrix, toggle: () => { setFilterMatrix(!filterMatrix); setCurrentPage(1); } },
               { label: "Favoritos", icon: <AgoraIcon name="like" className="size-[14px] text-primary-600" />, active: false, toggle: () => {} },
             ].map((f) => (

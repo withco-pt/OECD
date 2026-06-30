@@ -162,7 +162,7 @@ export default function EntradaPage() {
                   }}
                 >
                   Aceder
-                  <AgoraIcon name="arrow-right" className="size-[16px]" />
+                  <AgoraIcon name="arrow-right-anchor" className="size-[16px]" />
                 </div>
               </button>
             ))}

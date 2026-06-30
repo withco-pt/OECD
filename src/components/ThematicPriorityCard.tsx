@@ -3,6 +3,7 @@
 import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { PILL_STYLES } from "@/components/status-pill";
 import HelpTooltip from "@/components/HelpTooltip";
 
 export type PriorityStatus = "ok" | "missing_data" | "non_compliance" | "both";
@@ -16,11 +17,6 @@ interface ThematicPriorityCardProps {
   href?: string;
 }
 
-const PILL_STYLES = {
-  warning: { bg: "#FFF4E6", color: "#DF3F00", border: "#FCDAB5" },
-  danger:  { bg: "#FEE1E3", color: "#B20917", border: "#F9B4B8" },
-};
-
 function Pill({ children, tooltip, variant = "warning" }: { children: React.ReactNode; tooltip: string; variant?: "warning" | "danger" }) {
   const s = PILL_STYLES[variant];
   const [show, setShow] = useState(false);
@@ -31,7 +27,7 @@ function Pill({ children, tooltip, variant = "warning" }: { children: React.Reac
     if (show && ref.current) {
       const r = ref.current.getBoundingClientRect();
       setPos({
-        top: r.top + window.scrollY - 8,
+        top: r.top - 8,
         left: r.left + r.width / 2,
       });
     }
@@ -74,7 +70,7 @@ function StatusPills({ status }: { status: PriorityStatus }) {
       {(status === "missing_data" || status === "both") && (
         <Pill tooltip="Indicador tem Dados Incompletos">
           <div className="bg-warning-100 flex items-center p-[5px] rounded-full cursor-default">
-            <AgoraIcon name="alert-triangle" className="size-[20px] text-warning-500" />
+            <AgoraIcon name="alert-triangle" className="size-[20px] text-warning-900" />
           </div>
         </Pill>
       )}
@@ -152,7 +148,7 @@ export default function ThematicPriorityCard({
             pointerEvents: hovered ? "auto" : "none",
           }}
         >
-          Ver Indicadores <AgoraIcon name="arrow-right" className="size-[13px]" />
+          Ver Indicadores <AgoraIcon name="arrow-right-anchor" className="size-[13px]" />
         </div>
       </div>
 

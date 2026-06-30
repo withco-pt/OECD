@@ -64,7 +64,7 @@ export default function PriorityDetailPage() {
     },
     {
       label: "Dados Incompletos",
-      icon: <AgoraIcon name="alert-triangle" className="size-[14px] text-warning-500" />,
+      icon: <AgoraIcon name="alert-triangle" className="size-[14px] text-warning-900" />,
       active: filterMissingData,
       onToggle: () => toggle(setFilterMissingData, filterMissingData),
     },
@@ -109,8 +109,8 @@ export default function PriorityDetailPage() {
             {priority.description}
           </p>
           {missingDataCount > 0 && (
-            <div className="inline-flex items-center gap-[8px] bg-warning-100 text-warning-700 rounded-full px-[12px] py-[5px] text-[14px] font-medium">
-              <AgoraIcon name="alert-triangle" className="size-[16px] text-warning-500" />
+            <div className="inline-flex items-center gap-[8px] bg-warning-100 text-warning-900 rounded-full px-[12px] py-[5px] text-[14px] font-medium">
+              <AgoraIcon name="alert-triangle" className="size-[16px] text-warning-900" />
               {missingDataCount} Indicadores com Dados Incompletos
             </div>
           )}

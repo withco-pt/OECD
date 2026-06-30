@@ -209,8 +209,8 @@ export default function IndicatorDetailPage() {
         <div className="flex items-center justify-between gap-[16px]">
           <div>
             {indicator.missingData && (
-              <span className="inline-flex items-center gap-[6px] text-warning-700 text-[14px] font-medium">
-                <AgoraIcon name="alert-triangle" size={16} className="text-warning-500" />
+              <span className="inline-flex items-center gap-[6px] text-warning-900 text-[14px] font-medium">
+                <AgoraIcon name="alert-triangle" size={16} className="text-warning-900" />
                 Indicador com Dados Incompletos
               </span>
             )}
@@ -373,7 +373,7 @@ export default function IndicatorDetailPage() {
               </p>
               <div className="flex justify-end mt-[4px]">
                 <button className="flex items-center gap-[6px] bg-white text-primary-800 text-[13px] font-medium rounded-full px-[16px] py-[8px] hover:bg-primary-100 transition-colors">
-                  Saber Mais <AgoraIcon name="arrow-right" size={13} />
+                  Saber Mais <AgoraIcon name="arrow-right-anchor" size={13} />
                 </button>
               </div>
             </div>

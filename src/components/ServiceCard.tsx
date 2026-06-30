@@ -5,11 +5,7 @@ import Link from "next/link";
 import HelpTooltip from "@/components/HelpTooltip";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-
-const PILL_STYLES = {
-  warning: { bg: "#FFF4E6", color: "#DF3F00", border: "#FCDAB5" },
-  danger:  { bg: "#FEE1E3", color: "#B20917", border: "#F9B4B8" },
-};
+import { PILL_STYLES } from "@/components/status-pill";
 
 function StatusTooltip({ children, tooltip, variant }: { children: React.ReactNode; tooltip: string; variant: "warning" | "danger" }) {
   const [show, setShow] = useState(false);
@@ -20,7 +16,7 @@ function StatusTooltip({ children, tooltip, variant }: { children: React.ReactNo
   useEffect(() => {
     if (show && ref.current) {
       const r = ref.current.getBoundingClientRect();
-      setPos({ top: r.top + window.scrollY - 8, left: r.left + r.width / 2 });
+      setPos({ top: r.top - 8, left: r.left + r.width / 2 });
     }
   }, [show]);
 
@@ -106,7 +102,7 @@ export default function ServiceCard({
           {missingData && (
             <StatusTooltip tooltip="Indicador tem Dados Incompletos" variant="warning">
               <div className="bg-warning-100 flex items-center p-[5px] rounded-full cursor-default">
-                <AgoraIcon name="alert-triangle" className="size-[20px] text-warning-500" />
+                <AgoraIcon name="alert-triangle" className="size-[20px] text-warning-900" />
               </div>
             </StatusTooltip>
           )}
@@ -115,7 +111,7 @@ export default function ServiceCard({
           <span className="text-[14px] font-medium text-white whitespace-nowrap">
             Aceder
           </span>
-          <AgoraIcon name="arrow-right" className="size-[18px] text-white" />
+          <AgoraIcon name="arrow-right-anchor" className="size-[18px] text-white" />
         </div>
       </div>
     </Link>

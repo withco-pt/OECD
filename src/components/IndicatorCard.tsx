@@ -1,14 +1,11 @@
 "use client";
 
+import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { PILL_STYLES } from "@/components/status-pill";
 import HelpTooltip from "@/components/HelpTooltip";
-
-const PILL_STYLES = {
-  warning: { bg: "#FFF4E6", color: "#DF3F00", border: "#FCDAB5" },
-  danger:  { bg: "#FEE1E3", color: "#B20917", border: "#F9B4B8" },
-};
 
 function StatusTooltip({ children, tooltip, variant }: { children: React.ReactNode; tooltip: string; variant: "warning" | "danger" }) {
   const [show, setShow] = useState(false);
@@ -19,7 +16,7 @@ function StatusTooltip({ children, tooltip, variant }: { children: React.ReactNo
   useEffect(() => {
     if (show && ref.current) {
       const r = ref.current.getBoundingClientRect();
-      setPos({ top: r.top + window.scrollY - 8, left: r.left + r.width / 2 });
+      setPos({ top: r.top - 8, left: r.left + r.width / 2 });
     }
   }, [show]);
 
@@ -104,7 +101,7 @@ export default function IndicatorCard({
         )}
         {mandatory && (
           <div className="bg-primary-100 flex gap-[4px] items-center h-[30px] px-[8px] rounded-full">
-            <img src="/icons/icon-alert-circle.svg" alt="" className="size-[20px]" />
+            <AgoraIcon name="alert-circle" className="size-[20px] text-primary-700" />
             <span className="text-[14px] font-medium text-primary-700">
               Obrigatório
             </span>
@@ -113,14 +110,14 @@ export default function IndicatorCard({
         {nonCompliance && (
           <StatusTooltip tooltip="Indicador tem Incumprimento Legal" variant="danger">
             <div className="bg-danger-100 flex items-center p-[5px] rounded-full cursor-default">
-              <img src="/icons/icon-x-circle.svg" alt="" className="size-[20px]" />
+              <AgoraIcon name="x-circle" className="size-[20px] text-danger-800" />
             </div>
           </StatusTooltip>
         )}
         {missingData && (
           <StatusTooltip tooltip="Indicador tem Dados Incompletos" variant="warning">
             <div className="bg-warning-100 flex items-center p-[5px] rounded-full cursor-default">
-              <img src="/icons/icon-alert-triangle.svg" alt="" className="size-[20px]" />
+              <AgoraIcon name="alert-triangle" className="size-[20px] text-warning-900" />
             </div>
           </StatusTooltip>
         )}

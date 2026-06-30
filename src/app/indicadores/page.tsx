@@ -75,7 +75,7 @@ export default function IndicadoresPage() {
     },
     {
       label: "Dados Incompletos",
-      icon: <AgoraIcon name="alert-triangle" className="size-[14px] text-warning-500" />,
+      icon: <AgoraIcon name="alert-triangle" className="size-[14px] text-warning-900" />,
       active: filterMissingData,
       onToggle: () => toggle(setFilterMissingData, filterMissingData),
     },
