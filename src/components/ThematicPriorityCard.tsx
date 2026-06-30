@@ -156,9 +156,6 @@ export default function ThematicPriorityCard({
       <div className="absolute right-[16px] bottom-[16px] z-[1] transition-opacity duration-200" style={{ opacity: hovered ? 0 : 1 }}>
         {icon}
       </div>
-      <div className="absolute right-[8px] top-[8px] z-[1] transition-opacity duration-200" style={{ opacity: hovered ? 1 : 0 }}>
-        <Sparkles />
-      </div>
     </div>
   );
 
