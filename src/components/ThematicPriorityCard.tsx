@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, XCircle, ArrowRight } from "lucide-react";
+import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import HelpTooltip from "@/components/HelpTooltip";
@@ -67,14 +67,14 @@ function StatusPills({ status }: { status: PriorityStatus }) {
       {(status === "non_compliance" || status === "both") && (
         <Pill tooltip="Indicador tem Incumprimento Legal" variant="danger">
           <div className="bg-danger-100 flex items-center p-[5px] rounded-full cursor-default">
-            <XCircle className="size-[20px] text-danger-800" />
+            <AgoraIcon name="x-circle" className="size-[20px] text-danger-800" />
           </div>
         </Pill>
       )}
       {(status === "missing_data" || status === "both") && (
         <Pill tooltip="Indicador tem Dados Incompletos">
           <div className="bg-warning-100 flex items-center p-[5px] rounded-full cursor-default">
-            <AlertTriangle className="size-[20px] text-warning-500" />
+            <AgoraIcon name="alert-triangle" className="size-[20px] text-warning-500" />
           </div>
         </Pill>
       )}
@@ -152,7 +152,7 @@ export default function ThematicPriorityCard({
             pointerEvents: hovered ? "auto" : "none",
           }}
         >
-          Ver Indicadores <ArrowRight className="size-[13px]" />
+          Ver Indicadores <AgoraIcon name="arrow-right" className="size-[13px]" />
         </div>
       </div>
 

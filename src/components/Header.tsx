@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, LogOut } from "lucide-react";
+import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import { useRouter } from "next/navigation";
 
 export default function Header() {
@@ -24,10 +24,10 @@ export default function Header() {
         </div>
         <div className="flex gap-[16px] items-center">
           <button className="bg-primary-400 flex items-center justify-center size-[42px] rounded-full cursor-pointer hover:bg-primary-600 transition-colors">
-            <Bell className="size-[18px] text-white" />
+            <AgoraIcon name="bell" className="size-[18px] text-white" />
           </button>
           <button onClick={() => router.push("/entrada")} className="bg-primary-800 flex items-center justify-center size-[42px] rounded-full cursor-pointer hover:bg-primary-900 transition-colors">
-            <LogOut className="size-[18px] text-white" />
+            <AgoraIcon name="log-out" className="size-[18px] text-white" />
           </button>
         </div>
       </div>

@@ -1,20 +1,8 @@
 "use client";
 
+import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import {
-  AlertTriangle,
-  Heart,
-  Download,
-  Share2,
-  ChevronDown,
-  ChevronUp,
-  ArrowRight,
-  BarChart3,
-  RefreshCw,
-  Layers,
-  FileText,
-} from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import Breadcrumb from "@/components/Breadcrumb";
 import HelpTooltip from "@/components/HelpTooltip";
@@ -81,9 +69,9 @@ function ExpandableRow({
           {title}
         </span>
         {open ? (
-          <ChevronUp size={20} className="text-primary-600" />
+          <AgoraIcon name="chevron-up" size={20} className="text-primary-600" />
         ) : (
-          <ChevronDown size={20} className="text-primary-600" />
+          <AgoraIcon name="chevron-down" size={20} className="text-primary-600" />
         )}
       </button>
       {open && (
@@ -222,17 +210,17 @@ export default function IndicatorDetailPage() {
           <div>
             {indicator.missingData && (
               <span className="inline-flex items-center gap-[6px] text-warning-700 text-[14px] font-medium">
-                <AlertTriangle size={16} className="text-warning-500" />
+                <AgoraIcon name="alert-triangle" size={16} className="text-warning-500" />
                 Indicador com Dados Incompletos
               </span>
             )}
           </div>
           <div className="flex items-center gap-[10px] shrink-0">
             <button className="flex items-center gap-[8px] bg-primary-800 text-white rounded-full px-[20px] py-[10px] text-[14px] font-medium hover:bg-primary-900 transition-colors">
-              Alterar Indicador <RefreshCw className="size-[16px]" />
+              Alterar Indicador <AgoraIcon name="refresh-ccw" className="size-[16px]" />
             </button>
             <button className="flex items-center gap-[8px] bg-primary-800 text-white rounded-full px-[20px] py-[10px] text-[14px] font-medium hover:bg-primary-900 transition-colors">
-              Adicionar aos Favoritos <Heart className="size-[16px]" />
+              Adicionar aos Favoritos <AgoraIcon name="like" className="size-[16px]" />
             </button>
           </div>
         </div>
@@ -295,7 +283,7 @@ export default function IndicatorDetailPage() {
                       <select className="appearance-none bg-primary-200 border border-primary-300 rounded-[6px] px-[10px] py-[8px] pr-[28px] text-[13px] text-primary-800 min-w-[120px]">
                         <option>{dd.defaultVal}</option>
                       </select>
-                      <ChevronDown className="size-[12px] text-primary-500 absolute right-[8px] top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <AgoraIcon name="chevron-down" className="size-[12px] text-primary-500 absolute right-[8px] top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
                   </div>
                 ))}
@@ -313,15 +301,15 @@ export default function IndicatorDetailPage() {
             {/* Footer pill buttons */}
             <div className="flex items-center gap-[8px] px-[24px] py-[16px]">
               <button className="flex items-center gap-[6px] text-[13px] text-primary-700 border border-neutral-200 rounded-full px-[14px] py-[7px] hover:bg-neutral-50 transition-colors">
-                <Download size={13} />
+                <AgoraIcon name="download" size={13} />
                 Exportar
               </button>
               <button className="flex items-center gap-[6px] text-[13px] text-primary-700 border border-neutral-200 rounded-full px-[14px] py-[7px] hover:bg-neutral-50 transition-colors">
-                <Share2 size={13} />
+                <AgoraIcon name="share" size={13} />
                 Partilhar
               </button>
               <button className="flex items-center gap-[6px] text-[13px] text-primary-700 border border-neutral-200 rounded-full px-[14px] py-[7px] hover:bg-neutral-50 transition-colors">
-                <Heart size={13} />
+                <AgoraIcon name="like" size={13} />
                 Adicionar aos Favoritos
               </button>
             </div>
@@ -332,7 +320,7 @@ export default function IndicatorDetailPage() {
         <div className="w-[340px] shrink-0">
           <div className="bg-primary-100 rounded-[12px] p-[24px] shadow-sm border border-neutral-100">
             <div className="flex items-center gap-[8px] mb-[12px]">
-              <FileText className="size-[18px] text-primary-800 shrink-0" />
+              <AgoraIcon name="document" className="size-[18px] text-primary-800 shrink-0" />
               <h3 className="text-[16px] font-semibold text-primary-900">
                 Ficha Técnica da Visualização
               </h3>
@@ -357,7 +345,7 @@ export default function IndicatorDetailPage() {
       {/* Compare button */}
       <div className="mb-[40px]">
         <button className="bg-primary-600 text-white px-[20px] py-[12px] rounded-[8px] text-[14px] font-medium hover:bg-primary-700 transition-colors flex items-center gap-[8px]">
-          <BarChart3 size={16} />
+          <AgoraIcon name="bar-chart" size={16} />
           Comparar entre Serviços e Indicadores
         </button>
       </div>
@@ -374,7 +362,7 @@ export default function IndicatorDetailPage() {
               className="bg-primary-600 rounded-[12px] hover:bg-primary-700 transition-colors p-[24px] flex flex-col gap-[12px] min-h-[220px]"
             >
               <p className="text-white text-[13px] font-medium opacity-90 flex items-center gap-[6px]">
-                <Layers size={14} />
+                <AgoraIcon name="layers-menu" size={14} />
                 {s.tag}
               </p>
               <h3 className="text-[18px] font-bold text-white leading-snug flex-1">
@@ -385,7 +373,7 @@ export default function IndicatorDetailPage() {
               </p>
               <div className="flex justify-end mt-[4px]">
                 <button className="flex items-center gap-[6px] bg-white text-primary-800 text-[13px] font-medium rounded-full px-[16px] py-[8px] hover:bg-primary-100 transition-colors">
-                  Saber Mais <ArrowRight size={13} />
+                  Saber Mais <AgoraIcon name="arrow-right" size={13} />
                 </button>
               </div>
             </div>

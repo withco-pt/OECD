@@ -1,7 +1,7 @@
 "use client";
 
+import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import { useState } from "react";
-import { Search, ChevronDown, ArrowUpAZ, CheckCircle2, X } from "lucide-react";
 
 interface RadioFilter {
   label: string;
@@ -74,7 +74,7 @@ export default function SearchAndFilters({
                 className="absolute right-[12px] top-1/2 -translate-y-1/2 text-neutral-700 hover:text-primary-900 transition-colors"
                 aria-label="Limpar pesquisa"
               >
-                <X className="size-[18px]" />
+                <AgoraIcon name="x" className="size-[18px]" />
               </button>
             )}
           </div>
@@ -82,7 +82,7 @@ export default function SearchAndFilters({
             onClick={handleSearch}
             className="bg-primary-800 text-white px-[24px] py-[12px] rounded-[8px] flex items-center gap-[8px] font-medium text-[16px] hover:bg-primary-900 transition-colors"
           >
-            Procurar <Search className="size-[18px]" />
+            Procurar <AgoraIcon name="search" className="size-[18px]" />
           </button>
         </div>
       </div>
@@ -107,7 +107,7 @@ export default function SearchAndFilters({
                     <option key={o} value={o}>{o}</option>
                   ))}
                 </select>
-                <ChevronDown className="size-[14px] text-primary-600 absolute right-[8px] top-1/2 -translate-y-1/2 pointer-events-none" />
+                <AgoraIcon name="chevron-down" className="size-[14px] text-primary-600 absolute right-[8px] top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
             ))}
 
@@ -125,7 +125,7 @@ export default function SearchAndFilters({
                 {f.icon}
                 {f.label}
                 {f.active
-                  ? <CheckCircle2 className="size-[16px] text-primary-600 shrink-0" />
+                  ? <AgoraIcon name="check-circle" className="size-[16px] text-primary-600 shrink-0" />
                   : <span className="size-[16px] border border-neutral-800 rounded-full inline-block shrink-0" />
                 }
               </button>
@@ -147,11 +147,11 @@ export default function SearchAndFilters({
             Ordenar
           </p>
           <div className="relative">
-            <ArrowUpAZ className="size-[14px] text-primary-800 absolute left-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
+            <AgoraIcon name="sort-alpha-down" className="size-[14px] text-primary-800 absolute left-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
             <select className="appearance-none bg-primary-200 rounded-[8px] pl-[30px] pr-[32px] py-[8px] text-[14px] text-primary-800 focus:outline-none min-w-[180px]">
               <option>{orderLabel}</option>
             </select>
-            <ChevronDown className="size-[14px] text-primary-600 absolute right-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
+            <AgoraIcon name="chevron-down" className="size-[14px] text-primary-600 absolute right-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
         </div>
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
+import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import Link from "next/link";
-import { Heart, AlertTriangle, XCircle, ArrowRight } from "lucide-react";
 import HelpTooltip from "@/components/HelpTooltip";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -79,7 +79,7 @@ export default function ServiceCard({
             </h3>
           </div>
           <div className="flex gap-[10px] items-start shrink-0">
-            <Heart className="size-[22px] text-primary-800" />
+            <AgoraIcon name="like" className="size-[22px] text-primary-800" />
             <HelpTooltip size={22} />
           </div>
         </div>
@@ -99,14 +99,14 @@ export default function ServiceCard({
           {nonCompliance && (
             <StatusTooltip tooltip="Indicador tem Incumprimento Legal" variant="danger">
               <div className="bg-danger-100 flex items-center p-[5px] rounded-full cursor-default">
-                <XCircle className="size-[20px] text-danger-800" />
+                <AgoraIcon name="x-circle" className="size-[20px] text-danger-800" />
               </div>
             </StatusTooltip>
           )}
           {missingData && (
             <StatusTooltip tooltip="Indicador tem Dados Incompletos" variant="warning">
               <div className="bg-warning-100 flex items-center p-[5px] rounded-full cursor-default">
-                <AlertTriangle className="size-[20px] text-warning-500" />
+                <AgoraIcon name="alert-triangle" className="size-[20px] text-warning-500" />
               </div>
             </StatusTooltip>
           )}
@@ -115,7 +115,7 @@ export default function ServiceCard({
           <span className="text-[14px] font-medium text-white whitespace-nowrap">
             Aceder
           </span>
-          <ArrowRight className="size-[18px] text-white" />
+          <AgoraIcon name="arrow-right" className="size-[18px] text-white" />
         </div>
       </div>
     </Link>

@@ -1,19 +1,8 @@
 "use client";
 
+import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  ChevronDown,
-  ChevronUp,
-  List,
-  Layers,
-  BookOpen,
-  Copy,
-  Search,
-  Heart,
-  Info,
-  Headphones,
-} from "lucide-react";
 import { useState } from "react";
 import { priorities } from "@/data/mock";
 
@@ -48,7 +37,7 @@ export default function Sidebar() {
                   href="/"
                   className="flex gap-[8px] items-center flex-1 min-w-0"
                 >
-                  <Layers
+                  <AgoraIcon name="layers-menu"
                     className={`size-[20px] shrink-0 ${
                       ptActive ? "text-primary-50" : "text-primary-800"
                     }`}
@@ -70,9 +59,9 @@ export default function Sidebar() {
                   aria-label={ptOpen ? "Recolher sub-itens" : "Expandir sub-itens"}
                 >
                   {ptOpen ? (
-                    <ChevronUp className={`size-[14px] ${ptActive ? "text-primary-50" : "text-primary-800"}`} />
+                    <AgoraIcon name="chevron-up" className={`size-[14px] ${ptActive ? "text-primary-50" : "text-primary-800"}`} />
                   ) : (
-                    <ChevronDown className={`size-[14px] ${ptActive ? "text-primary-50" : "text-primary-800"}`} />
+                    <AgoraIcon name="chevron-down" className={`size-[14px] ${ptActive ? "text-primary-50" : "text-primary-800"}`} />
                   )}
                 </button>
               </div>
@@ -108,7 +97,7 @@ export default function Sidebar() {
                 isActive("/indicadores") ? "bg-primary-600" : "hover:bg-primary-300/30 transition-colors"
               }`}
             >
-              <List className={`size-[20px] ${isActive("/indicadores") ? "text-primary-50" : "text-primary-800"}`} />
+              <AgoraIcon name="list" className={`size-[20px] ${isActive("/indicadores") ? "text-primary-50" : "text-primary-800"}`} />
               <span className={`font-medium text-[16px] leading-[23px] ${isActive("/indicadores") ? "text-primary-50 font-semibold" : "text-primary-800"}`}>
                 Indicadores
               </span>
@@ -125,7 +114,7 @@ export default function Sidebar() {
                   href="/catalogo"
                   className="flex gap-[8px] items-center flex-1 min-w-0"
                 >
-                  <BookOpen className={`size-[20px] shrink-0 ${catActive ? "text-primary-50" : "text-primary-800"}`} />
+                  <AgoraIcon name="book-open" className={`size-[20px] shrink-0 ${catActive ? "text-primary-50" : "text-primary-800"}`} />
                   <span className={`font-medium text-[16px] leading-[23px] ${catActive ? "text-primary-50 font-semibold" : "text-primary-800"}`}>
                     Catálogo de Serviços
                   </span>
@@ -139,9 +128,9 @@ export default function Sidebar() {
                   aria-label={catOpen ? "Recolher sub-itens" : "Expandir sub-itens"}
                 >
                   {catOpen ? (
-                    <ChevronUp className={`size-[14px] ${catActive ? "text-primary-50" : "text-primary-800"}`} />
+                    <AgoraIcon name="chevron-up" className={`size-[14px] ${catActive ? "text-primary-50" : "text-primary-800"}`} />
                   ) : (
-                    <ChevronDown className={`size-[14px] ${catActive ? "text-primary-50" : "text-primary-800"}`} />
+                    <AgoraIcon name="chevron-down" className={`size-[14px] ${catActive ? "text-primary-50" : "text-primary-800"}`} />
                   )}
                 </button>
               </div>
@@ -175,7 +164,7 @@ export default function Sidebar() {
               href="/comparar"
               className="flex gap-[8px] items-center px-[16px] py-[6px] rounded-[4px] cursor-pointer hover:bg-primary-300/30 transition-colors"
             >
-              <Copy className="size-[20px] text-primary-800" />
+              <AgoraIcon name="copy" className="size-[20px] text-primary-800" />
               <span className="font-medium text-[16px] leading-[23px] text-primary-800">
                 Comparar
               </span>
@@ -186,13 +175,13 @@ export default function Sidebar() {
 
           <div className="flex flex-col gap-[8px]">
             <a className="flex gap-[8px] items-center px-[16px] py-[6px] rounded-[4px] cursor-pointer hover:bg-primary-300/30 transition-colors">
-              <Search className="size-[20px] text-primary-800" />
+              <AgoraIcon name="search" className="size-[20px] text-primary-800" />
               <span className="font-medium text-[16px] leading-[23px] text-primary-800">
                 Procurar
               </span>
             </a>
             <a className="flex gap-[8px] items-center px-[16px] py-[6px] rounded-[4px] cursor-pointer hover:bg-primary-300/30 transition-colors">
-              <Heart className="size-[20px] text-primary-800" />
+              <AgoraIcon name="like" className="size-[20px] text-primary-800" />
               <span className="font-medium text-[16px] leading-[23px] text-primary-800">
                 Favoritos
               </span>
@@ -204,13 +193,13 @@ export default function Sidebar() {
           <div className="h-px bg-primary-300" />
           <div className="flex flex-col gap-[8px]">
             <a className="flex gap-[8px] items-center px-[16px] py-[6px] rounded-[4px] cursor-pointer hover:bg-primary-300/30 transition-colors">
-              <Info className="size-[20px] text-primary-800" />
+              <AgoraIcon name="info-mark" className="size-[20px] text-primary-800" />
               <span className="font-medium text-[16px] leading-[23px] text-primary-800">
                 Ver Tutorial
               </span>
             </a>
             <a className="flex gap-[8px] items-center px-[16px] py-[6px] rounded-[4px] cursor-pointer hover:bg-primary-300/30 transition-colors">
-              <Headphones className="size-[20px] text-primary-800" />
+              <AgoraIcon name="help-support" className="size-[20px] text-primary-800" />
               <span className="font-medium text-[16px] leading-[23px] text-primary-800">
                 Centro de Apoio
               </span>

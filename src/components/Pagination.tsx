@@ -1,7 +1,7 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
 
+import { AgoraIcon } from "@/components/icons/AgoraIcon";
 interface PaginationProps {
   currentPage: number;
   totalPages: number;
@@ -25,7 +25,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
         disabled={currentPage === 1}
         className="size-[40px] flex items-center justify-center rounded-[8px] bg-neutral-100 text-primary-800 hover:bg-neutral-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
-        <ChevronLeft className="size-[18px]" />
+        <AgoraIcon name="chevron-left" className="size-[18px]" />
       </button>
 
       {getPageNumbers(currentPage, totalPages).map((page, i) =>
@@ -56,7 +56,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
         disabled={currentPage === totalPages}
         className="size-[40px] flex items-center justify-center rounded-[8px] bg-neutral-100 text-primary-800 hover:bg-neutral-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
-        <ChevronRight className="size-[18px]" />
+        <AgoraIcon name="chevron-right" className="size-[18px]" />
       </button>
     </div>
   );

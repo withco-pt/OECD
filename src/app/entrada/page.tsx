@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
+import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import { useRouter } from "next/navigation";
 
 const entities = [
@@ -162,7 +162,7 @@ export default function EntradaPage() {
                   }}
                 >
                   Aceder
-                  <ArrowRight className="size-[16px]" />
+                  <AgoraIcon name="arrow-right" className="size-[16px]" />
                 </div>
               </button>
             ))}

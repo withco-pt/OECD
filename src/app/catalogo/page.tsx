@@ -1,7 +1,7 @@
 "use client";
 
+import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import { useState, useMemo } from "react";
-import { ChevronDown, Search, AlertTriangle, XCircle, Heart, ArrowUpAZ, CheckCircle2, X } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import HelpTooltip from "@/components/HelpTooltip";
 import Breadcrumb from "@/components/Breadcrumb";
@@ -92,7 +92,7 @@ export default function CatalogoPage() {
             />
             {searchInput && (
               <button onClick={handleClearSearch} className="absolute right-[12px] top-1/2 -translate-y-1/2 text-neutral-700 hover:text-primary-900 transition-colors" aria-label="Limpar pesquisa">
-                <X className="size-[18px]" />
+                <AgoraIcon name="x" className="size-[18px]" />
               </button>
             )}
           </div>
@@ -100,7 +100,7 @@ export default function CatalogoPage() {
             onClick={handleSearch}
             className="bg-primary-800 text-white px-[24px] py-[12px] rounded-[8px] flex items-center gap-[8px] font-medium text-[16px] hover:bg-primary-900 transition-colors"
           >
-            Procurar <Search className="size-[18px]" />
+            Procurar <AgoraIcon name="search" className="size-[18px]" />
           </button>
         </div>
       </div>
@@ -121,7 +121,7 @@ export default function CatalogoPage() {
                   <option value="">Área Governamental ({AREAS.length})</option>
                   {AREAS.map((a) => <option key={a} value={a}>{a}</option>)}
                 </select>
-                <ChevronDown className="size-[14px] text-primary-600 absolute right-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
+                <AgoraIcon name="chevron-down" className="size-[14px] text-primary-600 absolute right-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
               {/* Entidade */}
               <div className="relative">
@@ -133,7 +133,7 @@ export default function CatalogoPage() {
                   <option value="">Entidade ({ENTITIES.length})</option>
                   {ENTITIES.map((e) => <option key={e} value={e}>{e}</option>)}
                 </select>
-                <ChevronDown className="size-[14px] text-primary-600 absolute right-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
+                <AgoraIcon name="chevron-down" className="size-[14px] text-primary-600 absolute right-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
               {/* Departamento */}
               <div className="relative">
@@ -145,7 +145,7 @@ export default function CatalogoPage() {
                   <option value="">Departamento ({DEPARTMENTS.length})</option>
                   {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
                 </select>
-                <ChevronDown className="size-[14px] text-primary-600 absolute right-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
+                <AgoraIcon name="chevron-down" className="size-[14px] text-primary-600 absolute right-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
             </div>
           </div>
@@ -153,11 +153,11 @@ export default function CatalogoPage() {
           <div className="flex flex-col gap-[8px]">
             <p className="text-[14px] font-semibold text-primary-900">Ordenar</p>
             <div className="relative">
-              <ArrowUpAZ className="size-[14px] text-primary-800 absolute left-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
+              <AgoraIcon name="sort-alpha-down" className="size-[14px] text-primary-800 absolute left-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
               <select className="appearance-none bg-primary-200 rounded-[8px] pl-[30px] pr-[32px] py-[8px] text-[14px] text-primary-800 focus:outline-none min-w-[180px]">
                 <option>Alfabeticamente</option>
               </select>
-              <ChevronDown className="size-[14px] text-primary-600 absolute right-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
+              <AgoraIcon name="chevron-down" className="size-[14px] text-primary-600 absolute right-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
         </div>
@@ -165,10 +165,10 @@ export default function CatalogoPage() {
         {/* Radio filters */}
         <div className="flex gap-[12px] flex-wrap items-center">
           {[
-            { label: "Incumprimento Legal", icon: <XCircle className="size-[14px] text-danger-800" />, active: filterNonCompliance, toggle: () => { setFilterNonCompliance(!filterNonCompliance); setCurrentPage(1); } },
-            { label: "Dados Incompletos", icon: <AlertTriangle className="size-[14px] text-warning-500" />, active: filterMissingData, toggle: () => { setFilterMissingData(!filterMissingData); setCurrentPage(1); } },
+            { label: "Incumprimento Legal", icon: <AgoraIcon name="x-circle" className="size-[14px] text-danger-800" />, active: filterNonCompliance, toggle: () => { setFilterNonCompliance(!filterNonCompliance); setCurrentPage(1); } },
+            { label: "Dados Incompletos", icon: <AgoraIcon name="alert-triangle" className="size-[14px] text-warning-500" />, active: filterMissingData, toggle: () => { setFilterMissingData(!filterMissingData); setCurrentPage(1); } },
             { label: "Matriz Adotada", icon: null, active: filterMatrix, toggle: () => { setFilterMatrix(!filterMatrix); setCurrentPage(1); } },
-            { label: "Favoritos", icon: <Heart className="size-[14px] text-primary-600" />, active: false, toggle: () => {} },
+            { label: "Favoritos", icon: <AgoraIcon name="like" className="size-[14px] text-primary-600" />, active: false, toggle: () => {} },
           ].map((f) => (
             <button
               key={f.label}
@@ -182,7 +182,7 @@ export default function CatalogoPage() {
               {f.icon}
               {f.label}
               {f.active
-                ? <CheckCircle2 className="size-[16px] text-primary-600 shrink-0" />
+                ? <AgoraIcon name="check-circle" className="size-[16px] text-primary-600 shrink-0" />
                 : <span className="size-[16px] border border-neutral-800 rounded-full inline-block shrink-0" />
               }
             </button>

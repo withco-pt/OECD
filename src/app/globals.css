@@ -1,29 +1,120 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700&display=swap');
 @import "tailwindcss";
 
+/* ==========================================================================
+   Ágora Design System — Color Styles
+   Fonte da verdade: Figma "ADS _ A - Ágora Design System" (node 1-741)
+   Valores extraídos das paint styles do ficheiro. Não alterar manualmente —
+   resincronizar a partir do Figma se o DS mudar.
+   ========================================================================== */
 @theme inline {
-  --color-primary-50: #FAFCFF;
-  --color-primary-100: #F2F6FF;
-  --color-primary-200: #E5EEFF;
-  --color-primary-300: #BBD1FD;
-  --color-primary-400: #5F93FC;
-  --color-primary-600: #034AD8;
-  --color-primary-700: #0338A2;
-  --color-primary-800: #002B82;
-  --color-primary-900: #021C51;
-  --color-secondary-200: #E3F4FF;
-  --color-secondary-800: #12669E;
-  --color-secondary-900: #0D4C75;
-  --color-neutral-50: #F7F8FA;
-  --color-neutral-100: #EEF0F4;
-  --color-neutral-200: #E2E5EB;
-  --color-neutral-700: #4A5568;
-  --color-neutral-800: #2D3748;
-  --color-danger-100: #FEE1E3;
-  --color-danger-800: #B20917;
-  --color-warning-100: #FFF4E6;
-  --color-warning-500: #F97316;
-  --color-warning-700: #C2410C;
+  /* Base */
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  /* Primary — ações primárias (botões, links) */
+  --color-primary-50: #fafcff;
+  --color-primary-100: #f2f6ff;
+  --color-primary-200: #e5eeff;
+  --color-primary-300: #bbd1fd;
+  --color-primary-400: #5f93fc;
+  --color-primary-500: #1a65fa;
+  --color-primary-600: #034ad8;
+  --color-primary-700: #0338a2;
+  --color-primary-800: #002b82;
+  --color-primary-900: #021c51;
+
+  /* Secondary — ações e fundos secundários */
+  --color-secondary-50: #f5fbff;
+  --color-secondary-100: #ebf6ff;
+  --color-secondary-200: #e3f4ff;
+  --color-secondary-300: #cceaff;
+  --color-secondary-400: #a0d8fe;
+  --color-secondary-500: #1ca3fc;
+  --color-secondary-600: #1993e3;
+  --color-secondary-700: #1682ca;
+  --color-secondary-800: #12669e;
+  --color-secondary-900: #0d4c75;
+
+  /* Neutral — superfícies, divisores, bordas */
+  --color-neutral-50: #f7f8fa;
+  --color-neutral-100: #f1f3f8;
+  --color-neutral-200: #e1e4ea;
+  --color-neutral-300: #cdd2dc;
+  --color-neutral-400: #bac0cc;
+  --color-neutral-500: #9ca6b8;
+  --color-neutral-600: #8893aa;
+  --color-neutral-700: #64718b;
+  --color-neutral-800: #475164;
+  --color-neutral-900: #2b363c;
+
+  /* Informative — feedback informativo */
+  --color-informative-50: #e5f6ff;
+  --color-informative-100: #e5f6ff;
+  --color-informative-200: #a5deff;
+  --color-informative-300: #77ceff;
+  --color-informative-400: #49bcff;
+  --color-informative-500: #0079bf;
+  --color-informative-600: #00598c;
+  --color-informative-700: #0b486b;
+  --color-informative-800: #083752;
+  --color-informative-900: #00121c;
+
+  /* Success — feedback positivo */
+  --color-success-50: #e5fff6;
+  --color-success-100: #c2f2e2;
+  --color-success-200: #7accb1;
+  --color-success-300: #36b289;
+  --color-success-400: #1f9970;
+  --color-success-500: #008558;
+  --color-success-600: #00724c;
+  --color-success-700: #005539;
+  --color-success-800: #013926;
+  --color-success-900: #001c13;
+
+  /* Warning — feedback de aviso */
+  --color-warning-50: #fff9e5;
+  --color-warning-100: #fff2cc;
+  --color-warning-200: #ffe699;
+  --color-warning-300: #ffe28c;
+  --color-warning-400: #ffd966;
+  --color-warning-500: #fbcb3c;
+  --color-warning-600: #fbbb3c;
+  --color-warning-700: #f2a222;
+  --color-warning-800: #b06112;
+  --color-warning-900: #80460d;
+
+  /* Danger — feedback negativo / ações perigosas */
+  --color-danger-50: #fef1f2;
+  --color-danger-100: #fee1e3;
+  --color-danger-200: #fec8cc;
+  --color-danger-300: #fca6ad;
+  --color-danger-400: #f8727d;
+  --color-danger-500: #de2d3b;
+  --color-danger-600: #d12332;
+  --color-danger-700: #c41826;
+  --color-danger-800: #b20917;
+  --color-danger-900: #86131d;
+
+  /* Focus — cor de foco acessível em fundos claros e escuros */
+  --color-focus: #f408fc;
+
+  /* Text — tokens semânticos de texto */
+  --color-text-white: #ffffff;
+  --color-text-light: #9ca6b8;
+  --color-text-medium: #64718b;
+  --color-text-dark: #2b363c;
+  --color-text-primary: #034ad8;
+  --color-text-primary-dark: #021c51;
+  --color-text-link: #034ad8;
+  --color-text-link-visited: #7d02de;
+
+  /* Data Visualization */
+  --color-dataviz-blue: #1a65fa;
+  --color-dataviz-green: #a0ea00;
+  --color-dataviz-purple: #4f00bd;
+  --color-dataviz-yellow: #fcd13a;
+
   --font-sans: 'Noto Sans', sans-serif;
 }
 

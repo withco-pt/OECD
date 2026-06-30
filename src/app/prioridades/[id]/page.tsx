@@ -1,8 +1,8 @@
 "use client";
 
+import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import { useParams } from "next/navigation";
 import { useState, useMemo } from "react";
-import { AlertTriangle, Heart, Gauge, AlertCircle, XCircle } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import Breadcrumb from "@/components/Breadcrumb";
 import SearchAndFilters from "@/components/SearchAndFilters";
@@ -45,32 +45,32 @@ export default function PriorityDetailPage() {
     {
       label: `Métrica${selectedMetric ? ` (${selectedMetric})` : ""}`,
       isDropdown: true as const,
-      icon: <Gauge className="size-[14px]" />,
+      icon: <AgoraIcon name="bar-chart" className="size-[14px]" />,
       value: selectedMetric,
       options: METRICS,
       onChange: (v: string) => setSelectedMetric(v),
     },
     {
       label: "Obrigatórios",
-      icon: <AlertCircle className="size-[14px]" />,
+      icon: <AgoraIcon name="alert-circle" className="size-[14px]" />,
       active: filterMandatory,
       onToggle: () => toggle(setFilterMandatory, filterMandatory),
     },
     {
       label: "Incumprimento Legal",
-      icon: <XCircle className="size-[14px] text-danger-800" />,
+      icon: <AgoraIcon name="x-circle" className="size-[14px] text-danger-800" />,
       active: filterNonCompliance,
       onToggle: () => toggle(setFilterNonCompliance, filterNonCompliance),
     },
     {
       label: "Dados Incompletos",
-      icon: <AlertTriangle className="size-[14px] text-warning-500" />,
+      icon: <AgoraIcon name="alert-triangle" className="size-[14px] text-warning-500" />,
       active: filterMissingData,
       onToggle: () => toggle(setFilterMissingData, filterMissingData),
     },
     {
       label: "Favoritos",
-      icon: <Heart className="size-[14px] text-primary-600" />,
+      icon: <AgoraIcon name="like" className="size-[14px] text-primary-600" />,
       active: filterFavorites,
       onToggle: () => toggle(setFilterFavorites, filterFavorites),
     },
@@ -110,7 +110,7 @@ export default function PriorityDetailPage() {
           </p>
           {missingDataCount > 0 && (
             <div className="inline-flex items-center gap-[8px] bg-warning-100 text-warning-700 rounded-full px-[12px] py-[5px] text-[14px] font-medium">
-              <AlertTriangle className="size-[16px] text-warning-500" />
+              <AgoraIcon name="alert-triangle" className="size-[16px] text-warning-500" />
               {missingDataCount} Indicadores com Dados Incompletos
             </div>
           )}

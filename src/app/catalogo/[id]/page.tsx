@@ -1,20 +1,8 @@
 "use client";
 
+import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import { useState, useMemo } from "react";
 import { useParams } from "next/navigation";
-import {
-  Heart,
-  AlertTriangle,
-  XCircle,
-  ChevronLeft,
-  ChevronRight,
-  ChevronDown,
-  ChevronUp,
-  Lightbulb,
-  Wrench,
-  LifeBuoy,
-  RefreshCw,
-} from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import Breadcrumb from "@/components/Breadcrumb";
 import SearchAndFilters from "@/components/SearchAndFilters";
@@ -94,9 +82,9 @@ function ExpandableSection({
           {title}
         </span>
         {open ? (
-          <ChevronUp className="size-[20px] text-primary-600" />
+          <AgoraIcon name="chevron-up" className="size-[20px] text-primary-600" />
         ) : (
-          <ChevronDown className="size-[20px] text-primary-600" />
+          <AgoraIcon name="chevron-down" className="size-[20px] text-primary-600" />
         )}
       </button>
       {open && (
@@ -156,19 +144,19 @@ export default function ServiceDetailPage() {
     },
     {
       label: "Incumprimento Legal",
-      icon: <XCircle className="size-[14px] text-danger-800" />,
+      icon: <AgoraIcon name="x-circle" className="size-[14px] text-danger-800" />,
       active: filterNonCompliance,
       onToggle: () => { setFilterNonCompliance(!filterNonCompliance); setCurrentPage(1); },
     },
     {
       label: "Dados Incompletos",
-      icon: <AlertTriangle className="size-[14px] text-warning-500" />,
+      icon: <AgoraIcon name="alert-triangle" className="size-[14px] text-warning-500" />,
       active: filterMissingData,
       onToggle: () => { setFilterMissingData(!filterMissingData); setCurrentPage(1); },
     },
     {
       label: "Favoritos",
-      icon: <Heart className="size-[14px] text-primary-600" />,
+      icon: <AgoraIcon name="like" className="size-[14px] text-primary-600" />,
       active: filterFavorites,
       onToggle: () => { setFilterFavorites(!filterFavorites); setCurrentPage(1); },
     },
@@ -205,7 +193,7 @@ export default function ServiceDetailPage() {
           <div className="flex items-center gap-[10px] flex-wrap">
             {nonComplianceCount > 0 && (
               <div className="bg-danger-100 flex items-center gap-[6px] px-[10px] py-[5px] rounded-full">
-                <XCircle className="size-[16px] text-danger-800" />
+                <AgoraIcon name="x-circle" className="size-[16px] text-danger-800" />
                 <span className="text-[13px] font-medium text-danger-800">
                   {nonComplianceCount} Indicador{nonComplianceCount !== 1 ? "es" : ""} em Incumprimento Legal
                 </span>
@@ -213,7 +201,7 @@ export default function ServiceDetailPage() {
             )}
             {missingDataCount > 0 && (
               <div className="bg-warning-100 flex items-center gap-[6px] px-[10px] py-[5px] rounded-full">
-                <AlertTriangle className="size-[16px] text-warning-500" />
+                <AgoraIcon name="alert-triangle" className="size-[16px] text-warning-500" />
                 <span className="text-[13px] font-medium text-warning-700">
                   {missingDataCount} Indicador{missingDataCount !== 1 ? "es" : ""} com Dados Incompletos
                 </span>
@@ -222,10 +210,10 @@ export default function ServiceDetailPage() {
           </div>
           <div className="flex gap-[12px] shrink-0">
             <button className="flex items-center gap-[8px] bg-secondary-800 text-white rounded-full px-[20px] py-[10px] text-[14px] font-medium hover:bg-secondary-900 transition-colors">
-              Alterar Serviço <RefreshCw className="size-[16px]" />
+              Alterar Serviço <AgoraIcon name="refresh-ccw" className="size-[16px]" />
             </button>
             <button className="flex items-center gap-[8px] bg-secondary-800 text-white rounded-full px-[20px] py-[10px] text-[14px] font-medium hover:bg-secondary-900 transition-colors">
-              Adicionar aos Favoritos <Heart className="size-[16px]" />
+              Adicionar aos Favoritos <AgoraIcon name="like" className="size-[16px]" />
             </button>
           </div>
         </div>
@@ -273,7 +261,7 @@ export default function ServiceDetailPage() {
               disabled={currentPage === 1}
               className="size-[40px] flex items-center justify-center rounded-[8px] bg-neutral-100 text-primary-800 hover:bg-neutral-200 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <ChevronLeft className="size-[18px]" />
+              <AgoraIcon name="chevron-left" className="size-[18px]" />
             </button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
               <button
@@ -293,7 +281,7 @@ export default function ServiceDetailPage() {
               disabled={currentPage === totalPages}
               className="size-[40px] flex items-center justify-center rounded-[8px] bg-neutral-100 text-primary-800 hover:bg-neutral-200 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <ChevronRight className="size-[18px]" />
+              <AgoraIcon name="chevron-right" className="size-[18px]" />
             </button>
           </div>
         )}
@@ -302,7 +290,7 @@ export default function ServiceDetailPage() {
       {/* Innovation Suggestions */}
       <div className="mb-[48px]">
         <div className="flex items-center gap-[8px] mb-[24px]">
-          <Lightbulb className="size-[24px] text-primary-600" />
+          <AgoraIcon name="award" className="size-[24px] text-primary-600" />
           <h2 className="text-[28px] font-bold text-primary-900">
             Como Inovar para Melhorar o Serviço?
           </h2>
@@ -327,7 +315,7 @@ export default function ServiceDetailPage() {
       {/* Tools Section */}
       <div className="mb-[48px]">
         <div className="flex items-center gap-[8px] mb-[24px]">
-          <Wrench className="size-[24px] text-primary-600" />
+          <AgoraIcon name="hardware-settings" className="size-[24px] text-primary-600" />
           <h2 className="text-[28px] font-bold text-primary-900">
             Ferramentas para a Inovação
           </h2>
@@ -346,7 +334,7 @@ export default function ServiceDetailPage() {
       {/* Help Section */}
       <div className="mb-[48px]">
         <div className="flex items-center gap-[8px] mb-[24px]">
-          <LifeBuoy className="size-[24px] text-primary-600" />
+          <AgoraIcon name="help-support" className="size-[24px] text-primary-600" />
           <h2 className="text-[28px] font-bold text-primary-900">
             Obtenha Ajuda para a Inovação
           </h2>

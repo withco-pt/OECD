@@ -1,7 +1,7 @@
 "use client";
 
+import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import { useState, useMemo } from "react";
-import { Layers, Gauge, AlertCircle, XCircle, AlertTriangle, Heart } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import HelpTooltip from "@/components/HelpTooltip";
 import SearchAndFilters from "@/components/SearchAndFilters";
@@ -48,7 +48,7 @@ export default function IndicadoresPage() {
     {
       label: `Prioridades Temáticas${selectedPriority ? ` (${selectedPriority})` : " (0)"}`,
       isDropdown: true as const,
-      icon: <Layers className="size-[14px]" />,
+      icon: <AgoraIcon name="layers-menu" className="size-[14px]" />,
       value: selectedPriority,
       options: PRIORITIES,
       onChange: (v: string) => { setSelectedPriority(v); setCurrentPage(1); },
@@ -56,32 +56,32 @@ export default function IndicadoresPage() {
     {
       label: `Métrica${selectedMetric ? ` (${selectedMetric})` : " (0)"}`,
       isDropdown: true as const,
-      icon: <Gauge className="size-[14px]" />,
+      icon: <AgoraIcon name="bar-chart" className="size-[14px]" />,
       value: selectedMetric,
       options: METRICS,
       onChange: (v: string) => { setSelectedMetric(v); setCurrentPage(1); },
     },
     {
       label: "Obrigatórios",
-      icon: <AlertCircle className="size-[14px]" />,
+      icon: <AgoraIcon name="alert-circle" className="size-[14px]" />,
       active: filterMandatory,
       onToggle: () => toggle(setFilterMandatory, filterMandatory),
     },
     {
       label: "Incumprimento Legal",
-      icon: <XCircle className="size-[14px] text-danger-800" />,
+      icon: <AgoraIcon name="x-circle" className="size-[14px] text-danger-800" />,
       active: filterNonCompliance,
       onToggle: () => toggle(setFilterNonCompliance, filterNonCompliance),
     },
     {
       label: "Dados Incompletos",
-      icon: <AlertTriangle className="size-[14px] text-warning-500" />,
+      icon: <AgoraIcon name="alert-triangle" className="size-[14px] text-warning-500" />,
       active: filterMissingData,
       onToggle: () => toggle(setFilterMissingData, filterMissingData),
     },
     {
       label: "Favoritos",
-      icon: <Heart className="size-[14px] text-primary-600" />,
+      icon: <AgoraIcon name="like" className="size-[14px] text-primary-600" />,
       active: filterFavorites,
       onToggle: () => toggle(setFilterFavorites, filterFavorites),
     },
