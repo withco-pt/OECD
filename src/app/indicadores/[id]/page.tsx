@@ -6,11 +6,35 @@ import { useParams } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
 import Breadcrumb from "@/components/Breadcrumb";
 import HelpTooltip from "@/components/HelpTooltip";
+import IndicatorViz from "@/components/IndicatorViz";
+import { useSelectedService } from "@/context/SelectedServiceContext";
 import { indicators, priorities } from "@/data/mock";
 
 /* ── Gauge SVG (exported from Figma) ─────────────────────────── */
 
-function FigmaGauge() {
+function FigmaGauge({ value }: { value: number | null }) {
+  // Geometria do semicírculo (centro na base, raio exterior ~220).
+  const cx = 220.5;
+  const cy = 220;
+  const hasValue = value != null;
+  const v = hasValue ? Math.min(10, Math.max(1, value)) : 0;
+  // Ângulo do centro do segmento correspondente ao valor (1→esquerda, 10→direita).
+  const rad = (180 - ((v - 0.5) / 10) * 180) * (Math.PI / 180);
+  const ux = Math.cos(rad);
+  const uy = -Math.sin(rad);
+  const px = Math.sin(rad); // perpendicular ao raio
+  const py = Math.cos(rad);
+  const tipR = 214;
+  const baseR = 238;
+  const halfW = 9;
+  // Arredondar para evitar mismatch de hidratação (float difere server/client).
+  const r = (n: number) => n.toFixed(2);
+  const bcx = cx + baseR * ux;
+  const bcy = cy + baseR * uy;
+  const tip = `${r(cx + tipR * ux)},${r(cy + tipR * uy)}`;
+  const b1 = `${r(bcx + halfW * px)},${r(bcy + halfW * py)}`;
+  const b2 = `${r(bcx - halfW * px)},${r(bcy - halfW * py)}`;
+
   return (
     <svg width="441" height="222" viewBox="0 0 441 222" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[441px]">
       <path d="M368.642 219.853C368.574 203.926 365.992 188.592 361.27 174.228L429.63 152.067C436.613 173.411 440.417 196.192 440.485 219.853H368.642Z" fill="#00724C"/>
@@ -43,7 +67,190 @@ function FigmaGauge() {
       <path d="M355.551 84.1822C356.158 84.88 356.586 85.5965 356.837 86.3318C357.098 87.0575 357.153 87.7583 357.002 88.4344C356.86 89.1215 356.474 89.7394 355.842 90.2882C355.366 90.7023 354.864 90.9636 354.336 91.0724C353.808 91.1811 353.262 91.1897 352.696 91.0981C352.141 90.9969 351.586 90.8281 351.03 90.5915C351.202 91.2589 351.307 91.9165 351.345 92.5641C351.404 93.2132 351.34 93.8225 351.155 94.3921C350.979 94.9728 350.62 95.499 350.077 95.9708C349.412 96.5485 348.692 96.8831 347.916 96.9744C347.16 97.0672 346.39 96.9301 345.604 96.5631C344.818 96.1961 344.079 95.6138 343.385 94.8163C342.644 93.9634 342.136 93.1217 341.861 92.291C341.596 91.4715 341.561 90.7044 341.757 89.9899C341.963 89.2657 342.405 88.61 343.08 88.0226C343.623 87.5508 344.19 87.2524 344.781 87.1273C345.373 87.0022 345.971 86.9972 346.577 87.1124C347.183 87.2276 347.773 87.4145 348.348 87.6732C348.242 87.104 348.193 86.544 348.2 85.9932C348.218 85.4327 348.333 84.905 348.545 84.41C348.756 83.915 349.1 83.4606 349.576 83.0465C350.197 82.5073 350.851 82.2202 351.54 82.1852C352.24 82.1405 352.937 82.2933 353.63 82.6434C354.333 83.0047 354.974 83.5176 355.551 84.1822ZM344.587 89.6884C344.044 90.1602 343.759 90.7385 343.732 91.4232C343.716 92.0982 344.045 92.8234 344.719 93.5988C345.162 94.1083 345.605 94.4618 346.049 94.6593C346.514 94.8582 346.962 94.9259 347.392 94.8624C347.835 94.7893 348.238 94.5939 348.604 94.2762C348.969 93.9584 349.204 93.5795 349.307 93.1394C349.421 92.7104 349.433 92.2328 349.345 91.7065C349.278 91.1816 349.14 90.6206 348.932 90.0235L348.815 89.6876C348.232 89.3972 347.69 89.198 347.188 89.0901C346.685 88.9821 346.218 88.9703 345.786 89.0545C345.363 89.1497 344.963 89.361 344.587 89.6884ZM354.158 85.3643C353.686 84.8216 353.159 84.483 352.575 84.3485C352.001 84.2252 351.459 84.3849 350.95 84.8279C350.584 85.1456 350.351 85.5038 350.25 85.9025C350.15 86.3012 350.135 86.7319 350.207 87.1946C350.29 87.6477 350.402 88.1237 350.544 88.6226C351.007 88.8422 351.448 89.0135 351.866 89.1363C352.295 89.2495 352.709 89.2785 353.108 89.2232C353.518 89.1582 353.906 88.9669 354.272 88.6492C354.781 88.2063 355.015 87.692 354.972 87.1065C354.93 86.521 354.659 85.9403 354.158 85.3643Z" fill="white" fillOpacity="0.9"/>
       <path d="M387.727 140.024C386.952 140.472 386.144 140.862 385.302 141.195C384.474 141.521 383.639 141.749 382.799 141.878C381.971 142 381.147 141.968 380.327 141.78C379.527 141.598 378.758 141.22 378.02 140.646C377.302 140.078 376.639 139.266 376.03 138.211C375.883 137.957 375.723 137.651 375.551 137.293C375.378 136.935 375.257 136.624 375.189 136.358L376.886 135.379C376.949 135.664 377.046 135.964 377.176 136.278C377.314 136.605 377.464 136.909 377.625 137.188C378.132 138.065 378.673 138.71 379.25 139.123C379.848 139.54 380.477 139.779 381.138 139.838C381.806 139.909 382.496 139.842 383.207 139.635C383.917 139.428 384.63 139.135 385.343 138.757L385.277 138.642C384.875 138.621 384.472 138.54 384.069 138.399C383.667 138.259 383.278 138.026 382.903 137.7C382.536 137.387 382.191 136.951 381.868 136.391C381.42 135.616 381.189 134.834 381.175 134.046C381.168 133.271 381.377 132.548 381.804 131.878C382.243 131.201 382.908 130.605 383.798 130.091C384.764 129.534 385.692 129.235 386.584 129.194C387.496 129.159 388.327 129.366 389.077 129.814C389.835 130.275 390.47 130.95 390.984 131.84C391.366 132.501 391.601 133.187 391.69 133.898C391.778 134.61 391.7 135.324 391.453 136.043C391.207 136.761 390.779 137.457 390.168 138.132C389.558 138.806 388.744 139.437 387.727 140.024ZM389.336 132.816C388.918 132.092 388.335 131.64 387.588 131.462C386.841 131.283 385.972 131.48 384.98 132.052C384.167 132.522 383.635 133.083 383.385 133.736C383.142 134.401 383.256 135.141 383.725 135.954C384.048 136.514 384.442 136.93 384.905 137.205C385.381 137.472 385.857 137.621 386.332 137.652C386.82 137.675 387.255 137.577 387.636 137.357C388.018 137.137 388.366 136.859 388.681 136.525C388.996 136.19 389.251 135.823 389.444 135.424C389.637 135.024 389.729 134.598 389.722 134.145C389.722 133.704 389.593 133.261 389.336 132.816Z" fill="white" fillOpacity="0.9"/>
       <path d="M390.871 185.792L390.515 183.508L400.825 181.9C401.188 181.844 401.521 181.792 401.826 181.744C402.147 181.709 402.454 181.676 402.746 181.645C403.053 181.612 403.345 181.581 403.623 181.553C403.405 181.394 403.193 181.226 402.987 181.051C402.782 180.875 402.543 180.674 402.27 180.449L400.635 178.967L401.931 177.561L406.103 181.456L406.402 183.37L390.871 185.792ZM401.125 200.397C399.863 200.593 398.724 200.667 397.706 200.618C396.691 200.583 395.802 200.41 395.04 200.098C394.296 199.798 393.689 199.336 393.22 198.711C392.753 198.1 392.447 197.324 392.3 196.381C392.114 195.192 392.281 194.163 392.799 193.295C393.317 192.427 394.141 191.712 395.271 191.15C396.416 190.585 397.822 190.172 399.49 189.912C401.172 189.65 402.634 189.593 403.875 189.741C405.118 189.904 406.112 190.321 406.855 190.992C407.613 191.661 408.09 192.626 408.287 193.888C408.472 195.077 408.306 196.105 407.788 196.974C407.286 197.854 406.47 198.575 405.34 199.138C404.212 199.715 402.807 200.134 401.125 200.397ZM399.85 192.218C398.501 192.428 397.392 192.698 396.522 193.027C395.653 193.355 395.026 193.765 394.642 194.256C394.26 194.761 394.125 195.369 394.235 196.079C394.346 196.79 394.652 197.321 395.153 197.674C395.67 198.039 396.393 198.246 397.321 198.294C398.267 198.354 399.413 198.28 400.762 198.069C402.111 197.859 403.211 197.583 404.064 197.242C404.934 196.914 405.56 196.497 405.941 195.992C406.325 195.501 406.462 194.9 406.351 194.19C406.24 193.479 405.926 192.941 405.409 192.577C404.894 192.226 404.172 192.027 403.243 191.978C402.329 191.928 401.198 192.008 399.85 192.218Z" fill="white" fillOpacity="0.9"/>
+      {/* Valor central */}
+      <text
+        x={cx}
+        y={205}
+        textAnchor="middle"
+        fontSize="54"
+        fontWeight="700"
+        fill="#021c51"
+        fontFamily="Noto Sans, sans-serif"
+      >
+        {hasValue ? value : "—"}
+      </text>
+      {/* Seta indicadora */}
+      {hasValue && <polygon points={`${tip} ${b1} ${b2}`} fill="#021c51" />}
     </svg>
+  );
+}
+
+/* ── Ícones auxiliares (não existem no Ágora) ───────────────── */
+
+function MailIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden="true">
+      <rect x="2" y="4" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M3 5.5l7 5 7-5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function PhoneIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden="true">
+      <path
+        d="M4 3.5c0-.8.7-1.3 1.5-1.2l2 .3c.6.1 1.1.6 1.2 1.2l.4 2.2c.1.5-.1 1-.5 1.3l-1.2 1c1 2 2.5 3.5 4.5 4.5l1-1.2c.3-.4.8-.6 1.3-.5l2.2.4c.6.1 1.1.6 1.2 1.2l.3 2c.1.8-.4 1.5-1.2 1.5C10.5 17 3 9.5 4 3.5Z"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function PinIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden="true">
+      <path d="M10 18s6-5.5 6-10a6 6 0 10-12 0c0 4.5 6 10 6 10Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+      <circle cx="10" cy="8" r="2" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
+/* ── Cartão de contacto (Ferramentas/Ajuda) ─────────────────── */
+
+function ContactCard({
+  entity,
+  title,
+  email,
+  phone,
+  address,
+  showIcons = false,
+}: {
+  entity?: string;
+  title: string;
+  email: string;
+  phone: string;
+  address: string;
+  showIcons?: boolean;
+}) {
+  return (
+    <div className="bg-white rounded-[10px] border border-primary-200 p-[16px] flex flex-col gap-[10px] flex-1 min-w-0">
+      {entity && (
+        <div className="flex items-start justify-between gap-[8px]">
+          <span className="text-[13px] font-semibold text-secondary-900">{entity}</span>
+          {showIcons && (
+            <div className="flex gap-[8px] items-center shrink-0">
+              <AgoraIcon name="like" className="size-[16px] text-primary-800" />
+              <HelpTooltip size={16} />
+            </div>
+          )}
+        </div>
+      )}
+      <h4 className="text-[16px] font-bold text-primary-900 leading-snug">{title}</h4>
+      <div className="flex flex-col gap-[6px] text-[13px] text-primary-800">
+        <span className="flex items-center gap-[8px]">
+          <MailIcon className="size-[15px] shrink-0 text-primary-700" />
+          {email}
+        </span>
+        <span className="flex items-center gap-[8px]">
+          <PhoneIcon className="size-[15px] shrink-0 text-primary-700" />
+          {phone}
+        </span>
+        <span className="flex items-start gap-[8px]">
+          <PinIcon className="size-[15px] shrink-0 text-primary-700 mt-[2px]" />
+          {address}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Cartão de caso de estudo (OPSI) ─────────────────────────── */
+
+function CaseStudyCard({ title, flag, country }: { title: string; flag: string; country: string }) {
+  return (
+    <div className="bg-white rounded-[10px] border border-primary-200 p-[16px] flex flex-col gap-[10px] flex-1 min-w-0">
+      <span className="inline-flex items-center gap-[6px] text-[12px] font-medium text-primary-600">
+        <AgoraIcon name="layers-menu" size={13} />
+        Simplicidade
+      </span>
+      <h4 className="text-[14px] font-bold text-primary-900 leading-snug flex-1">{title}</h4>
+      <span className="inline-flex items-center gap-[6px] text-[13px] text-primary-800 bg-primary-100 rounded-full px-[10px] py-[4px] self-start">
+        <span aria-hidden="true">{flag}</span> {country}
+      </span>
+    </div>
+  );
+}
+
+/* ── Diagrama do Duplo Diamante (Acelerador de Inovação) ─────── */
+
+const DIAMOND_STEPS = [
+  { label: "SCOPE", caption: "What challenges are we addressing?", offset: 44 },
+  { label: "ENGAGE", caption: "Who are we designing for and why?", offset: 0 },
+  { label: "UNDERSTAND", caption: "What is happening now, and why?", offset: 10 },
+  { label: "RE-FRAME", caption: "What is the real challenge we need to solve?", offset: 36, highlight: true },
+  { label: "DESIGN", caption: "What ideas could work in the real world?", offset: 10 },
+  { label: "TEST", caption: "Would the ideas likely work?", offset: 0 },
+  { label: "COMMUNICATE", caption: "What ongoing support for the new solution?", offset: 44 },
+];
+
+function DoubleDiamondDiagram() {
+  return (
+    <div className="flex flex-col gap-[10px] w-full">
+      <div className="flex justify-between text-[13px] font-bold text-primary-900 px-[4px]">
+        <span>Today</span>
+        <span>Tomorrow</span>
+      </div>
+      <div className="flex items-start justify-between gap-[4px]">
+        {DIAMOND_STEPS.map((s) => (
+          <div
+            key={s.label}
+            className={`size-[30px] rotate-45 rounded-[4px] flex items-center justify-center shrink-0 ${
+              s.highlight ? "bg-secondary-600" : "bg-primary-600"
+            }`}
+            style={{ marginTop: s.offset }}
+          >
+            <span className="-rotate-45 text-white text-[9px] font-bold">{s.label[0]}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-between gap-[4px]">
+        {DIAMOND_STEPS.map((s) => (
+          <div key={s.label} className="flex-1 text-center">
+            <p className="text-[8px] font-bold text-primary-900 mb-[2px]">{s.label}</p>
+            <p className="text-[8px] text-primary-700 leading-tight">{s.caption}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Logótipo do Livro Amarelo ────────────────────────────────── */
+
+function LivroAmareloLogo() {
+  return (
+    <div className="flex items-center gap-[12px]">
+      <div className="bg-warning-500 rounded-[10px] p-[10px] shrink-0">
+        <AgoraIcon name="book-open" className="size-[32px] text-white" />
+      </div>
+      <div className="leading-tight whitespace-nowrap">
+        <p className="text-[20px] font-extrabold text-primary-900">LIVRO</p>
+        <p className="text-[20px] font-extrabold text-primary-900">AMARELO</p>
+      </div>
+    </div>
+  );
+}
+
+/* ── Botão "Aceder" (Ferramentas/Ajuda) ──────────────────────── */
+
+function AccessButton({ children }: { children: React.ReactNode }) {
+  return (
+    <button className="flex items-center gap-[8px] bg-primary-800 text-white rounded-full px-[20px] py-[10px] text-[14px] font-medium hover:bg-primary-900 transition-colors w-fit">
+      {children} <AgoraIcon name="arrow-right-anchor" className="size-[16px]" />
+    </button>
   );
 }
 
@@ -115,21 +322,47 @@ const innovationSuggestions = [
   },
 ];
 
-const toolRows = [
-  "Toolkit de Inovação para Serviços Públicos (OPSI)",
-  "Guia de Transformação Digital de Serviços Públicos",
-  "Framework de Design de Serviços Centrado no Cidadão",
+const caseStudies = [
+  {
+    title:
+      "Superando a Complexidade nos Serviços Públicos: Facilitando o Acesso ao Sistema de Eliminação de Barreiras Burocráticas",
+    flag: "🇵🇪",
+    country: "Peru",
+  },
+  {
+    title: "Programa Amigável de Aprovações para Pequenas Empresas na Austrália",
+    flag: "🇦🇺",
+    country: "Austrália",
+  },
+  {
+    title: "Redesenho do serviço de atribuição do Certificado Único de Incapacidade Argentina",
+    flag: "🇦🇷",
+    country: "Argentina",
+  },
 ];
 
-const helpRows = [
-  "Contactar a equipa de suporte à inovação da OCDE",
-  "Agendar sessão de consultoria com especialistas OPSI",
+const goodPerformanceServices = [
+  {
+    entity: "Instituto dos Registos e do Notariado, I.P.",
+    title: "Obtenção de informação do Cartão de Cidadão",
+    email: "geral@irn.mj.pt",
+    phone: "+351 21 798 55 00",
+    address: "Avenida Dom João II, n.º 1.01.01 D, Edifício H, Parque das Nações, Apartado 8295, 1990-097 Lisboa",
+  },
+  {
+    entity: "Autoridade Nacional de Segurança Rodoviária",
+    title: "Consulta de pontos da Carta de Condução",
+    email: "mail@ansr.pt",
+    phone: "+351 21 423 6800",
+    address: "Av. do Casal de Cabanas, n.º 1, 2734-507",
+  },
 ];
 
 export default function IndicatorDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const [activeTab, setActiveTab] = useState<string>(tabs[0]);
+  const { selectedService } = useSelectedService();
 
   const indicator = indicators.find((ind) => ind.id === id);
 
@@ -209,7 +442,7 @@ export default function IndicatorDetailPage() {
         <div className="flex items-center justify-between gap-[16px]">
           <div>
             {indicator.missingData && (
-              <span className="inline-flex items-center gap-[6px] text-warning-900 text-[14px] font-medium">
+              <span className="inline-flex items-center gap-[6px] bg-warning-100 text-warning-900 text-[13px] font-medium px-[10px] py-[5px] rounded-full">
                 <AgoraIcon name="alert-triangle" size={16} className="text-warning-900" />
                 Indicador com Dados Incompletos
               </span>
@@ -247,6 +480,13 @@ export default function IndicatorDetailPage() {
       <div className="flex gap-[24px] mb-[32px]">
         {/* Left column */}
         <div className="flex-1 min-w-0">
+          {activeTab === "Visualização ao Longo do Tempo" ? (
+            <IndicatorViz tab="tempo" indicatorName={indicator.name} service={selectedService.name} metric={indicator.metric} />
+          ) : activeTab === "Visualização em Mapa" ? (
+            <IndicatorViz tab="mapa" indicatorName={indicator.name} service={selectedService.name} metric={indicator.metric} />
+          ) : activeTab === "Visualização por Canais" ? (
+            <IndicatorViz tab="canais" indicatorName={indicator.name} service={selectedService.name} metric={indicator.metric} />
+          ) : (
           <div className="bg-primary-100 rounded-[12px] shadow-sm border border-neutral-100 overflow-hidden">
             {/* Card header */}
             <div className="px-[24px] pt-[24px] pb-[16px]">
@@ -265,7 +505,7 @@ export default function IndicatorDetailPage() {
             <div className="flex items-start gap-[24px] px-[24px] pt-[24px] pb-[16px]">
               {/* Gauge SVG */}
               <div className="flex-1 min-w-0">
-                <FigmaGauge />
+                <FigmaGauge value={indicator.value} />
               </div>
 
               {/* Dropdowns */}
@@ -314,6 +554,7 @@ export default function IndicatorDetailPage() {
               </button>
             </div>
           </div>
+          )}
         </div>
 
         {/* Right sidebar: Ficha Técnica */}
@@ -387,9 +628,64 @@ export default function IndicatorDetailPage() {
           Ferramentas para a Inovação
         </h2>
         <div className="space-y-[8px]">
-          {toolRows.map((title) => (
-            <ExpandableRow key={title} title={title} />
-          ))}
+          <ExpandableRow title="Acelerador de Inovação nos Serviços Públicos">
+            <div className="flex gap-[24px] items-center flex-wrap">
+              <div className="flex-1 min-w-[280px] flex flex-col gap-[16px]">
+                <p>
+                  O Acelerador de Inovação nos Serviços Públicos é uma ferramenta reutilizável e de
+                  autoaplicação que capacita os profissionais da administração pública a aplicarem a
+                  inovação no desenho e na prestação de serviços. A ferramenta está estruturada em
+                  sete etapas sequenciais, cada uma contendo modelos, guias de utilização e dicas
+                  sobre como alcançar resultados eficazes na aplicação da inovação para melhorar os
+                  serviços públicos.
+                </p>
+                <AccessButton>Aceder ao Toolkit</AccessButton>
+              </div>
+              <div className="w-[300px] shrink-0">
+                <DoubleDiamondDiagram />
+              </div>
+            </div>
+          </ExpandableRow>
+
+          <ExpandableRow title="Casos de Estudo do OPSI – Observatório de Inovação do Setor Público">
+            <div className="flex flex-col gap-[16px]">
+              <p>
+                Esta secção apresenta um pequeno número de casos de estudo internacionais
+                relacionados com as prioridades temáticas da Matriz. Pretendem estimular ideias e
+                demonstrar diferentes potenciais abordagens.
+              </p>
+              <div className="flex gap-[16px] flex-wrap">
+                {caseStudies.map((c) => (
+                  <CaseStudyCard key={c.title} title={c.title} flag={c.flag} country={c.country} />
+                ))}
+              </div>
+              <AccessButton>Aceder ao OPSI</AccessButton>
+            </div>
+          </ExpandableRow>
+
+          <ExpandableRow title="Livro Amarelo">
+            <div className="flex gap-[24px] items-center flex-wrap">
+              <div className="flex-1 min-w-[280px] flex flex-col gap-[12px]">
+                <p>
+                  Consulte os elogios, sugestões ou reclamações dos utilizadores no Livro Amarelo
+                  para identificar oportunidades de melhoria e promover a inovação no seu serviço.
+                </p>
+                <p>
+                  A implementação do Livro Amarelo Eletrónico (LAE) foi alicerçada pelo Decreto-Lei
+                  n.º 74/2017, de 21 de junho, que determina a necessidade de digitalizar os
+                  processos de reclamação, sugestão e elogios no setor público. O LAE constitui uma
+                  plataforma digital destinada ao setor público, permitindo aos cidadãos submeterem
+                  reclamações, elogios e sugestões sobre os serviços prestados por entidades
+                  públicas, assegurando maior acessibilidade, transparência e eficiência na
+                  interação entre os cidadãos e a Administração Pública.
+                </p>
+                <AccessButton>Aceder ao Livro Amarelo Eletrónico</AccessButton>
+              </div>
+              <div className="shrink-0">
+                <LivroAmareloLogo />
+              </div>
+            </div>
+          </ExpandableRow>
         </div>
       </section>
 
@@ -399,9 +695,44 @@ export default function IndicatorDetailPage() {
           Obtenha Ajuda para a Inovação
         </h2>
         <div className="space-y-[8px]">
-          {helpRows.map((title) => (
-            <ExpandableRow key={title} title={title} bg="bg-secondary-200" />
-          ))}
+          <ExpandableRow title="Serviços com Bom Desempenho no Indicador" bg="bg-secondary-200">
+            <div className="flex gap-[24px] items-start flex-wrap">
+              <p className="flex-1 min-w-[220px] max-w-[300px]">
+                Colabore com os serviços que demonstram melhores resultados neste indicador, para
+                identificar experiências e boas práticas que possa replicar no seu serviço.
+              </p>
+              <div className="flex gap-[16px] flex-1 min-w-[280px] flex-wrap">
+                {goodPerformanceServices.map((s) => (
+                  <ContactCard
+                    key={s.entity}
+                    entity={s.entity}
+                    title={s.title}
+                    email={s.email}
+                    phone={s.phone}
+                    address={s.address}
+                    showIcons
+                  />
+                ))}
+              </div>
+            </div>
+          </ExpandableRow>
+
+          <ExpandableRow title="Contacte a ARTE" bg="bg-secondary-200">
+            <div className="flex gap-[24px] items-start flex-wrap">
+              <p className="flex-1 min-w-[220px] max-w-[300px]">
+                Caso necessite de apoio na melhoria do seu serviço pode entrar em contacto com a
+                ARTE – Agência para a Reforma Tecnológica do Estado, I.P.
+              </p>
+              <div className="flex-1 min-w-[280px]">
+                <ContactCard
+                  title="ARTE – Agência para a Reforma Tecnológica do Estado, I.P."
+                  email="arte@arte.gov.pt"
+                  phone="+351 21 798 55 00"
+                  address="Rua de Santa Marta n.º 55, 1150 - 294 Lisboa"
+                />
+              </div>
+            </div>
+          </ExpandableRow>
         </div>
       </section>
     </AppLayout>

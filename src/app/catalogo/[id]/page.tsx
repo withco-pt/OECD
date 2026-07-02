@@ -111,7 +111,7 @@ export default function ServiceDetailPage() {
 
   if (!service) {
     return (
-      <AppLayout>
+      <AppLayout hideSwapBar>
         <div className="text-center py-[80px]">
           <p className="text-[18px] text-primary-800">Serviço não encontrado.</p>
         </div>
@@ -163,7 +163,7 @@ export default function ServiceDetailPage() {
   ];
 
   return (
-    <AppLayout>
+    <AppLayout hideSwapBar>
       <Breadcrumb
         items={[
           { label: "Catálogo de Serviços", href: "/catalogo" },
