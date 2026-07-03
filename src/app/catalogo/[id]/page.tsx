@@ -8,6 +8,7 @@ import Breadcrumb from "@/components/Breadcrumb";
 import SearchAndFilters from "@/components/SearchAndFilters";
 import IndicatorCard from "@/components/IndicatorCard";
 import { services, indicators } from "@/data/mock";
+import { useSelectedService } from "@/context/SelectedServiceContext";
 
 const ITEMS_PER_PAGE = 9;
 
@@ -102,6 +103,7 @@ export default function ServiceDetailPage() {
   const params = useParams();
   const serviceId = params.id as string;
   const service = services.find((s) => s.id === serviceId);
+  const { openSwap } = useSelectedService();
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
   const [selectedPriority, setSelectedPriority] = useState("");
@@ -209,7 +211,10 @@ export default function ServiceDetailPage() {
             )}
           </div>
           <div className="flex gap-[12px] shrink-0">
-            <button className="flex items-center gap-[8px] bg-secondary-800 text-white rounded-full px-[20px] py-[10px] text-[14px] font-medium hover:bg-secondary-900 transition-colors">
+            <button
+              onClick={openSwap}
+              className="flex items-center gap-[8px] bg-secondary-800 text-white rounded-full px-[20px] py-[10px] text-[14px] font-medium hover:bg-secondary-900 transition-colors"
+            >
               Alterar Serviço <AgoraIcon name="refresh-ccw" className="size-[16px]" />
             </button>
             <button className="flex items-center gap-[8px] bg-secondary-800 text-white rounded-full px-[20px] py-[10px] text-[14px] font-medium hover:bg-secondary-900 transition-colors">

@@ -362,7 +362,7 @@ export default function IndicatorDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const [activeTab, setActiveTab] = useState<string>(tabs[0]);
-  const { selectedService } = useSelectedService();
+  const { selectedService, openIndicatorSwap } = useSelectedService();
 
   const indicator = indicators.find((ind) => ind.id === id);
 
@@ -449,7 +449,10 @@ export default function IndicatorDetailPage() {
             )}
           </div>
           <div className="flex items-center gap-[10px] shrink-0">
-            <button className="flex items-center gap-[8px] bg-primary-800 text-white rounded-full px-[20px] py-[10px] text-[14px] font-medium hover:bg-primary-900 transition-colors">
+            <button
+              onClick={openIndicatorSwap}
+              className="flex items-center gap-[8px] bg-primary-800 text-white rounded-full px-[20px] py-[10px] text-[14px] font-medium hover:bg-primary-900 transition-colors"
+            >
               Alterar Indicador <AgoraIcon name="refresh-ccw" className="size-[16px]" />
             </button>
             <button className="flex items-center gap-[8px] bg-primary-800 text-white rounded-full px-[20px] py-[10px] text-[14px] font-medium hover:bg-primary-900 transition-colors">
