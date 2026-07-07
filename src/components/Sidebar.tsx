@@ -174,12 +174,17 @@ export default function Sidebar() {
           <div className="h-px bg-primary-300" />
 
           <div className="flex flex-col gap-[8px]">
-            <a className="flex gap-[8px] items-center px-[16px] py-[6px] rounded-[4px] cursor-pointer hover:bg-primary-300/30 transition-colors">
-              <AgoraIcon name="search" className="size-[20px] text-primary-800" />
-              <span className="font-medium text-[16px] leading-[23px] text-primary-800">
+            <Link
+              href="/pesquisa"
+              className={`flex gap-[8px] items-center px-[16px] py-[6px] rounded-[4px] cursor-pointer ${
+                isActive("/pesquisa") ? "bg-primary-600" : "hover:bg-primary-300/30 transition-colors"
+              }`}
+            >
+              <AgoraIcon name="search" className={`size-[20px] ${isActive("/pesquisa") ? "text-primary-50" : "text-primary-800"}`} />
+              <span className={`font-medium text-[16px] leading-[23px] ${isActive("/pesquisa") ? "text-primary-50 font-semibold" : "text-primary-800"}`}>
                 Procurar
               </span>
-            </a>
+            </Link>
             <a className="flex gap-[8px] items-center px-[16px] py-[6px] rounded-[4px] cursor-pointer hover:bg-primary-300/30 transition-colors">
               <AgoraIcon name="like" className="size-[20px] text-primary-800" />
               <span className="font-medium text-[16px] leading-[23px] text-primary-800">
