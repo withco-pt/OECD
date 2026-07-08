@@ -2,9 +2,11 @@
 
 import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import { useRouter } from "next/navigation";
+import { useSelectedEntity } from "@/context/SelectedEntityContext";
 
 export default function Header() {
   const router = useRouter();
+  const { entity, clearEntity } = useSelectedEntity();
   return (
     <header className="bg-primary-600 drop-shadow-[0px_2px_2px_rgba(0,0,0,0.05)] flex items-center justify-between px-[35px] py-[12px] w-full h-[72px] fixed top-0 z-50">
       <p className="font-bold leading-[24px] text-[20px] text-white w-[295px]">
@@ -19,14 +21,16 @@ export default function Header() {
           </div>
           <div className="flex flex-col gap-[8px] text-[14px] text-white whitespace-nowrap">
             <span className="font-semibold leading-[16px]">Maria Silva</span>
-            <span className="font-normal leading-[16px]">Autoridade Tributária e Aduaneira</span>
+            <span className="font-normal leading-[16px]">
+              {entity ? entity.name : "Nenhuma entidade selecionada"}
+            </span>
           </div>
         </div>
         <div className="flex gap-[16px] items-center">
           <button className="bg-primary-400 flex items-center justify-center size-[42px] rounded-full cursor-pointer hover:bg-primary-600 transition-colors">
             <AgoraIcon name="bell" className="size-[18px] text-white" />
           </button>
-          <button onClick={() => router.push("/entrada")} className="bg-primary-800 flex items-center justify-center size-[42px] rounded-full cursor-pointer hover:bg-primary-900 transition-colors">
+          <button onClick={() => { clearEntity(); router.push("/entrada"); }} className="bg-primary-800 flex items-center justify-center size-[42px] rounded-full cursor-pointer hover:bg-primary-900 transition-colors">
             <AgoraIcon name="log-out" className="size-[18px] text-white" />
           </button>
         </div>

@@ -2,10 +2,10 @@
 
 import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import Link from "next/link";
-import HelpTooltip from "@/components/HelpTooltip";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { PILL_STYLES } from "@/components/status-pill";
+import Tooltip from "@/components/Tooltip";
 
 function StatusTooltip({ children, tooltip, variant }: { children: React.ReactNode; tooltip: string; variant: "warning" | "danger" }) {
   const [show, setShow] = useState(false);
@@ -45,7 +45,8 @@ interface ServiceCardProps {
   name: string;
   entity: string;
   area: string;
-  department: string;
+  csat?: number | null;
+  nResponses?: number | null;
   missingData?: boolean;
   nonCompliance?: boolean;
 }
@@ -55,7 +56,8 @@ export default function ServiceCard({
   name,
   entity,
   area,
-  department,
+  csat,
+  nResponses,
   missingData,
   nonCompliance,
 }: ServiceCardProps) {
@@ -75,44 +77,46 @@ export default function ServiceCard({
             </h3>
           </div>
           <div className="flex gap-[10px] items-start shrink-0">
-            <AgoraIcon name="like" className="size-[22px] text-primary-800" />
-            <HelpTooltip size={22} />
+            <AgoraIcon name="like" className="size-[22px] text-neutral-400 cursor-not-allowed" />
           </div>
         </div>
-        <div className="flex flex-col gap-[2px]">
-          <p className="text-[14px] text-primary-900 leading-[20px]">
-            <span className="font-medium">Área Governamental: </span>
-            <span className="font-normal">{area}</span>
-          </p>
-          <p className="text-[14px] text-primary-900 leading-[20px]">
-            <span className="font-medium">Departamento: </span>
-            <span className="font-normal">{department}</span>
-          </p>
-        </div>
+        <p className="text-[14px] text-primary-900 leading-[20px]">
+          <span className="font-medium">Área Governamental: </span>
+          <span className="font-normal">{area}</span>
+        </p>
       </div>
-      <div className="flex items-center justify-between w-full">
-        <div className="flex gap-[6px] items-center">
-          {nonCompliance && (
-            <StatusTooltip tooltip="Indicador tem Incumprimento Legal" variant="danger">
-              <div className="bg-danger-100 flex items-center p-[5px] rounded-full cursor-default">
-                <AgoraIcon name="x-circle" className="size-[20px] text-danger-800" />
-              </div>
-            </StatusTooltip>
-          )}
-          {missingData && (
-            <StatusTooltip tooltip="Indicador tem Dados Incompletos" variant="warning">
-              <div className="bg-warning-100 flex items-center p-[5px] rounded-full cursor-default">
-                <AgoraIcon name="alert-triangle" className="size-[20px] text-warning-900" />
-              </div>
-            </StatusTooltip>
-          )}
-        </div>
-        <div className="bg-secondary-900 opacity-0 group-hover:opacity-100 flex gap-[4px] items-center justify-center h-[30px] px-[12px] py-[8px] rounded-[15px] transition-opacity">
-          <span className="text-[14px] font-medium text-white whitespace-nowrap">
-            Aceder
-          </span>
-          <AgoraIcon name="arrow-right-anchor" className="size-[18px] text-white" />
-        </div>
+      <div className="flex gap-[6px] items-end flex-wrap w-full">
+        <Tooltip label="Satisfação global média (escala 1–10)">
+          <div className="bg-secondary-100 flex gap-[6px] items-center h-[30px] px-[12px] rounded-full">
+            <AgoraIcon name="like" className="size-[16px] text-secondary-900" />
+            <span className="text-[13px] font-medium text-primary-700">CSAT</span>
+            <span className="text-[16px] font-bold text-primary-900">
+              {csat != null ? csat.toLocaleString("pt-PT") : "–"}
+            </span>
+          </div>
+        </Tooltip>
+        <Tooltip label="Número de respostas ao questionário">
+          <div className="bg-secondary-100 flex gap-[6px] items-center h-[30px] px-[12px] rounded-full">
+            <span className="text-[16px] font-bold text-primary-900">
+              {nResponses != null ? nResponses.toLocaleString("pt-PT") : "–"}
+            </span>
+            <span className="text-[13px] font-medium text-primary-700">respostas</span>
+          </div>
+        </Tooltip>
+        {nonCompliance && (
+          <StatusTooltip tooltip="Indicador tem Incumprimento Legal" variant="danger">
+            <div className="bg-danger-100 flex items-center p-[5px] rounded-full cursor-default">
+              <AgoraIcon name="x-circle" className="size-[20px] text-danger-800" />
+            </div>
+          </StatusTooltip>
+        )}
+        {missingData && (
+          <StatusTooltip tooltip="Indicador tem Dados Incompletos" variant="warning">
+            <div className="bg-warning-100 flex items-center p-[5px] rounded-full cursor-default">
+              <AgoraIcon name="alert-triangle" className="size-[20px] text-warning-900" />
+            </div>
+          </StatusTooltip>
+        )}
       </div>
     </Link>
   );

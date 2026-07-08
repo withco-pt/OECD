@@ -2,14 +2,13 @@
 
 import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import { useSelectedService } from "@/context/SelectedServiceContext";
-import { services } from "@/data/mock";
 import Pagination from "@/components/Pagination";
+import Tooltip from "@/components/Tooltip";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 const ITEMS_PER_PAGE = 9;
-const MY_ENTITY = "Autoridade Tributária e Aduaneira";
 
 type Tab = "meus" | "todos";
 
@@ -18,7 +17,8 @@ interface PopupServiceCardProps {
   name: string;
   entity: string;
   area: string;
-  department: string;
+  csat?: number | null;
+  nResponses?: number | null;
   missingData?: boolean;
   nonCompliance?: boolean;
   onSelect: () => void;
@@ -29,7 +29,8 @@ function PopupServiceCard({
   name,
   entity,
   area,
-  department,
+  csat,
+  nResponses,
   missingData,
   nonCompliance,
   onSelect,
@@ -46,15 +47,30 @@ function PopupServiceCard({
             {name}
           </h3>
         </div>
-        <div className="flex flex-col gap-[2px]">
+        <div className="flex flex-col gap-[10px]">
           <p className="text-[14px] text-primary-900 leading-[20px]">
             <span className="font-medium">Área Governamental: </span>
             <span className="font-normal">{area}</span>
           </p>
-          <p className="text-[14px] text-primary-900 leading-[20px]">
-            <span className="font-medium">Departamento: </span>
-            <span className="font-normal">{department}</span>
-          </p>
+          <div className="flex flex-wrap gap-[6px]">
+            <Tooltip label="Satisfação global média (escala 1–10)">
+              <div className="bg-secondary-100 flex gap-[6px] items-center h-[30px] px-[12px] rounded-full">
+                <AgoraIcon name="like" className="size-[16px] text-secondary-900" />
+                <span className="text-[13px] font-medium text-primary-700">CSAT</span>
+                <span className="text-[16px] font-bold text-primary-900">
+                  {csat != null ? csat.toLocaleString("pt-PT") : "–"}
+                </span>
+              </div>
+            </Tooltip>
+            <Tooltip label="Número de respostas ao questionário">
+              <div className="bg-secondary-100 flex gap-[6px] items-center h-[30px] px-[12px] rounded-full">
+                <span className="text-[16px] font-bold text-primary-900">
+                  {nResponses != null ? nResponses.toLocaleString("pt-PT") : "–"}
+                </span>
+                <span className="text-[13px] font-medium text-primary-700">respostas</span>
+              </div>
+            </Tooltip>
+          </div>
         </div>
       </div>
 
@@ -82,7 +98,7 @@ function PopupServiceCard({
           </button>
           <button
             onClick={onDetail}
-            className="flex-1 bg-white border border-secondary-800 text-secondary-800 hover:bg-secondary-100 rounded-[15px] flex items-center justify-center gap-[6px] text-[13px] font-medium transition-colors"
+            className="flex-1 bg-secondary-100 border border-secondary-800 text-secondary-800 hover:bg-white rounded-[15px] flex items-center justify-center gap-[6px] text-[13px] font-medium transition-colors"
           >
             Ver Detalhe
             <AgoraIcon name="arrow-right-anchor" className="size-[16px]" />
@@ -94,10 +110,10 @@ function PopupServiceCard({
 }
 
 export default function SwapServiceModal() {
-  const { isSwapOpen, closeSwap, setSelectedServiceId } = useSelectedService();
+  const { isSwapOpen, closeSwap, setSelectedServiceId, services } = useSelectedService();
   const router = useRouter();
 
-  const [tab, setTab] = useState<Tab>("meus");
+  const [tab, setTab] = useState<Tab>("todos");
   const [currentPage, setCurrentPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -118,9 +134,10 @@ export default function SwapServiceModal() {
     };
   }, [isSwapOpen, closeSwap]);
 
+  // "Os Meus Serviços" = serviços com matriz adotada; "Todos" = todos os da entidade.
   const tabServices = useMemo(
-    () => (tab === "meus" ? services.filter((s) => s.entity === MY_ENTITY) : services),
-    [tab]
+    () => (tab === "meus" ? services.filter((s) => s.matrixAdopted) : services),
+    [tab, services]
   );
 
   const filtered = useMemo(() => {
@@ -224,14 +241,19 @@ export default function SwapServiceModal() {
           {/* Tabs */}
           <div className="flex gap-[16px] mt-[16px]">
             {([
-              { key: "meus" as Tab, label: "Os Meus Serviços" },
-              { key: "todos" as Tab, label: "Todos os Serviços" },
+              { key: "meus" as Tab, label: "Os Meus Serviços", disabled: true },
+              { key: "todos" as Tab, label: "Todos os Serviços", disabled: false },
             ]).map((t) => (
               <button
                 key={t.key}
-                onClick={() => handleSwitchTab(t.key)}
+                onClick={() => !t.disabled && handleSwitchTab(t.key)}
+                disabled={t.disabled}
+                aria-disabled={t.disabled}
+                title={t.disabled ? "Disponível em breve" : undefined}
                 className={`px-[20px] py-[10px] rounded-t-[10px] text-[16px] leading-[22px] transition-colors ${
-                  tab === t.key
+                  t.disabled
+                    ? "bg-transparent font-medium text-primary-400 cursor-not-allowed"
+                    : tab === t.key
                     ? "bg-secondary-50 font-semibold text-primary-900"
                     : "bg-transparent font-medium text-primary-800 hover:text-primary-900"
                 }`}
@@ -337,7 +359,8 @@ export default function SwapServiceModal() {
                 name={service.name}
                 entity={service.entity}
                 area={service.area}
-                department={service.department}
+                csat={service.csat}
+                nResponses={service.nResponses}
                 missingData={service.missingData}
                 nonCompliance={service.nonCompliance}
                 onSelect={() => handleSelect(service.id)}

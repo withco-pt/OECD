@@ -2,42 +2,84 @@
 
 import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import { useSelectedService } from "@/context/SelectedServiceContext";
-import { indicators } from "@/data/mock";
+import { supabase } from "@/lib/supabase";
+import { metricPill } from "@/lib/metricPill";
 import SearchAndFilters from "@/components/SearchAndFilters";
 import Pagination from "@/components/Pagination";
+import Tooltip from "@/components/Tooltip";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 const ITEMS_PER_PAGE = 9;
 
-const PRIORITIES = [...new Set(indicators.map((i) => i.priority))].sort();
-const METRICS = [...new Set(indicators.map((i) => i.metric))].sort();
+type MeasRow = { channel: string | null; value: number | string | null; category_counts: Record<string, number> | null };
+type IndicatorItem = {
+  id: string;
+  name: string;
+  priority: string;
+  priorityOrder: number;
+  metric: string;
+  valueType: string | null;
+  value: number | null;
+  scaleMax: number | null;
+  categoryCounts: Record<string, number> | null;
+  missingData: boolean;
+  nonCompliance: boolean;
+  mandatory: boolean;
+};
+
+function aggregateValue(rows: MeasRow[]): number | null {
+  const nullRow = rows.find((r) => r.channel === null);
+  const source = nullRow ? [nullRow] : rows;
+  const nums = source.map((r) => Number(r.value)).filter((v) => !Number.isNaN(v));
+  if (nums.length === 0) return null;
+  return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100;
+}
+
+function pickCategoryCounts(rows: MeasRow[]): Record<string, number> | null {
+  const row = rows.find((r) => r.channel === null && r.category_counts) ?? rows.find((r) => r.category_counts);
+  return row?.category_counts ?? null;
+}
 
 interface PopupIndicatorCardProps {
   priority: string;
   name: string;
   metric: string;
+  valueType?: string | null;
   value: number | null;
+  scaleMax?: number | null;
+  categoryCounts?: Record<string, number> | null;
   missingData?: boolean;
   nonCompliance?: boolean;
   onSelect: () => void;
   onDetail: () => void;
 }
 
+const DEFAULT_SCALE_MAX: Record<string, number> = { likert_1_5: 5, scale_1_10: 10 };
+
 function PopupIndicatorCard({
   priority,
   name,
   metric,
+  valueType,
   value,
+  scaleMax,
+  categoryCounts,
   missingData,
   nonCompliance,
   onSelect,
   onDetail,
 }: PopupIndicatorCardProps) {
+  const pill = metricPill(valueType, metric);
+  const isSimNao = valueType === "categorical_sim_nao";
+  const isScale = valueType === "likert_1_5" || valueType === "scale_1_10";
+  const isNps = valueType === "nps";
+  const max = scaleMax ?? DEFAULT_SCALE_MAX[valueType ?? ""] ?? null;
+  const metricTip = metric && metric !== "—" ? metric : pill.label;
   return (
     <div className="group relative rounded-[10px] drop-shadow-[0px_4px_2px_rgba(0,0,0,0.05)] p-[16px] flex flex-col justify-between h-[224px] w-full transition-colors bg-primary-200 hover:bg-[#d6e3ff]">
-      <div className="flex flex-col gap-[6px] w-full">
+      <div className="flex flex-col gap-[10px] w-full">
         <div className="flex flex-col gap-[12px]">
           <div className="flex gap-[4px] items-start w-full">
             <div className="flex items-center pt-[3px]">
@@ -51,31 +93,65 @@ function PopupIndicatorCard({
             {name}
           </h3>
         </div>
-        <p className="text-[14px] font-medium text-primary-900 leading-[20px]">
-          Métrica: {metric}
-        </p>
-      </div>
-
-      {/* Rodapé: pills de estado (default) / botões (hover) */}
-      <div className="relative h-[36px]">
-        <div className="absolute inset-0 flex gap-[6px] items-center group-hover:opacity-0 transition-opacity">
-          {value !== null && (
-            <div className="bg-primary-100 flex gap-[8px] items-center justify-center h-[30px] px-[12px] rounded-full">
-              <img src="/icons/icon-score.svg" alt="" className="w-[25px] h-[14px]" />
-              <span className="text-[16px] font-bold text-primary-800">{value}</span>
-            </div>
+        {/* Pills junto ao texto — sempre visíveis, sem serem tapados pelos botões no hover */}
+        <div className="flex gap-[6px] items-center flex-wrap">
+          {isSimNao ? (
+            <>
+              <Tooltip label="Nº de respostas «Sim»">
+                <div className="bg-primary-100 flex gap-[6px] items-center h-[30px] px-[12px] rounded-full">
+                  <span className="text-[13px] font-medium text-primary-700">Sim</span>
+                  <span className="text-[16px] font-bold text-primary-800">{categoryCounts?.["Sim"] ?? "–"}</span>
+                </div>
+              </Tooltip>
+              <Tooltip label="Nº de respostas «Não»">
+                <div className="bg-primary-100 flex gap-[6px] items-center h-[30px] px-[12px] rounded-full">
+                  <span className="text-[13px] font-medium text-primary-700">Não</span>
+                  <span className="text-[16px] font-bold text-primary-800">{categoryCounts?.["Não"] ?? "–"}</span>
+                </div>
+              </Tooltip>
+            </>
+          ) : isScale ? (
+            <Tooltip label={metricTip}>
+              <div className="bg-primary-100 flex gap-[8px] items-center justify-center h-[30px] px-[12px] rounded-full">
+                <img src="/icons/icon-score.svg" alt="" className="w-[25px] h-[14px]" />
+                <span className="text-[16px] font-bold text-primary-800">{value !== null ? `${value} / ${max}` : `– / ${max}`}</span>
+              </div>
+            </Tooltip>
+          ) : isNps ? (
+            <Tooltip label="Net Promoter Score (−100 a +100)">
+              <div className="bg-primary-100 flex gap-[8px] items-center justify-center h-[30px] px-[12px] rounded-full">
+                <img src="/icons/icon-score.svg" alt="" className="w-[25px] h-[14px]" />
+                <span className="text-[16px] font-bold text-primary-800">{value !== null ? `NPS ${value > 0 ? "+" : ""}${value}` : "NPS –"}</span>
+              </div>
+            </Tooltip>
+          ) : (
+            <Tooltip label={metricTip}>
+              <div className="bg-primary-100 flex gap-[6px] items-center h-[30px] px-[12px] rounded-full">
+                <AgoraIcon name={pill.icon} className="size-[16px] text-primary-700" />
+                <span className="text-[13px] font-medium text-primary-700">{pill.label}</span>
+                {value !== null && <span className="text-[16px] font-bold text-primary-800">{value}</span>}
+              </div>
+            </Tooltip>
           )}
           {nonCompliance && (
-            <div className="bg-danger-100 flex items-center p-[5px] rounded-full">
-              <AgoraIcon name="x-circle" className="size-[20px] text-danger-800" />
-            </div>
+            <Tooltip label="Indicador tem Incumprimento Legal">
+              <div className="bg-danger-100 flex items-center p-[5px] rounded-full">
+                <AgoraIcon name="x-circle" className="size-[20px] text-danger-800" />
+              </div>
+            </Tooltip>
           )}
           {missingData && (
-            <div className="bg-warning-100 flex items-center p-[5px] rounded-full">
-              <AgoraIcon name="alert-triangle" className="size-[20px] text-warning-900" />
-            </div>
+            <Tooltip label="Indicador tem Dados Incompletos">
+              <div className="bg-warning-100 flex items-center p-[5px] rounded-full">
+                <AgoraIcon name="alert-triangle" className="size-[20px] text-warning-900" />
+              </div>
+            </Tooltip>
           )}
         </div>
+      </div>
+
+      {/* Rodapé: botões de ação (aparecem no hover) */}
+      <div className="relative h-[36px]">
         <div className="absolute inset-0 flex items-stretch gap-[8px] opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={onSelect}
@@ -86,7 +162,7 @@ function PopupIndicatorCard({
           </button>
           <button
             onClick={onDetail}
-            className="flex-1 bg-white border border-primary-800 text-primary-800 hover:bg-primary-100 rounded-[15px] flex items-center justify-center gap-[6px] text-[13px] font-medium transition-colors"
+            className="flex-1 bg-primary-100 border border-primary-800 text-primary-800 hover:bg-white rounded-[15px] flex items-center justify-center gap-[6px] text-[13px] font-medium transition-colors"
           >
             Ver Detalhe
             <AgoraIcon name="arrow-right-anchor" className="size-[16px]" />
@@ -98,8 +174,11 @@ function PopupIndicatorCard({
 }
 
 export default function SwapIndicatorModal() {
-  const { isIndicatorSwapOpen, closeIndicatorSwap } = useSelectedService();
+  const { isIndicatorSwapOpen, closeIndicatorSwap, selectedService } = useSelectedService();
   const router = useRouter();
+
+  const [items, setItems] = useState<IndicatorItem[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -123,16 +202,79 @@ export default function SwapIndicatorModal() {
     };
   }, [isIndicatorSwapOpen, closeIndicatorSwap]);
 
+  // Carrega os indicadores medidos para o serviço ativo (quando o popup abre).
+  useEffect(() => {
+    if (!isIndicatorSwapOpen || !selectedService) return;
+    let active = true;
+    (async () => {
+      setLoading(true);
+      const { data: meas, error: measErr } = await supabase
+        .from("measurements_catalog")
+        .select("indicator_id, channel, value, category_counts")
+        .eq("service_id", selectedService.id);
+      if (!active) return;
+      if (measErr) { console.error("[alterar indicador] erro:", measErr.message); setItems([]); setLoading(false); return; }
+
+      const ids = [...new Set((meas ?? []).map((m) => m.indicator_id as string))];
+      if (ids.length === 0) { setItems([]); setLoading(false); return; }
+
+      const { data: inds, error: indErr } = await supabase
+        .from("indicators")
+        .select("id, description, is_mandatory, value_type, value_scale_max, escala_descricao, thematic_priorities(name_pt, display_order)")
+        .in("id", ids);
+      if (!active) return;
+      if (indErr) { console.error("[alterar indicador] erro:", indErr.message); setItems([]); setLoading(false); return; }
+
+      const byIndicator = new Map<string, MeasRow[]>();
+      for (const m of meas ?? []) {
+        const key = m.indicator_id as string;
+        if (!byIndicator.has(key)) byIndicator.set(key, []);
+        byIndicator.get(key)!.push({
+          channel: (m.channel as string | null) ?? null,
+          value: m.value as number | string | null,
+          category_counts: (m.category_counts as Record<string, number> | null) ?? null,
+        });
+      }
+
+      const list: IndicatorItem[] = (inds ?? []).map((i) => {
+        const tp = (i.thematic_priorities ?? {}) as { name_pt?: string; display_order?: number };
+        const rows = byIndicator.get(i.id as string) ?? [];
+        return {
+          id: i.id as string,
+          name: i.description as string,
+          priority: tp.name_pt ?? "—",
+          priorityOrder: tp.display_order ?? 99,
+          metric: (i.escala_descricao as string) ?? "—",
+          valueType: (i.value_type as string) ?? null,
+          value: aggregateValue(rows),
+          scaleMax: (i.value_scale_max as number | null) ?? null,
+          categoryCounts: pickCategoryCounts(rows),
+          missingData: false,
+          nonCompliance: false,
+          mandatory: Boolean(i.is_mandatory),
+        };
+      });
+      list.sort((a, b) => a.priorityOrder - b.priorityOrder || a.name.localeCompare(b.name));
+      setItems(list);
+      setLoading(false);
+    })();
+    return () => { active = false; };
+  }, [isIndicatorSwapOpen, selectedService]);
+
+  const PRIORITIES = useMemo(() => [...new Set(items.map((i) => i.priority))].sort(), [items]);
+  const METRICS = useMemo(() => [...new Set(items.map((i) => i.metric))].sort(), [items]);
+
   const filtered = useMemo(() => {
-    return indicators.filter((i) => {
+    return items.filter((i) => {
       if (search && !i.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (selectedPriority && i.priority !== selectedPriority) return false;
       if (selectedMetric && i.metric !== selectedMetric) return false;
+      if (filterMandatory && !i.mandatory) return false;
       if (filterNonCompliance && !i.nonCompliance) return false;
       if (filterMissingData && !i.missingData) return false;
       return true;
     });
-  }, [search, selectedPriority, selectedMetric, filterMandatory, filterNonCompliance, filterMissingData, filterFavorites]);
+  }, [items, search, selectedPriority, selectedMetric, filterMandatory, filterNonCompliance, filterMissingData, filterFavorites]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -254,7 +396,10 @@ export default function SwapIndicatorModal() {
                 priority={indicator.priority}
                 name={indicator.name}
                 metric={indicator.metric}
+                valueType={indicator.valueType}
                 value={indicator.value}
+                scaleMax={indicator.scaleMax}
+                categoryCounts={indicator.categoryCounts}
                 missingData={indicator.missingData}
                 nonCompliance={indicator.nonCompliance}
                 onSelect={() => handleSelect(indicator.id)}
@@ -263,7 +408,11 @@ export default function SwapIndicatorModal() {
             ))}
             {visibleIndicators.length === 0 && (
               <div className="col-span-3 text-center py-[64px] text-primary-400 text-[16px]">
-                Nenhum indicador encontrado.
+                {loading
+                  ? "A carregar indicadores…"
+                  : !selectedService
+                  ? "Selecione um serviço primeiro."
+                  : "Nenhum indicador encontrado."}
               </div>
             )}
           </div>

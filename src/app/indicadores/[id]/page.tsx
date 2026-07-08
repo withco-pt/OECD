@@ -1,25 +1,26 @@
 "use client";
 
 import { AgoraIcon } from "@/components/icons/AgoraIcon";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
 import Breadcrumb from "@/components/Breadcrumb";
 import HelpTooltip from "@/components/HelpTooltip";
 import IndicatorViz from "@/components/IndicatorViz";
 import { useSelectedService } from "@/context/SelectedServiceContext";
-import { indicators, priorities } from "@/data/mock";
+import { supabase } from "@/lib/supabase";
 
 /* ── Gauge SVG (exported from Figma) ─────────────────────────── */
 
-function FigmaGauge({ value }: { value: number | null }) {
+function FigmaGauge({ value, min = 1, max = 10 }: { value: number | null; min?: number; max?: number }) {
   // Geometria do semicírculo (centro na base, raio exterior ~220).
   const cx = 220.5;
   const cy = 220;
   const hasValue = value != null;
-  const v = hasValue ? Math.min(10, Math.max(1, value)) : 0;
-  // Ângulo do centro do segmento correspondente ao valor (1→esquerda, 10→direita).
-  const rad = (180 - ((v - 0.5) / 10) * 180) * (Math.PI / 180);
+  // Fração da escala do indicador (min→esquerda, max→direita), independente da escala.
+  const span = max - min || 1;
+  const frac = hasValue ? Math.min(1, Math.max(0, (value - min) / span)) : 0;
+  const rad = (180 - frac * 180) * (Math.PI / 180);
   const ux = Math.cos(rad);
   const uy = -Math.sin(rad);
   const px = Math.sin(rad); // perpendicular ao raio
@@ -142,7 +143,7 @@ function ContactCard({
           <span className="text-[13px] font-semibold text-secondary-900">{entity}</span>
           {showIcons && (
             <div className="flex gap-[8px] items-center shrink-0">
-              <AgoraIcon name="like" className="size-[16px] text-primary-800" />
+              <AgoraIcon name="like" className="size-[16px] text-neutral-400 cursor-not-allowed" />
               <HelpTooltip size={16} />
             </div>
           )}
@@ -358,49 +359,141 @@ const goodPerformanceServices = [
   },
 ];
 
+type IndicatorDetail = {
+  name: string;
+  description: string | null;
+  priority: string;
+  legalBasis: string | null;
+  legalBasisUrl: string | null;
+  missingData: boolean;
+  metric: string;
+  value: number | null;
+  scaleMin: number | null;
+  scaleMax: number | null;
+};
+type TechField = { label: string; value: string };
+
+const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
 export default function IndicatorDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const [activeTab, setActiveTab] = useState<string>(tabs[0]);
   const { selectedService, openIndicatorSwap } = useSelectedService();
 
-  const indicator = indicators.find((ind) => ind.id === id);
+  const [indicator, setIndicator] = useState<IndicatorDetail | null>(null);
+  const [techFields, setTechFields] = useState<TechField[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
-  if (!indicator) {
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      setLoading(true); setNotFound(false); setLoadError(false);
+
+      const { data: ind, error: indErr } = await supabase
+        .from("indicators")
+        .select("id, description, is_mandatory, value_type, value_scale_min, value_scale_max, escala_descricao, channel_scope, base_legal, base_legal_url, instrumento_recolha, formula_calculo, frequencia_recolha, thematic_priorities(name_pt)")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (!active) return;
+      if (indErr) { console.error("[indicador] erro:", indErr.message); setLoadError(true); setLoading(false); return; }
+      if (!ind) { setNotFound(true); setLoading(false); return; }
+
+      // Medição do indicador para o serviço selecionado
+      type MRow = { channel: string | null; value: number | string | null; total_respondentes: number | null; total_inquiridos: number | null; year: number | null; month: number | null };
+      let rows: MRow[] = [];
+      if (selectedService) {
+        const { data: meas } = await supabase
+          .from("measurements_catalog")
+          .select("channel, value, total_respondentes, total_inquiridos, year, month")
+          .eq("service_id", selectedService.id)
+          .eq("indicator_id", id);
+        rows = (meas ?? []) as MRow[];
+      }
+      if (!active) return;
+
+      const nullRow = rows.find((r) => r.channel === null);
+      const src = nullRow ? [nullRow] : rows;
+      const nums = src.map((r) => Number(r.value)).filter((v) => !Number.isNaN(v));
+      const value = nums.length ? Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100 : null;
+
+      // Escala do gauge por tipo: NPS de −100 a +100, Sim/Não como taxa 0–100 (%).
+      const vt = String(ind.value_type);
+      let scaleMin: number | null;
+      let scaleMax: number | null;
+      if (vt === "nps") {
+        scaleMin = -100; scaleMax = 100;
+      } else if (vt === "categorical_sim_nao") {
+        scaleMin = 0; scaleMax = 100;
+      } else {
+        const isCategorical = vt.startsWith("categorical");
+        scaleMin = (ind.value_scale_min as number | null) ?? (isCategorical ? 1 : null);
+        scaleMax = (ind.value_scale_max as number | null) ?? (isCategorical ? 3 : null);
+      }
+      const tp = (ind.thematic_priorities ?? {}) as { name_pt?: string };
+
+      setIndicator({
+        name: ind.description as string,
+        description: null,
+        priority: tp.name_pt ?? "—",
+        legalBasis: (ind.base_legal as string) ?? null,
+        legalBasisUrl: (ind.base_legal_url as string) ?? null,
+        missingData: value === null,
+        metric: (ind.escala_descricao as string) ?? "—",
+        value,
+        scaleMin,
+        scaleMax,
+      });
+
+      // Ficha técnica — apenas campos com valor
+      const totalsRow = nullRow ?? rows[0];
+      const resp = totalsRow?.total_respondentes ?? null;
+      const inq = totalsRow?.total_inquiridos ?? null;
+      const per = totalsRow?.year ? `${MESES[(totalsRow.month ?? 1) - 1] ?? ""} ${totalsRow.year}`.trim() : null;
+      const tf: TechField[] = [];
+      if (ind.instrumento_recolha) tf.push({ label: "Instrumento de Recolha", value: ind.instrumento_recolha as string });
+      if (ind.channel_scope) tf.push({ label: "Canal / Âmbito", value: ind.channel_scope as string });
+      if (ind.formula_calculo) tf.push({ label: "Fórmula de Cálculo", value: ind.formula_calculo as string });
+      if (per) tf.push({ label: "Período de Recolha", value: per });
+      if (ind.frequencia_recolha) tf.push({ label: "Frequência", value: ind.frequencia_recolha as string });
+      if (inq != null) tf.push({ label: "Nº Total de Inquiridos", value: inq.toLocaleString("pt-PT") });
+      if (resp != null) tf.push({ label: "Nº de Respondentes", value: resp.toLocaleString("pt-PT") });
+      if (inq != null && resp != null) tf.push({ label: "Nº Não Responderam", value: (inq - resp).toLocaleString("pt-PT") });
+      setTechFields(tf);
+      setLoading(false);
+    })();
+    return () => { active = false; };
+  }, [id, selectedService]);
+
+  if (loading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-[400px]">
-          <p className="text-[18px] text-primary-800">
-            Indicador não encontrado.
-          </p>
+        <div className="flex items-center justify-center h-[400px] text-primary-400 text-[16px]">A carregar indicador…</div>
+      </AppLayout>
+    );
+  }
+  if (loadError) {
+    return (
+      <AppLayout>
+        <div className="flex flex-col items-center gap-[8px] justify-center h-[400px] text-danger-800">
+          <AgoraIcon name="alert-triangle" className="size-[24px]" />
+          <p className="text-[16px] font-semibold">Não foi possível carregar o indicador.</p>
         </div>
       </AppLayout>
     );
   }
-
-  const priority = priorities.find((p) => p.title === indicator.priority);
-
-  const techFields = [
-    { label: "Instrumento de Recolha", value: indicator.dataCollection },
-    { label: "Canal de Recolha", value: "Telefone (CATI) e Online (CAWI)" },
-    { label: "Fórmula de Cálculo", value: indicator.formula },
-    { label: "Origem de Dados", value: indicator.dataSource },
-    { label: "Período de Recolha", value: indicator.collectionPeriod },
-    { label: "Data Última Atualização", value: indicator.lastUpdate },
-    { label: "Frequência", value: indicator.frequency },
-    {
-      label: "Nº Total de Inquiridos",
-      value: indicator.totalRespondents.toLocaleString("pt-PT"),
-    },
-    {
-      label: "Nº Não Responderam",
-      value: indicator.nonRespondents.toLocaleString("pt-PT"),
-    },
-    {
-      label: "Nº Total Pessoas que Utilizaram",
-      value: indicator.totalUsers.toLocaleString("pt-PT"),
-    },
-  ];
+  if (notFound || !indicator) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-[400px]">
+          <p className="text-[18px] text-primary-800">Indicador não encontrado.</p>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -421,9 +514,11 @@ export default function IndicatorDetailPage() {
             </h1>
             <div className="mt-[8px]"><HelpTooltip size={24} /></div>
           </div>
-          <p className="text-[15px] text-primary-800">
-            {indicator.description}
-          </p>
+          {indicator.description && (
+            <p className="text-[15px] text-primary-800">
+              {indicator.description}
+            </p>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-[16px] text-[14px] text-primary-900">
@@ -431,12 +526,18 @@ export default function IndicatorDetailPage() {
             <span className="font-semibold">Prioridade Temática:</span>{" "}
             {indicator.priority}
           </span>
-          <span>
-            <span className="font-semibold">Base Legal:</span>{" "}
-            <span className="text-primary-600 underline cursor-pointer">
-              {indicator.legalBasis}
+          {indicator.legalBasis && (
+            <span>
+              <span className="font-semibold">Base Legal:</span>{" "}
+              {indicator.legalBasisUrl ? (
+                <a href={indicator.legalBasisUrl} target="_blank" rel="noopener noreferrer" className="text-primary-600 underline cursor-pointer">
+                  {indicator.legalBasis}
+                </a>
+              ) : (
+                <span className="text-primary-800">{indicator.legalBasis}</span>
+              )}
             </span>
-          </span>
+          )}
         </div>
 
         <div className="flex items-center justify-between gap-[16px]">
@@ -455,8 +556,8 @@ export default function IndicatorDetailPage() {
             >
               Alterar Indicador <AgoraIcon name="refresh-ccw" className="size-[16px]" />
             </button>
-            <button className="flex items-center gap-[8px] bg-primary-800 text-white rounded-full px-[20px] py-[10px] text-[14px] font-medium hover:bg-primary-900 transition-colors">
-              Adicionar aos Favoritos <AgoraIcon name="like" className="size-[16px]" />
+            <button disabled className="flex items-center gap-[8px] bg-neutral-100 text-neutral-400 rounded-full px-[20px] py-[10px] text-[14px] font-medium cursor-not-allowed">
+              Adicionar aos Favoritos <AgoraIcon name="like" className="size-[16px] text-neutral-400" />
             </button>
           </div>
         </div>
@@ -484,11 +585,11 @@ export default function IndicatorDetailPage() {
         {/* Left column */}
         <div className="flex-1 min-w-0">
           {activeTab === "Visualização ao Longo do Tempo" ? (
-            <IndicatorViz tab="tempo" indicatorName={indicator.name} service={selectedService.name} metric={indicator.metric} />
+            <IndicatorViz tab="tempo" indicatorName={indicator.name} service={selectedService?.name ?? ""} metric={indicator.metric} />
           ) : activeTab === "Visualização em Mapa" ? (
-            <IndicatorViz tab="mapa" indicatorName={indicator.name} service={selectedService.name} metric={indicator.metric} />
+            <IndicatorViz tab="mapa" indicatorName={indicator.name} service={selectedService?.name ?? ""} metric={indicator.metric} />
           ) : activeTab === "Visualização por Canais" ? (
-            <IndicatorViz tab="canais" indicatorName={indicator.name} service={selectedService.name} metric={indicator.metric} />
+            <IndicatorViz tab="canais" indicatorName={indicator.name} service={selectedService?.name ?? ""} metric={indicator.metric} />
           ) : (
           <div className="bg-primary-100 rounded-[12px] shadow-sm border border-neutral-100 overflow-hidden">
             {/* Card header */}
@@ -508,7 +609,7 @@ export default function IndicatorDetailPage() {
             <div className="flex items-start gap-[24px] px-[24px] pt-[24px] pb-[16px]">
               {/* Gauge SVG */}
               <div className="flex-1 min-w-0">
-                <FigmaGauge value={indicator.value} />
+                <FigmaGauge value={indicator.value} min={indicator.scaleMin ?? 1} max={indicator.scaleMax ?? 10} />
               </div>
 
               {/* Dropdowns */}
@@ -551,7 +652,7 @@ export default function IndicatorDetailPage() {
                 <AgoraIcon name="share" size={13} />
                 Partilhar
               </button>
-              <button className="flex items-center gap-[6px] text-[13px] text-primary-700 border border-neutral-200 rounded-full px-[14px] py-[7px] hover:bg-neutral-50 transition-colors">
+              <button disabled className="flex items-center gap-[6px] text-[13px] text-neutral-400 border border-neutral-200 rounded-full px-[14px] py-[7px] cursor-not-allowed">
                 <AgoraIcon name="like" size={13} />
                 Adicionar aos Favoritos
               </button>

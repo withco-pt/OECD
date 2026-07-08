@@ -1,19 +1,37 @@
-"use client";
+import { EntitySelector, type Entity } from "@/components/EntitySelector";
+import { supabase } from "@/lib/supabase";
 
-import { AgoraIcon } from "@/components/icons/AgoraIcon";
-import { useRouter } from "next/navigation";
+// Logótipos locais por entidade (enquanto logo_url não estiver preenchido na BD)
+const LOCAL_LOGOS: Record<string, string> = {
+  at: "/logo-at.jpeg",
+  iss: "/logo-iss.jpg",
+  ec: "/logo-ec.png",
+};
 
-const entities = [
-  {
-    id: "at",
-    name: "Autoridade Tributária e Aduaneira",
-    ministry: "Ministério das Finanças",
-    logo: "/logo-at.jpeg",
-  },
-];
+async function getEntities(): Promise<{ entities: Entity[]; error: boolean }> {
+  const { data, error } = await supabase
+    .from("organizations")
+    .select("short_name, name, area_governamental, logo_url, active")
+    .eq("active", true)
+    .order("name");
 
-export default function EntradaPage() {
-  const router = useRouter();
+  if (error) {
+    console.error("[entrada] erro ao carregar organizations:", error.message);
+    return { entities: [], error: true };
+  }
+
+  const entities: Entity[] = (data ?? []).map((o) => ({
+    id: o.short_name,
+    name: o.name,
+    ministry: o.area_governamental,
+    logo: o.logo_url ?? LOCAL_LOGOS[o.short_name] ?? null,
+  }));
+
+  return { entities, error: false };
+}
+
+export default async function EntradaPage() {
+  const { entities, error } = await getEntities();
 
   return (
     <div className="flex flex-col min-h-screen w-full font-sans" style={{ background: "rgb(247,248,250)" }}>
@@ -88,85 +106,8 @@ export default function EntradaPage() {
             </span>
           </div>
 
-          {/* Entity cards */}
-          <div className="flex flex-col" style={{ gap: 12 }}>
-            {entities.map((entity) => (
-              <button
-                key={entity.id}
-                onClick={() => router.push("/")}
-                className="flex flex-row items-center text-left transition-all"
-                style={{
-                  gap: 20,
-                  textDecoration: "none",
-                  background: "rgb(229,238,255)",
-                  border: "1.5px solid rgb(187,209,253)",
-                  borderRadius: 10,
-                  padding: "20px 22px",
-                  boxSizing: "border-box",
-                  transition: "background 180ms ease, border-color 180ms ease, box-shadow 180ms ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgb(213,228,255)";
-                  e.currentTarget.style.borderColor = "rgb(95,147,252)";
-                  e.currentTarget.style.boxShadow = "0px 4px 12px rgba(2,28,81,0.12)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "rgb(229,238,255)";
-                  e.currentTarget.style.borderColor = "rgb(187,209,253)";
-                  e.currentTarget.style.boxShadow = "none";
-                }}
-              >
-                {/* Logo tile */}
-                <div
-                  className="flex items-center justify-center flex-shrink-0"
-                  style={{
-                    width: 72,
-                    height: 72,
-                    borderRadius: 12,
-                    background: "#fff",
-                    boxShadow: "0px 2px 4px rgba(0,0,0,0.06)",
-                    overflow: "hidden",
-                  }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={entity.logo}
-                    alt={entity.name}
-                    style={{ width: 48, height: 48, objectFit: "contain" }}
-                  />
-                </div>
-
-                {/* Name + ministry */}
-                <div className="flex flex-col flex-1 min-w-0" style={{ gap: 4 }}>
-                  <span
-                    className="font-bold"
-                    style={{ fontSize: 22, lineHeight: 1.25, color: "rgb(2,28,81)" }}
-                  >
-                    {entity.name}
-                  </span>
-                  <span style={{ fontSize: 15, lineHeight: 1.4, color: "rgb(100,113,139)" }}>
-                    {entity.ministry}
-                  </span>
-                </div>
-
-                {/* Aceder pill */}
-                <div
-                  className="flex flex-row items-center flex-shrink-0 font-semibold text-white"
-                  style={{
-                    gap: 8,
-                    background: "rgb(0,43,130)",
-                    borderRadius: 50,
-                    padding: "10px 18px",
-                    fontSize: 15,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Aceder
-                  <AgoraIcon name="arrow-right-anchor" className="size-[16px]" />
-                </div>
-              </button>
-            ))}
-          </div>
+          {/* Entity cards (dados reais do Supabase) */}
+          <EntitySelector entities={entities} error={error} />
         </div>
 
         {/* Footer note */}

@@ -16,15 +16,16 @@ export default function SwapServiceBar() {
       </p>
       <div className="bg-[#B5E0FF] flex items-center justify-between px-[12px] py-[6px] rounded-[10px] w-full gap-[12px]">
         <div className="flex gap-[8px] items-center min-w-0">
-          <AgoraIcon name="like" className="size-[20px] text-primary-900 shrink-0" />
+          <AgoraIcon name="like" className="size-[20px] text-neutral-400 shrink-0 cursor-not-allowed" />
           <span className="font-semibold text-[20px] leading-[27px] text-primary-900 truncate">
-            {selectedService.name}
+            {selectedService ? selectedService.name : "Nenhum serviço selecionado"}
           </span>
         </div>
         <div className="flex gap-[8px] items-center shrink-0">
           <button
-            onClick={() => router.push(`/catalogo/${selectedService.id}`)}
-            className="bg-white border border-secondary-800 hover:bg-secondary-100 transition-colors flex gap-[6px] items-center justify-center px-[12px] py-[8px] rounded-[15px] h-[36px]"
+            onClick={() => selectedService && router.push(`/catalogo/${selectedService.id}`)}
+            disabled={!selectedService}
+            className="bg-secondary-100 border border-secondary-800 hover:bg-white transition-colors flex gap-[6px] items-center justify-center px-[12px] py-[8px] rounded-[15px] h-[36px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span className="font-medium text-[14px] leading-[20px] text-secondary-800 whitespace-nowrap">
               Ver Detalhe

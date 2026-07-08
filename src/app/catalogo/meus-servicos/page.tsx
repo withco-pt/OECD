@@ -162,7 +162,6 @@ export default function MeusServicosPage() {
             name={service.name}
             entity={service.entity}
             area={service.area}
-            department={service.department}
             missingData={service.missingData}
             nonCompliance={service.nonCompliance}
           />

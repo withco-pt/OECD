@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { PILL_STYLES } from "@/components/status-pill";
-import HelpTooltip from "@/components/HelpTooltip";
+import Tooltip from "@/components/Tooltip";
+import { metricPill } from "@/lib/metricPill";
 
 function StatusTooltip({ children, tooltip, variant }: { children: React.ReactNode; tooltip: string; variant: "warning" | "danger" }) {
   const [show, setShow] = useState(false);
@@ -45,10 +46,33 @@ interface IndicatorCardProps {
   name: string;
   priority: string;
   metric: string;
+  valueType?: string | null;
   value: number | null;
+  scaleMax?: number | null;
+  categoryCounts?: Record<string, number> | null;
   missingData?: boolean;
   nonCompliance?: boolean;
   mandatory?: boolean;
+}
+
+const DEFAULT_SCALE_MAX: Record<string, number> = { likert_1_5: 5, scale_1_10: 10 };
+
+function ScorePill({ children, gauge }: { children: React.ReactNode; gauge?: boolean }) {
+  return (
+    <div className="bg-primary-100 flex gap-[8px] items-center justify-center h-[30px] px-[12px] rounded-full">
+      {gauge && <img src="/icons/icon-score.svg" alt="" className="w-[25px] h-[14px]" />}
+      <span className="text-[16px] font-bold text-primary-800">{children}</span>
+    </div>
+  );
+}
+
+function CategoryPill({ label, value }: { label: string; value?: number | null }) {
+  return (
+    <div className="bg-primary-100 flex gap-[6px] items-center h-[30px] px-[12px] rounded-full">
+      <span className="text-[13px] font-medium text-primary-700">{label}</span>
+      <span className="text-[16px] font-bold text-primary-800">{value ?? "–"}</span>
+    </div>
+  );
 }
 
 export default function IndicatorCard({
@@ -56,11 +80,46 @@ export default function IndicatorCard({
   name,
   priority,
   metric,
+  valueType,
   value,
+  scaleMax,
+  categoryCounts,
   missingData,
   nonCompliance,
   mandatory,
 }: IndicatorCardProps) {
+  const pill = metricPill(valueType, metric);
+
+  const isSimNao = valueType === "categorical_sim_nao";
+  const isScale = valueType === "likert_1_5" || valueType === "scale_1_10";
+  const isNps = valueType === "nps";
+  const max = scaleMax ?? DEFAULT_SCALE_MAX[valueType ?? ""] ?? null;
+  const metricTip = metric && metric !== "—" ? metric : pill.label;
+
+  let bottomMetric: React.ReactNode = null;
+  if (isSimNao) {
+    bottomMetric = (
+      <>
+        <Tooltip label="Nº de respostas «Sim»"><CategoryPill label="Sim" value={categoryCounts?.["Sim"]} /></Tooltip>
+        <Tooltip label="Nº de respostas «Não»"><CategoryPill label="Não" value={categoryCounts?.["Não"]} /></Tooltip>
+      </>
+    );
+  } else if (isScale) {
+    bottomMetric = <Tooltip label={metricTip}><ScorePill gauge>{value !== null ? `${value} / ${max}` : `– / ${max}`}</ScorePill></Tooltip>;
+  } else if (isNps) {
+    bottomMetric = <Tooltip label="Net Promoter Score (−100 a +100)"><ScorePill gauge>{value !== null ? `NPS ${value > 0 ? "+" : ""}${value}` : "NPS –"}</ScorePill></Tooltip>;
+  } else {
+    // Contagem, Rácio, Tempo, Texto, Agendamento: pill com ícone + tipo (+ valor quando existir).
+    bottomMetric = (
+      <Tooltip label={metricTip}>
+        <div className="bg-primary-100 flex gap-[6px] items-center h-[30px] px-[12px] rounded-full">
+          <AgoraIcon name={pill.icon} className="size-[16px] text-primary-700" />
+          <span className="text-[13px] font-medium text-primary-700">{pill.label}</span>
+          {value !== null && <span className="text-[16px] font-bold text-primary-800">{value}</span>}
+        </div>
+      </Tooltip>
+    );
+  }
   return (
     <Link
       href={`/indicadores/${id}`}
@@ -78,34 +137,25 @@ export default function IndicatorCard({
               </span>
             </div>
             <div className="flex gap-[10px] items-start shrink-0">
-              <img src="/icons/icon-heart.svg" alt="Favorito" className="size-[22px]" />
-              <div onClick={(e) => e.preventDefault()}><HelpTooltip size={22} /></div>
+              <img src="/icons/icon-heart.svg" alt="Favorito" className="size-[22px] opacity-40 cursor-not-allowed" />
             </div>
           </div>
           <h3 className="text-[16px] font-bold text-primary-900 leading-[23px]">
             {name}
           </h3>
         </div>
-        <p className="text-[14px] font-medium text-primary-900 leading-[20px]">
-          Métrica: {metric}
-        </p>
       </div>
       <div className="flex gap-[6px] items-end w-full">
-        {value !== null && (
-          <div className="bg-primary-100 flex gap-[8px] items-center justify-center h-[30px] px-[12px] rounded-full">
-            <img src="/icons/icon-score.svg" alt="" className="w-[25px] h-[14px]" />
-            <span className="text-[16px] font-bold text-primary-800">
-              {value}
-            </span>
-          </div>
-        )}
+        {bottomMetric}
         {mandatory && (
-          <div className="bg-primary-100 flex gap-[4px] items-center h-[30px] px-[8px] rounded-full">
-            <AgoraIcon name="alert-circle" className="size-[20px] text-primary-700" />
-            <span className="text-[14px] font-medium text-primary-700">
-              Obrigatório
-            </span>
-          </div>
+          <Tooltip label="Indicador de preenchimento obrigatório">
+            <div className="bg-primary-100 flex gap-[4px] items-center h-[30px] px-[8px] rounded-full">
+              <AgoraIcon name="alert-circle" className="size-[20px] text-primary-700" />
+              <span className="text-[14px] font-medium text-primary-700">
+                Obrigatório
+              </span>
+            </div>
+          </Tooltip>
         )}
         {nonCompliance && (
           <StatusTooltip tooltip="Indicador tem Incumprimento Legal" variant="danger">

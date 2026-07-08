@@ -3,16 +3,26 @@
 import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
-import { priorities } from "@/data/mock";
-
-const prioritySubItems = priorities.map((p) => ({
-  label: p.title,
-  href: `/prioridades/${p.id}`,
-}));
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function Sidebar() {
   const pathname = usePathname();
+
+  // Sub-itens das Prioridades Temáticas — as 7 dimensões da base de dados.
+  const [prioritySubItems, setPrioritySubItems] = useState<{ label: string; href: string }[]>([]);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data } = await supabase
+        .from("thematic_priorities")
+        .select("id, name_pt, display_order")
+        .order("display_order");
+      if (!active || !data) return;
+      setPrioritySubItems(data.map((p) => ({ label: p.name_pt as string, href: `/prioridades/${p.id}` })));
+    })();
+    return () => { active = false; };
+  }, []);
   const [ptOpen, setPtOpen] = useState(pathname === "/" || pathname.startsWith("/prioridades"));
   const [catOpen, setCatOpen] = useState(pathname.startsWith("/catalogo"));
 
@@ -144,14 +154,13 @@ export default function Sidebar() {
                   >
                     Todos os Serviços
                   </Link>
-                  <Link
-                    href="/catalogo/meus-servicos"
-                    className={`text-[14px] px-[16px] py-[6px] ${
-                      pathname === "/catalogo/meus-servicos" ? "font-semibold text-primary-900 bg-primary-300" : "text-primary-800 bg-primary-200 hover:bg-primary-300/50 transition-colors"
-                    }`}
+                  <span
+                    aria-disabled="true"
+                    title="Disponível em breve"
+                    className="text-[14px] px-[16px] py-[6px] text-primary-400 bg-primary-200 cursor-not-allowed select-none"
                   >
                     Os Meus Serviços
-                  </Link>
+                  </span>
                 </div>
               )}
             </div>
@@ -160,15 +169,16 @@ export default function Sidebar() {
           <div className="h-px bg-primary-300" />
 
           <div className="flex flex-col">
-            <Link
-              href="/comparar"
-              className="flex gap-[8px] items-center px-[16px] py-[6px] rounded-[4px] cursor-pointer hover:bg-primary-300/30 transition-colors"
+            <div
+              aria-disabled="true"
+              title="Disponível em breve"
+              className="flex gap-[8px] items-center px-[16px] py-[6px] rounded-[4px] cursor-not-allowed select-none"
             >
-              <AgoraIcon name="copy" className="size-[20px] text-primary-800" />
-              <span className="font-medium text-[16px] leading-[23px] text-primary-800">
+              <AgoraIcon name="copy" className="size-[20px] text-primary-400" />
+              <span className="font-medium text-[16px] leading-[23px] text-primary-400">
                 Comparar
               </span>
-            </Link>
+            </div>
           </div>
 
           <div className="h-px bg-primary-300" />
@@ -185,12 +195,16 @@ export default function Sidebar() {
                 Procurar
               </span>
             </Link>
-            <a className="flex gap-[8px] items-center px-[16px] py-[6px] rounded-[4px] cursor-pointer hover:bg-primary-300/30 transition-colors">
-              <AgoraIcon name="like" className="size-[20px] text-primary-800" />
-              <span className="font-medium text-[16px] leading-[23px] text-primary-800">
+            <div
+              aria-disabled="true"
+              title="Disponível em breve"
+              className="flex gap-[8px] items-center px-[16px] py-[6px] rounded-[4px] cursor-not-allowed select-none"
+            >
+              <AgoraIcon name="like" className="size-[20px] text-primary-400" />
+              <span className="font-medium text-[16px] leading-[23px] text-primary-400">
                 Favoritos
               </span>
-            </a>
+            </div>
           </div>
         </div>
 

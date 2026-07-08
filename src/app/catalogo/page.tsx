@@ -1,43 +1,121 @@
 "use client";
 
 import { AgoraIcon } from "@/components/icons/AgoraIcon";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import AppLayout from "@/components/AppLayout";
 import HelpTooltip from "@/components/HelpTooltip";
 import Breadcrumb from "@/components/Breadcrumb";
 import ServiceCard from "@/components/ServiceCard";
 import Pagination from "@/components/Pagination";
-import { services } from "@/data/mock";
+import { supabase } from "@/lib/supabase";
+import { useSelectedEntity } from "@/context/SelectedEntityContext";
 
 const ITEMS_PER_PAGE = 9;
 
-const AREAS = [...new Set(services.map((s) => s.area))].sort();
-const ENTITIES = [...new Set(services.map((s) => s.entity))].sort();
-const DEPARTMENTS = [...new Set(services.map((s) => s.department))].sort();
+type Service = {
+  id: string;
+  name: string;
+  entity: string;
+  area: string;
+  csat: number | null;
+  nResponses: number | null;
+  missingData: boolean;
+  nonCompliance: boolean;
+  matrixAdopted: boolean;
+};
 
 export default function CatalogoPage() {
+  const { entity } = useSelectedEntity();
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
-  const [selectedArea, setSelectedArea] = useState("");
-  const [selectedEntity, setSelectedEntity] = useState("");
-  const [selectedDepartment, setSelectedDepartment] = useState("");
   const [filterNonCompliance, setFilterNonCompliance] = useState(false);
   const [filterMissingData, setFilterMissingData] = useState(false);
   const [filterMatrix, setFilterMatrix] = useState(false);
 
+  // Carrega apenas os serviços da entidade selecionada.
+  // (o AppLayout garante que existe uma entidade antes de renderizar esta página)
+  useEffect(() => {
+    if (!entity) return;
+    let active = true;
+    (async () => {
+      setLoading(true);
+      setLoadError(false);
+      const { data, error } = await supabase
+        .from("services_catalog")
+        .select("id, name, entity, area, matriz_adotada, has_measurements")
+        .eq("entity_short", entity.id)
+        .order("name");
+
+      if (!active) return;
+      if (error) {
+        console.error("[catalogo] erro ao carregar services_catalog:", error.message);
+        setLoadError(true);
+        setServices([]);
+        setLoading(false);
+        return;
+      }
+
+      // Métricas de cabeçalho por serviço: CSAT (ux_csat) e nº de respostas.
+      const ids = (data ?? []).map((s) => s.id as string);
+      const byService = new Map<string, { csat: number | null; n: number | null }>();
+      if (ids.length) {
+        const { data: csatInd } = await supabase
+          .from("indicators").select("id").eq("etl_column_key", "ux_csat").maybeSingle();
+        const csatId = csatInd?.id as string | undefined;
+        if (csatId) {
+          const { data: meas } = await supabase
+            .from("measurements_catalog")
+            .select("service_id, value, total_inquiridos, channel")
+            .eq("indicator_id", csatId)
+            .in("service_id", ids);
+          if (!active) return;
+          for (const m of meas ?? []) {
+            if (m.channel !== null) continue; // linha agregada do serviço
+            byService.set(m.service_id as string, {
+              csat: m.value != null ? Number(m.value) : null,
+              n: (m.total_inquiridos as number | null) ?? null,
+            });
+          }
+        }
+      }
+
+      setServices(
+        (data ?? []).map((s) => {
+          const agg = byService.get(s.id as string);
+          return {
+            id: s.id as string,
+            name: s.name as string,
+            entity: (s.entity as string) ?? "",
+            area: (s.area as string) ?? "—",
+            csat: agg?.csat ?? null,
+            nResponses: agg?.n ?? null,
+            missingData: !s.has_measurements,
+            nonCompliance: false, // sem dados de conformidade recolhidos ainda
+            matrixAdopted: Boolean(s.matriz_adotada),
+          };
+        })
+      );
+      setLoading(false);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [entity]);
+
   const filtered = useMemo(() => {
     return services.filter((s) => {
       if (search && !s.name.toLowerCase().includes(search.toLowerCase())) return false;
-      if (selectedArea && s.area !== selectedArea) return false;
-      if (selectedEntity && s.entity !== selectedEntity) return false;
-      if (selectedDepartment && s.department !== selectedDepartment) return false;
       if (filterNonCompliance && !s.nonCompliance) return false;
       if (filterMissingData && !s.missingData) return false;
       if (filterMatrix && !s.matrixAdopted) return false;
       return true;
     });
-  }, [search, selectedArea, selectedEntity, selectedDepartment, filterNonCompliance, filterMissingData, filterMatrix]);
+  }, [services, search, filterNonCompliance, filterMissingData, filterMatrix]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -68,12 +146,17 @@ export default function CatalogoPage() {
         ]}
       />
 
-      <div className="flex items-center gap-[8px] mb-[32px]">
+      <div className="flex items-center gap-[8px] mb-[8px]">
         <h1 className="text-[40px] font-bold text-primary-900 leading-tight">
           Todos os Serviços
         </h1>
         <HelpTooltip size={24} label="Nesta plataforma, um serviço é toda e qualquer relação entre cidadãos, as empresas e entidades da sociedade civil com o Estado que tenham como interveniente uma ou mais entidades da Administração Pública e que pretenda endereçar os direitos, as obrigações, e/ou as necessidades derivadas de um determinado evento de vida, disponibilizada através de um modelo omnicanal em que a interação é suportada por plataformas digitais." />
       </div>
+      {entity && (
+        <p className="text-[15px] text-primary-700 mb-[32px]">
+          Serviços de <span className="font-semibold">{entity.name}</span>
+        </p>
+      )}
 
       {/* Search */}
       <div className="mb-[16px]">
@@ -110,44 +193,6 @@ export default function CatalogoPage() {
         <div className="flex items-end justify-between gap-[12px]">
           <div className="flex flex-col gap-[8px] flex-1">
             <p className="text-[14px] font-semibold text-primary-900">Filtrar</p>
-            <div className="flex gap-[12px]">
-              {/* Área Governamental */}
-              <div className="relative">
-                <select
-                  value={selectedArea}
-                  onChange={(e) => { setSelectedArea(e.target.value); setCurrentPage(1); }}
-                  className="appearance-none bg-primary-200 rounded-[8px] px-[12px] py-[8px] pr-[32px] text-[14px] text-primary-800 focus:outline-none min-w-[200px]"
-                >
-                  <option value="">Área Governamental ({AREAS.length})</option>
-                  {AREAS.map((a) => <option key={a} value={a}>{a}</option>)}
-                </select>
-                <AgoraIcon name="chevron-down" className="size-[14px] text-primary-600 absolute right-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-              {/* Entidade */}
-              <div className="relative">
-                <select
-                  value={selectedEntity}
-                  onChange={(e) => { setSelectedEntity(e.target.value); setCurrentPage(1); }}
-                  className="appearance-none bg-primary-200 rounded-[8px] px-[12px] py-[8px] pr-[32px] text-[14px] text-primary-800 focus:outline-none min-w-[180px]"
-                >
-                  <option value="">Entidade ({ENTITIES.length})</option>
-                  {ENTITIES.map((e) => <option key={e} value={e}>{e}</option>)}
-                </select>
-                <AgoraIcon name="chevron-down" className="size-[14px] text-primary-600 absolute right-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-              {/* Departamento */}
-              <div className="relative">
-                <select
-                  value={selectedDepartment}
-                  onChange={(e) => { setSelectedDepartment(e.target.value); setCurrentPage(1); }}
-                  className="appearance-none bg-primary-200 rounded-[8px] px-[12px] py-[8px] pr-[32px] text-[14px] text-primary-800 focus:outline-none min-w-[180px]"
-                >
-                  <option value="">Departamento ({DEPARTMENTS.length})</option>
-                  {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
-                </select>
-                <AgoraIcon name="chevron-down" className="size-[14px] text-primary-600 absolute right-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-            </div>
           </div>
           {/* Ordenar */}
           <div className="flex flex-col gap-[8px]">
@@ -187,9 +232,9 @@ export default function CatalogoPage() {
               }
             </button>
           ))}
-          {(filterNonCompliance || filterMissingData || filterMatrix || selectedArea || selectedEntity || selectedDepartment) && (
+          {(filterNonCompliance || filterMissingData || filterMatrix) && (
             <button
-              onClick={() => { setFilterNonCompliance(false); setFilterMissingData(false); setFilterMatrix(false); setSelectedArea(""); setSelectedEntity(""); setSelectedDepartment(""); setCurrentPage(1); }}
+              onClick={() => { setFilterNonCompliance(false); setFilterMissingData(false); setFilterMatrix(false); setCurrentPage(1); }}
               className="flex items-center gap-[6px] rounded-[8px] px-[12px] py-[8px] text-[14px] text-neutral-700 hover:text-primary-900 transition-colors underline"
             >
               Limpar filtros
@@ -198,33 +243,49 @@ export default function CatalogoPage() {
         </div>
       </div>
 
-      <p className="text-[14px] text-primary-800 mb-[16px]">
-        A mostrar{" "}
-        <span className="font-semibold">{Math.min(visibleServices.length + startIndex, filtered.length) - startIndex}</span>{" "}
-        de <span className="font-semibold">{filtered.length}</span> serviços
-      </p>
+      {/* Estados: loading / erro / conteúdo */}
+      {loading ? (
+        <div className="text-center py-[64px] text-primary-400 text-[16px]">
+          A carregar serviços…
+        </div>
+      ) : loadError ? (
+        <div className="flex flex-col items-center gap-[8px] py-[64px] text-danger-800">
+          <AgoraIcon name="alert-triangle" className="size-[24px]" />
+          <span className="text-[16px] font-semibold">Não foi possível carregar os serviços.</span>
+          <span className="text-[14px] text-neutral-700">Verifique a ligação à base de dados e tente novamente.</span>
+        </div>
+      ) : (
+        <>
+          <p className="text-[14px] text-primary-800 mb-[16px]">
+            A mostrar{" "}
+            <span className="font-semibold">{Math.max(Math.min(visibleServices.length + startIndex, filtered.length) - startIndex, 0)}</span>{" "}
+            de <span className="font-semibold">{filtered.length}</span> serviços
+          </p>
 
-      <div className="grid grid-cols-3 gap-[24px]">
-        {visibleServices.map((service) => (
-          <ServiceCard
-            key={service.id}
-            id={service.id}
-            name={service.name}
-            entity={service.entity}
-            area={service.area}
-            department={service.department}
-            missingData={service.missingData}
-            nonCompliance={service.nonCompliance}
-          />
-        ))}
-        {visibleServices.length === 0 && (
-          <div className="col-span-3 text-center py-[64px] text-primary-400 text-[16px]">
-            Nenhum serviço encontrado.
+          <div className="grid grid-cols-3 gap-[24px]">
+            {visibleServices.map((service) => (
+              <ServiceCard
+                key={service.id}
+                id={service.id}
+                name={service.name}
+                entity={service.entity}
+                area={service.area}
+                csat={service.csat}
+                nResponses={service.nResponses}
+                missingData={service.missingData}
+                nonCompliance={service.nonCompliance}
+              />
+            ))}
+            {visibleServices.length === 0 && (
+              <div className="col-span-3 text-center py-[64px] text-primary-400 text-[16px]">
+                Nenhum serviço encontrado.
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
+          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
+        </>
+      )}
     </AppLayout>
   );
 }

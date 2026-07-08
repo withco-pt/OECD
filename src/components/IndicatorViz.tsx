@@ -127,9 +127,9 @@ function FooterButtons() {
         <span className="text-[14px] font-medium text-primary-900">Partilhar</span>
         <AgoraIcon name="share" className="size-[18px] text-primary-800" />
       </div>
-      <div className="bg-primary-200 flex gap-[6px] items-center justify-center px-[12px] py-[8px] rounded-[15px] h-[36px]">
-        <span className="text-[14px] font-medium text-primary-900">Adicionar aos Favoritos</span>
-        <AgoraIcon name="like" className="size-[18px] text-primary-800" />
+      <div className="bg-neutral-100 flex gap-[6px] items-center justify-center px-[12px] py-[8px] rounded-[15px] h-[36px] cursor-not-allowed">
+        <span className="text-[14px] font-medium text-neutral-400">Adicionar aos Favoritos</span>
+        <AgoraIcon name="like" className="size-[18px] text-neutral-400" />
       </div>
     </div>
   );

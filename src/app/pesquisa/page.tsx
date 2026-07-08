@@ -233,7 +233,6 @@ function PesquisaContent() {
                     name={s.name}
                     entity={s.entity}
                     area={s.area}
-                    department={s.department}
                     missingData={s.missingData}
                     nonCompliance={s.nonCompliance}
                   />

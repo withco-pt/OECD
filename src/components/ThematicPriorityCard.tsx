@@ -78,16 +78,6 @@ function StatusPills({ status }: { status: PriorityStatus }) {
   );
 }
 
-function Sparkles() {
-  return (
-    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-40">
-      <path d="M38 8 L39.5 13 L44 14.5 L39.5 16 L38 21 L36.5 16 L32 14.5 L36.5 13 Z" fill="#034AD8" />
-      <path d="M26 4 L27 7 L30 8 L27 9 L26 12 L25 9 L22 8 L25 7 Z" fill="#034AD8" />
-      <path d="M44 24 L45 27 L48 28 L45 29 L44 32 L43 29 L40 28 L43 27 Z" fill="#034AD8" />
-    </svg>
-  );
-}
-
 export default function ThematicPriorityCard({
   title,
   description,
