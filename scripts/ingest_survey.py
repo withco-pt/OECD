@@ -88,6 +88,12 @@ COLMAP = [
 # indicador dedicado no catálogo): 28 (Compreender a decisão), 29 (Saber o estado),
 # 30 (Compreender os próximos passos). Reportadas mas não ingeridas.
 
+# Coluna do Distrito/Região de Residência — confirmada na col 52 em ambos os
+# ficheiros (Matriz: "Distrito de Residência"; LC: "Distrito ou Região Autónoma
+# de Residência"). Gera uma segunda agregação (por distrito, sem canal) em
+# paralelo à agregação por canal já existente — não substitui nem altera.
+DISTRITO_COL = 52
+
 SIM = "Sim"; NAO = "Não"; NA = "Não aplicável"; NMT = "Não, mas tentei"
 
 # ── Identidade das organizações (public.organizations.id) ────────────────────
@@ -138,7 +144,9 @@ def load():
     assert files, "ficheiros não encontrados"
 
     agg = defaultdict(lambda: {"codes": [], "cats": Counter()})  # key=(ent,sn,y,m,chan,etl,kind)
+    agg_geo = defaultdict(lambda: {"codes": [], "cats": Counter()})  # key=(ent,sn,y,m,geo_name,etl,kind)
     pop = Counter()                      # (ent, sn, y, m) -> nº respostas
+    geo_pop = Counter()                  # distrito -> nº respostas (para relatório)
     display = defaultdict(Counter)       # (ent, sn) -> Counter(nome cru)
     unmapped = defaultdict(Counter)
     label_map = defaultdict(dict)
@@ -163,23 +171,38 @@ def load():
             pop[(ent, sn, y, m)] += 1
             display[(ent, sn)][serv.strip()] += 1
 
+            distrito_raw = row[DISTRITO_COL - 1]
+            geo_name = str(distrito_raw).strip() if distrito_raw not in (None, "") else None
+            if geo_name:
+                geo_pop[geo_name] += 1
+            else:
+                skipped["distrito_em_branco"] += 1
+
             for col, etl, kind, scale, chan in COLMAP:
                 raw = row[col - 1]
                 if raw in (None, ""):
                     continue
                 key = (ent, sn, y, m, chan, etl, kind)
+                # Segunda agregação, em paralelo: por distrito, sem canal (respondente
+                # não é dividido por canal E distrito ao mesmo tempo — amostras já pequenas).
+                geo_key = (ent, sn, y, m, geo_name, etl, kind) if geo_name else None
                 if kind in ("sim_nao", "agendamento"):
                     nv = norm(raw)
+                    cat = None
                     if nv == "sim":
-                        agg[key]["cats"][SIM] += 1
+                        cat = SIM
                     elif nv == "nao":
-                        agg[key]["cats"][NAO] += 1
+                        cat = NAO
                     elif nv == "nao aplicavel":
-                        agg[key]["cats"][NA] += 1
+                        cat = NA
                     elif nv in ("nao, mas tentei", "nao mas tentei"):
-                        agg[key]["cats"][NMT] += 1
-                    else:
+                        cat = NMT
+                    if cat is None:
                         unmapped[etl][str(raw).strip()] += 1
+                    else:
+                        agg[key]["cats"][cat] += 1
+                        if geo_key:
+                            agg_geo[geo_key]["cats"][cat] += 1
                 elif kind == "likert":
                     nv = norm(raw)
                     if nv in EXCLUDE:
@@ -190,12 +213,18 @@ def load():
                     else:
                         agg[key]["codes"].append(code)
                         label_map[etl][str(raw).strip()] = code
+                        if geo_key:
+                            agg_geo[geo_key]["codes"].append(code)
                 elif kind in ("scale10", "nps"):
                     try:
-                        agg[key]["codes"].append(float(raw))
+                        fv = float(raw)
                     except Exception:
                         unmapped[etl][str(raw).strip()] += 1
-    return dict(agg), pop, display, unmapped, label_map, skipped, files
+                    else:
+                        agg[key]["codes"].append(fv)
+                        if geo_key:
+                            agg_geo[geo_key]["codes"].append(fv)
+    return dict(agg), dict(agg_geo), pop, geo_pop, display, unmapped, label_map, skipped, files
 
 
 def compute(kind, d):
@@ -235,7 +264,7 @@ def q(s):
 
 
 def emit_sql(out):
-    agg, pop, display, unmapped, label_map, skipped, files = load()
+    agg, agg_geo, pop, geo_pop, display, unmapped, label_map, skipped, files = load()
     assert not unmapped, f"Há rótulos não mapeados, abortar: {dict(unmapped)}"
 
     # serviços distintos por (ent, sn) com nome de apresentação canónico
@@ -262,6 +291,9 @@ def emit_sql(out):
         L.append(f"DELETE FROM {SCHEMA[ent]}.measurements;")
 
     # 3) Inserir agregações — 1 statement por entidade (VALUES + JOIN aos ids)
+    # Duas famílias de linhas, em paralelo (não se substituem):
+    #   - por canal (chan preenchido, geo_level/geo_name NULL) — comportamento existente
+    #   - por distrito (geo_level='distrito', geo_name preenchido, channel NULL) — novo
     L.append("\n-- 3) Inserir medições reais")
     rows_by_ent = defaultdict(list)
     for (ent, sn, y, m, chan, etl, kind), d in sorted(agg.items(), key=lambda kv: tuple(str(x) for x in kv[0])):
@@ -270,7 +302,13 @@ def emit_sql(out):
         vstr = "NULL" if value is None else repr(float(value))
         cstr = "NULL" if cc is None else q(json.dumps(cc, ensure_ascii=False))
         chstr = "NULL" if chan is None else q(chan)
-        rows_by_ent[ent].append(f"({q(sn)},{q(etl)},{y},{m},{chstr},{vstr},{cstr},{resp},{inq})")
+        rows_by_ent[ent].append(f"({q(sn)},{q(etl)},{y},{m},{chstr},NULL,NULL,{vstr},{cstr},{resp},{inq})")
+    for (ent, sn, y, m, geo_name, etl, kind), d in sorted(agg_geo.items(), key=lambda kv: tuple(str(x) for x in kv[0])):
+        value, cc, resp = compute(kind, d)
+        inq = pop[(ent, sn, y, m)]
+        vstr = "NULL" if value is None else repr(float(value))
+        cstr = "NULL" if cc is None else q(json.dumps(cc, ensure_ascii=False))
+        rows_by_ent[ent].append(f"({q(sn)},{q(etl)},{y},{m},NULL,{q('distrito')},{q(geo_name)},{vstr},{cstr},{resp},{inq})")
 
     nrows = 0
     for ent in ("at", "ec", "iss"):
@@ -281,11 +319,11 @@ def emit_sql(out):
         sch = SCHEMA[ent]
         L.append(
             f"INSERT INTO {sch}.measurements "
-            f"(service_id, indicator_id, year, month, channel, value, category_counts, "
+            f"(service_id, indicator_id, year, month, channel, geo_level, geo_name, value, category_counts, "
             f"total_respondentes, total_inquiridos, source_file)\nSELECT s.id, i.id, v.year, v.month, "
-            f"v.channel, v.value::numeric, v.cc::jsonb, v.resp, v.inq, 'questionario_2026'\n"
+            f"v.channel, v.geo_level, v.geo_name, v.value::numeric, v.cc::jsonb, v.resp, v.inq, 'questionario_2026'\n"
             f"FROM (VALUES\n  " + ",\n  ".join(rows) +
-            f"\n) AS v(sn, etl, year, month, channel, value, cc, resp, inq)\n"
+            f"\n) AS v(sn, etl, year, month, channel, geo_level, geo_name, value, cc, resp, inq)\n"
             f"JOIN {sch}.services s ON s.name_normalized = v.sn\n"
             f"JOIN public.indicators i ON i.etl_column_key = v.etl;"
         )
@@ -296,7 +334,7 @@ def emit_sql(out):
 
 
 def report():
-    agg, pop, display, unmapped, label_map, skipped, files = load()
+    agg, agg_geo, pop, geo_pop, display, unmapped, label_map, skipped, files = load()
     print("=" * 78)
     print("DRY-RUN — Ingestão do questionário (Matriz + LC)")
     print("=" * 78)
@@ -321,7 +359,13 @@ def report():
 
     print("\n── RÓTULOS NÃO MAPEADOS ──")
     print("  (nenhum)" if not unmapped else "  " + str({k: dict(v) for k, v in unmapped.items()}))
-    print(f"\n── Linhas de measurement a gerar: {len(agg)} (atualmente na BD: 645) ──")
+
+    print("\n── Distrito de Residência (2ª agregação, sem canal) ──")
+    print(f"  respostas com distrito: {sum(geo_pop.values())} | sem distrito: {skipped.get('distrito_em_branco', 0)}")
+    for distrito, n in geo_pop.most_common():
+        print(f"  {distrito:<28} n={n}")
+
+    print(f"\n── Linhas de measurement a gerar: {len(agg)} por canal + {len(agg_geo)} por distrito = {len(agg) + len(agg_geo)} ──")
 
 
 def main():

@@ -37,7 +37,8 @@ function FigmaGauge({ value, min = 1, max = 10 }: { value: number | null; min?: 
   const b2 = `${r(bcx - halfW * px)},${r(bcy - halfW * py)}`;
 
   return (
-    <svg width="441" height="222" viewBox="0 0 441 222" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[441px]">
+    <div className="flex flex-col items-center gap-[8px] w-full">
+    <svg width="481" height="262" viewBox="-20 -20 481 262" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[481px]">
       <path d="M368.642 219.853C368.574 203.926 365.992 188.592 361.27 174.228L429.63 152.067C436.613 173.411 440.417 196.192 440.485 219.853H368.642Z" fill="#00724C"/>
       <path d="M368.642 219.853L368.128 219.855L368.131 220.366H368.642V219.853ZM361.27 174.228L361.111 173.74L360.621 173.898L360.782 174.388L361.27 174.228ZM429.63 152.067L430.118 151.907L429.959 151.421L429.472 151.579L429.63 152.067ZM440.485 219.853V220.366H441L440.998 219.852L440.485 219.853ZM368.642 219.853L369.155 219.851C369.087 203.87 366.496 188.482 361.757 174.067L361.27 174.228L360.782 174.388C365.488 188.702 368.061 203.983 368.128 219.855L368.642 219.853ZM361.27 174.228L361.428 174.716L429.789 152.555L429.63 152.067L429.472 151.579L361.111 173.74L361.27 174.228ZM429.63 152.067L429.143 152.226C436.109 173.52 439.904 196.248 439.972 219.854L440.485 219.853L440.998 219.852C440.93 196.136 437.118 173.301 430.118 151.907L429.63 152.067ZM440.485 219.853V219.34H368.642V219.853V220.366H440.485V219.853Z" fill="#00724C"/>
       <path d="M361.183 174.131C356.196 159.004 349.001 145.218 340.071 133.015L398.236 90.8171C411.474 108.96 422.135 129.452 429.513 151.935L361.183 174.131Z" fill="#1F9970"/>
@@ -83,6 +84,276 @@ function FigmaGauge({ value, min = 1, max = 10 }: { value: number | null; min?: 
       {/* Seta indicadora */}
       {hasValue && <polygon points={`${tip} ${b1} ${b2}`} fill="#021c51" />}
     </svg>
+    {!hasValue && <p className="text-[13px] text-primary-400">Sem dados</p>}
+    </div>
+  );
+}
+
+/* ── Gauge Likert 1-5 (5 setores/cores próprios, replicado do Figma "Gráfico/Likert 1-5") ─ */
+
+function LikertGauge({ value, min = 1, max = 5 }: { value: number | null; min?: number; max?: number }) {
+  const cx = 220.5;
+  const cy = 220;
+  const hasValue = value != null;
+  const span = max - min || 1;
+  const frac = hasValue ? Math.min(1, Math.max(0, (value - min) / span)) : 0;
+  const rad = (180 - frac * 180) * (Math.PI / 180);
+  const ux = Math.cos(rad);
+  const uy = -Math.sin(rad);
+  const px = Math.sin(rad);
+  const py = Math.cos(rad);
+  const tipR = 214;
+  const baseR = 238;
+  const halfW = 9;
+  const r = (n: number) => n.toFixed(2);
+  const bcx = cx + baseR * ux;
+  const bcy = cy + baseR * uy;
+  const tip = `${r(cx + tipR * ux)},${r(cy + tipR * uy)}`;
+  const b1 = `${r(bcx + halfW * px)},${r(bcy + halfW * py)}`;
+  const b2 = `${r(bcx - halfW * px)},${r(bcy - halfW * py)}`;
+
+  // 5 setores iguais (36° cada) — cores dos tokens Ágora confirmados no Figma:
+  // Perigo/700, Aviso/500, Aviso/400, Sucesso/400, Sucesso/700.
+  const innerR = 148;
+  const outerR = 220;
+  const pt = (radius: number, deg: number) => {
+    const a = (deg * Math.PI) / 180;
+    return [cx + radius * Math.cos(a), cy - radius * Math.sin(a)] as const;
+  };
+  const sectorPath = (from: number, to: number, steps = 12) => {
+    const outer: string[] = [];
+    const inner: string[] = [];
+    for (let i = 0; i <= steps; i++) {
+      const deg = from + ((to - from) * i) / steps;
+      const [ox, oy] = pt(outerR, deg);
+      outer.push(`${r(ox)},${r(oy)}`);
+    }
+    for (let i = steps; i >= 0; i--) {
+      const deg = from + ((to - from) * i) / steps;
+      const [ix, iy] = pt(innerR, deg);
+      inner.push(`${r(ix)},${r(iy)}`);
+    }
+    return `M ${[...outer, ...inner].join(" L ")} Z`;
+  };
+  const bands = [
+    { n: 1, from: 180, to: 144, fill: "#C41826" },
+    { n: 2, from: 144, to: 108, fill: "#FBBB3C" },
+    { n: 3, from: 108, to: 72, fill: "#E4E178" },
+    { n: 4, from: 72, to: 36, fill: "#87E368" },
+    { n: 5, from: 36, to: 0, fill: "#1F9970" },
+  ];
+
+  // 5 marcações fixas (valores 1..5) — ângulo/cor/rotação replicados do Figma "Gráfico/Likert 1-5".
+  const labelR = 184;
+  const ticks = [
+    { n: 1, angle: 162, rotate: -81, color: "rgba(255,255,255,0.9)" },
+    { n: 2, angle: 126, rotate: -45, color: "rgba(255,255,255,0.9)" },
+    { n: 3, angle: 90, rotate: 0, color: "#f2f6ff" },
+    { n: 4, angle: 54, rotate: 30, color: "#f2f6ff" },
+    { n: 5, angle: 18, rotate: 60, color: "rgba(255,255,255,0.9)" },
+  ];
+
+  return (
+    <div className="flex flex-col items-center gap-[8px] w-full">
+      <svg width="481" height="262" viewBox="-20 -20 481 262" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[481px]">
+        {bands.map((b) => (
+          <path key={b.n} d={sectorPath(b.from, b.to)} fill={b.fill} />
+        ))}
+        {ticks.map((t) => {
+          const a = (t.angle * Math.PI) / 180;
+          const x = cx + labelR * Math.cos(a);
+          const y = cy - labelR * Math.sin(a);
+          return (
+            <text
+              key={t.n}
+              x={r(x)}
+              y={r(y)}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="22"
+              fontWeight="500"
+              fill={t.color}
+              fontFamily="Noto Sans, sans-serif"
+              transform={`rotate(${t.rotate} ${r(x)} ${r(y)})`}
+            >
+              {t.n}
+            </text>
+          );
+        })}
+        {/* Valor central */}
+        <text x={cx} y={205} textAnchor="middle" fontSize="54" fontWeight="700" fill="#021c51" fontFamily="Noto Sans, sans-serif">
+          {hasValue ? value : "—"}
+        </text>
+        {/* Seta indicadora */}
+        {hasValue && <polygon points={`${tip} ${b1} ${b2}`} fill="#021c51" />}
+      </svg>
+      <div className="flex items-center justify-between w-full max-w-[441px] px-[4px]">
+        <span className="text-[24px] leading-[32px] font-medium text-neutral-900">Muito difícil</span>
+        <span className="text-[24px] leading-[32px] font-medium text-neutral-900">Muito fácil</span>
+      </div>
+      {!hasValue && <p className="text-[13px] text-primary-400">Sem dados</p>}
+    </div>
+  );
+}
+
+/* ── Donut Categórico Sim/Não/NA ─────────────────────────────── */
+
+const CATEGORY_COLORS: Record<string, string> = {
+  Sim: "#008558",
+  Não: "#de2d3b",
+};
+const CATEGORY_FALLBACK_COLOR = "#9ca6b8";
+
+function categoryColor(label: string) {
+  return CATEGORY_COLORS[label] ?? CATEGORY_FALLBACK_COLOR;
+}
+
+function CategoricalDonut({ counts }: { counts: Record<string, number> | null }) {
+  // Mesma geometria dos gauges (Escala 1-10/NPS, Likert 1-5) para ficar do mesmo tamanho.
+  const cx = 220.5;
+  const cy = 220;
+  const innerR = 148;
+  const outerR = 220;
+  const r = (n: number) => n.toFixed(2);
+  const pt = (radius: number, deg: number) => {
+    const a = (deg * Math.PI) / 180;
+    return [cx + radius * Math.cos(a), cy - radius * Math.sin(a)] as const;
+  };
+  const sectorPath = (from: number, to: number, steps = 24) => {
+    const outer: string[] = [];
+    const inner: string[] = [];
+    for (let i = 0; i <= steps; i++) {
+      const deg = from + ((to - from) * i) / steps;
+      const [ox, oy] = pt(outerR, deg);
+      outer.push(`${r(ox)},${r(oy)}`);
+    }
+    for (let i = steps; i >= 0; i--) {
+      const deg = from + ((to - from) * i) / steps;
+      const [ix, iy] = pt(innerR, deg);
+      inner.push(`${r(ix)},${r(iy)}`);
+    }
+    return `M ${[...outer, ...inner].join(" L ")} Z`;
+  };
+
+  const order = ["Sim", "Não", "NA"];
+  const entries = (counts ? Object.entries(counts) : []).filter(([, v]) => v > 0);
+  entries.sort(([a], [b]) => {
+    const ia = order.indexOf(a);
+    const ib = order.indexOf(b);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
+  const total = entries.reduce((sum, [, v]) => sum + v, 0);
+
+  if (!total) {
+    return (
+      <div className="flex flex-col items-center gap-[8px] w-full">
+        <svg width="481" height="262" viewBox="-20 -20 481 262" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[481px]">
+          <path d={sectorPath(180, 0)} fill="#e1e4ea" />
+          <text x={cx} y={cy - 15} textAnchor="middle" fontSize="54" fontWeight="700" fill="#021c51" fontFamily="Noto Sans, sans-serif">—</text>
+        </svg>
+        <p className="text-[13px] text-primary-400">Sem dados</p>
+      </div>
+    );
+  }
+
+  let cursor = 180;
+  const segments = entries.map(([label, value]) => {
+    const pct = (value / total) * 100;
+    const span = (pct / 100) * 180;
+    const from = cursor;
+    const to = cursor - span;
+    cursor = to;
+    return { label, value, pct, from, to, color: categoryColor(label) };
+  });
+  const top = segments[0];
+
+  return (
+    <div className="flex flex-col items-center gap-[8px] w-full">
+      <svg width="481" height="262" viewBox="-20 -20 481 262" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[481px]">
+        {segments.map((s) => (
+          <path key={s.label} d={sectorPath(s.from, s.to)} fill={s.color} />
+        ))}
+        <text x={cx} y={195} textAnchor="middle" fontSize="54" fontWeight="700" fill="#021c51" fontFamily="Noto Sans, sans-serif">
+          {Math.round(top.pct)}%
+        </text>
+        <text x={cx} y={232} textAnchor="middle" fontSize="24" fontWeight="500" fill="#2b363c" fontFamily="Noto Sans, sans-serif">
+          {top.label}
+        </text>
+      </svg>
+      <div className="flex items-center gap-[24px] flex-wrap justify-center">
+        {segments.map((s) => (
+          <span key={s.label} className="inline-flex items-center gap-[8px] text-[15px] font-medium text-primary-900">
+            <span className="inline-block size-[12px] rounded-full shrink-0" style={{ background: s.color }} />
+            {s.label} {Math.round(s.pct)}%
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── KPI Contagem (nº) — valor + variação vs período anterior (só quando há 2+ períodos reais) ─ */
+
+function CountKPI({ value, previousValue }: { value: number | null; previousValue: number | null }) {
+  const hasValue = value != null;
+  const hasComparison = hasValue && previousValue != null && previousValue !== 0;
+  const delta = hasComparison ? Math.round(((value! - previousValue!) / previousValue!) * 1000) / 10 : null;
+  const isUp = delta != null && delta > 0;
+  const isDown = delta != null && delta < 0;
+
+  return (
+    <div className="flex flex-col gap-[8px] w-full py-[16px]">
+      <div className="flex items-end gap-[14px]">
+        <span className="text-[64px] font-bold text-primary-900 leading-none">
+          {hasValue ? value!.toLocaleString("pt-PT") : "—"}
+        </span>
+        {delta != null && (
+          <span className={`flex items-center gap-[4px] text-[18px] font-semibold pb-[10px] ${isUp ? "text-success-600" : isDown ? "text-danger-600" : "text-neutral-500"}`}>
+            <span aria-hidden="true">{isUp ? "↗" : isDown ? "↘" : "→"}</span>
+            {isUp ? "+" : ""}{delta}%
+          </span>
+        )}
+      </div>
+      {delta != null && <p className="text-[13px] text-primary-500">vs. período anterior</p>}
+      {!hasValue && <p className="text-[13px] text-primary-400">Sem dados</p>}
+    </div>
+  );
+}
+
+/* ── Estatística Rácio / Tempo médio — só o valor real, sem meta (não existe no schema) ─ */
+
+function RatioStat({ value, unit }: { value: number | null; unit: string | null }) {
+  return (
+    <div className="flex flex-col gap-[8px] w-full py-[16px]">
+      <div className="flex items-baseline gap-[8px]">
+        <span className="text-[64px] font-bold text-primary-900 leading-none">
+          {value != null ? value.toLocaleString("pt-PT", { maximumFractionDigits: 1 }) : "—"}
+        </span>
+        {unit && value != null && <span className="text-[24px] font-semibold text-primary-600">{unit}</span>}
+      </div>
+      {value == null && <p className="text-[13px] text-primary-400">Sem dados</p>}
+    </div>
+  );
+}
+
+/* ── Resposta aberta — 1 resposta real (value_text) + contagem real de respondentes ─ */
+
+function OpenResponseCard({ text, respondents }: { text: string | null; respondents: number | null }) {
+  return (
+    <div className="flex flex-col gap-[12px] w-full py-[8px]">
+      {text ? (
+        <blockquote className="bg-primary-100 border border-primary-200 rounded-[10px] px-[16px] py-[14px] text-[15px] text-primary-900 italic">
+          “{text}”
+        </blockquote>
+      ) : (
+        <p className="text-[13px] text-primary-400">Sem dados</p>
+      )}
+      {respondents != null && (
+        <p className="text-[13px] text-primary-500">
+          {respondents.toLocaleString("pt-PT")} resposta{respondents === 1 ? "" : "s"}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -298,7 +569,7 @@ function ExpandableRow({
 const tabs = [
   "Visualização Simples",
   "Visualização ao Longo do Tempo",
-  "Visualização em Mapa",
+  "Visualização por Distrito",
   "Visualização por Canais",
 ] as const;
 
@@ -367,9 +638,16 @@ type IndicatorDetail = {
   legalBasisUrl: string | null;
   missingData: boolean;
   metric: string;
+  valueType: string;
   value: number | null;
+  previousValue: number | null;
+  valueText: string | null;
+  respondents: number | null;
   scaleMin: number | null;
   scaleMax: number | null;
+  categoryCounts: Record<string, number> | null;
+  channelData: { channel: string; value: number }[];
+  districtData: { geoName: string; value: number }[];
 };
 type TechField = { label: string; value: string };
 
@@ -403,22 +681,65 @@ export default function IndicatorDetailPage() {
       if (!ind) { setNotFound(true); setLoading(false); return; }
 
       // Medição do indicador para o serviço selecionado
-      type MRow = { channel: string | null; value: number | string | null; total_respondentes: number | null; total_inquiridos: number | null; year: number | null; month: number | null };
+      type MRow = { channel: string | null; geo_level: string | null; geo_name: string | null; value: number | string | null; value_text: string | null; category_counts: Record<string, number> | null; total_respondentes: number | null; total_inquiridos: number | null; year: number | null; month: number | null };
       let rows: MRow[] = [];
       if (selectedService) {
         const { data: meas } = await supabase
           .from("measurements_catalog")
-          .select("channel, value, total_respondentes, total_inquiridos, year, month")
+          .select("channel, geo_level, geo_name, value, value_text, category_counts, total_respondentes, total_inquiridos, year, month")
           .eq("service_id", selectedService.id)
           .eq("indicator_id", id);
         rows = (meas ?? []) as MRow[];
       }
       if (!active) return;
 
-      const nullRow = rows.find((r) => r.channel === null);
+      // Linha "agregada" real: sem canal E sem segmentação geográfica (as linhas por distrito
+      // também têm channel=null, por isso é preciso excluir geo_level para não as confundir com o total).
+      const nullRow = rows.find((r) => r.channel === null && r.geo_level === null);
       const src = nullRow ? [nullRow] : rows;
       const nums = src.map((r) => Number(r.value)).filter((v) => !Number.isNaN(v));
       const value = nums.length ? Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100 : null;
+      const categoryCounts = (nullRow ?? rows.find((r) => r.category_counts && r.geo_level === null))?.category_counts ?? null;
+      const valueText = (nullRow ?? rows.find((r) => r.value_text && r.geo_level === null))?.value_text ?? null;
+
+      // Variação vs período anterior — só quando há pelo menos 2 períodos reais (nunca inventada).
+      const periodRows = (nullRow ? rows.filter((r) => r.channel === null && r.geo_level === null) : rows)
+        .filter((r) => r.year != null && !Number.isNaN(Number(r.value)))
+        .sort((a, b) => (a.year! - b.year!) || ((a.month ?? 0) - (b.month ?? 0)));
+      const previousValue = periodRows.length > 1 ? Number(periodRows[periodRows.length - 2].value) : null;
+
+      // Valor médio real por canal (só canais com medições reais, nunca inventados).
+      const channelValues = new Map<string, number[]>();
+      for (const row of rows) {
+        if (!row.channel) continue;
+        const v = Number(row.value);
+        if (Number.isNaN(v)) continue;
+        const arr = channelValues.get(row.channel) ?? [];
+        arr.push(v);
+        channelValues.set(row.channel, arr);
+      }
+      const channelData = Array.from(channelValues.entries()).map(([channel, vals]) => ({
+        channel,
+        value: Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 100) / 100,
+      }));
+
+      // Valor médio real por distrito, só para o serviço selecionado (nunca inventado; só
+      // distritos com medições reais aparecem).
+      const geoValues = new Map<string, number[]>();
+      for (const row of rows) {
+        if (row.geo_level !== "distrito" || !row.geo_name) continue;
+        const v = Number(row.value);
+        if (Number.isNaN(v)) continue;
+        const arr = geoValues.get(row.geo_name) ?? [];
+        arr.push(v);
+        geoValues.set(row.geo_name, arr);
+      }
+      const districtData = Array.from(geoValues.entries())
+        .map(([geoName, vals]) => ({
+          geoName,
+          value: Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 100) / 100,
+        }))
+        .sort((a, b) => a.geoName.localeCompare(b.geoName, "pt"));
 
       // Escala do gauge por tipo: NPS de −100 a +100, Sim/Não como taxa 0–100 (%).
       const vt = String(ind.value_type);
@@ -434,6 +755,8 @@ export default function IndicatorDetailPage() {
         scaleMax = (ind.value_scale_max as number | null) ?? (isCategorical ? 3 : null);
       }
       const tp = (ind.thematic_priorities ?? {}) as { name_pt?: string };
+      const totalsRow = nullRow ?? rows.find((r) => r.geo_level === null) ?? rows[0];
+      const resp = totalsRow?.total_respondentes ?? null;
 
       setIndicator({
         name: ind.description as string,
@@ -443,14 +766,19 @@ export default function IndicatorDetailPage() {
         legalBasisUrl: (ind.base_legal_url as string) ?? null,
         missingData: value === null,
         metric: (ind.escala_descricao as string) ?? "—",
+        valueType: vt,
         value,
+        previousValue,
+        valueText,
+        respondents: resp,
         scaleMin,
         scaleMax,
+        categoryCounts,
+        channelData,
+        districtData,
       });
 
       // Ficha técnica — apenas campos com valor
-      const totalsRow = nullRow ?? rows[0];
-      const resp = totalsRow?.total_respondentes ?? null;
       const inq = totalsRow?.total_inquiridos ?? null;
       const per = totalsRow?.year ? `${MESES[(totalsRow.month ?? 1) - 1] ?? ""} ${totalsRow.year}`.trim() : null;
       const tf: TechField[] = [];
@@ -565,19 +893,25 @@ export default function IndicatorDetailPage() {
 
       {/* Tabs */}
       <div className="flex items-center gap-[4px] mb-[24px] flex-wrap">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-[16px] py-[8px] rounded-[8px] text-[14px] font-medium transition-colors ${
-              activeTab === tab
-                ? "bg-primary-600 text-white"
-                : "bg-primary-200 text-primary-700 hover:bg-primary-300"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
+        {tabs.map((tab) => {
+          const isDisabled = tab === "Visualização ao Longo do Tempo";
+          return (
+            <button
+              key={tab}
+              onClick={() => !isDisabled && setActiveTab(tab)}
+              disabled={isDisabled}
+              className={`px-[16px] py-[8px] rounded-[8px] text-[14px] font-medium transition-colors ${
+                isDisabled
+                  ? "bg-neutral-100 text-neutral-400 cursor-not-allowed"
+                  : activeTab === tab
+                    ? "bg-primary-600 text-white"
+                    : "bg-primary-200 text-primary-700 hover:bg-primary-300"
+              }`}
+            >
+              {tab}
+            </button>
+          );
+        })}
       </div>
 
       {/* Main content: two columns */}
@@ -586,10 +920,24 @@ export default function IndicatorDetailPage() {
         <div className="flex-1 min-w-0">
           {activeTab === "Visualização ao Longo do Tempo" ? (
             <IndicatorViz tab="tempo" indicatorName={indicator.name} service={selectedService?.name ?? ""} metric={indicator.metric} />
-          ) : activeTab === "Visualização em Mapa" ? (
-            <IndicatorViz tab="mapa" indicatorName={indicator.name} service={selectedService?.name ?? ""} metric={indicator.metric} />
+          ) : activeTab === "Visualização por Distrito" ? (
+            <IndicatorViz
+              tab="distrito"
+              indicatorName={indicator.name}
+              service={selectedService?.name ?? ""}
+              metric={indicator.metric}
+              districtData={indicator.districtData}
+            />
           ) : activeTab === "Visualização por Canais" ? (
-            <IndicatorViz tab="canais" indicatorName={indicator.name} service={selectedService?.name ?? ""} metric={indicator.metric} />
+            <IndicatorViz
+              tab="canais"
+              indicatorName={indicator.name}
+              service={selectedService?.name ?? ""}
+              metric={indicator.metric}
+              channelData={indicator.channelData}
+              scaleMin={indicator.scaleMin}
+              scaleMax={indicator.scaleMax}
+            />
           ) : (
           <div className="bg-primary-100 rounded-[12px] shadow-sm border border-neutral-100 overflow-hidden">
             {/* Card header */}
@@ -607,9 +955,25 @@ export default function IndicatorDetailPage() {
 
             {/* Gauge + Dropdowns row */}
             <div className="flex items-start gap-[24px] px-[24px] pt-[24px] pb-[16px]">
-              {/* Gauge SVG */}
+              {/* Gráfico — depende do tipo de valor do indicador */}
               <div className="flex-1 min-w-0">
-                <FigmaGauge value={indicator.value} min={indicator.scaleMin ?? 1} max={indicator.scaleMax ?? 10} />
+                {indicator.valueType === "likert_1_5" ? (
+                  <LikertGauge value={indicator.value} min={indicator.scaleMin ?? 1} max={indicator.scaleMax ?? 5} />
+                ) : indicator.valueType.startsWith("categorical") ? (
+                  <CategoricalDonut counts={indicator.categoryCounts} />
+                ) : indicator.valueType === "text" ? (
+                  <OpenResponseCard text={indicator.valueText} respondents={indicator.respondents} />
+                ) : indicator.valueType === "integer" ? (
+                  <CountKPI value={indicator.value} previousValue={indicator.previousValue} />
+                ) : indicator.valueType === "decimal" ? (
+                  /Tempo|R[áa]cio/i.test(indicator.metric) ? (
+                    <RatioStat value={indicator.value} unit={indicator.metric.match(/\(([^)]+)\)/)?.[1] ?? null} />
+                  ) : (
+                    <CountKPI value={indicator.value} previousValue={indicator.previousValue} />
+                  )
+                ) : (
+                  <FigmaGauge value={indicator.value} min={indicator.scaleMin ?? 1} max={indicator.scaleMax ?? 10} />
+                )}
               </div>
 
               {/* Dropdowns */}
@@ -624,10 +988,10 @@ export default function IndicatorDetailPage() {
                       {dd.label}
                     </label>
                     <div className="relative">
-                      <select className="appearance-none bg-primary-200 border border-primary-300 rounded-[6px] px-[10px] py-[8px] pr-[28px] text-[13px] text-primary-800 min-w-[120px]">
+                      <select disabled className="appearance-none bg-neutral-100 border border-neutral-200 rounded-[6px] px-[10px] py-[8px] pr-[28px] text-[13px] text-neutral-400 min-w-[120px] cursor-not-allowed">
                         <option>{dd.defaultVal}</option>
                       </select>
-                      <AgoraIcon name="chevron-down" className="size-[12px] text-primary-500 absolute right-[8px] top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <AgoraIcon name="chevron-down" className="size-[12px] text-neutral-400 absolute right-[8px] top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
                   </div>
                 ))}
@@ -644,12 +1008,12 @@ export default function IndicatorDetailPage() {
 
             {/* Footer pill buttons */}
             <div className="flex items-center gap-[8px] px-[24px] py-[16px]">
-              <button className="flex items-center gap-[6px] text-[13px] text-primary-700 border border-neutral-200 rounded-full px-[14px] py-[7px] hover:bg-neutral-50 transition-colors">
-                <AgoraIcon name="download" size={13} />
+              <button disabled className="flex items-center gap-[6px] text-[13px] text-neutral-400 border border-neutral-200 rounded-full px-[14px] py-[7px] cursor-not-allowed">
+                <AgoraIcon name="download" size={13} className="text-neutral-400" />
                 Exportar
               </button>
-              <button className="flex items-center gap-[6px] text-[13px] text-primary-700 border border-neutral-200 rounded-full px-[14px] py-[7px] hover:bg-neutral-50 transition-colors">
-                <AgoraIcon name="share" size={13} />
+              <button disabled className="flex items-center gap-[6px] text-[13px] text-neutral-400 border border-neutral-200 rounded-full px-[14px] py-[7px] cursor-not-allowed">
+                <AgoraIcon name="share" size={13} className="text-neutral-400" />
                 Partilhar
               </button>
               <button disabled className="flex items-center gap-[6px] text-[13px] text-neutral-400 border border-neutral-200 rounded-full px-[14px] py-[7px] cursor-not-allowed">
@@ -689,8 +1053,8 @@ export default function IndicatorDetailPage() {
 
       {/* Compare button */}
       <div className="mb-[40px]">
-        <button className="bg-primary-600 text-white px-[20px] py-[12px] rounded-[8px] text-[14px] font-medium hover:bg-primary-700 transition-colors flex items-center gap-[8px]">
-          <AgoraIcon name="bar-chart" size={16} />
+        <button disabled className="bg-neutral-100 text-neutral-400 px-[20px] py-[12px] rounded-[8px] text-[14px] font-medium cursor-not-allowed flex items-center gap-[8px]">
+          <AgoraIcon name="bar-chart" size={16} className="text-neutral-400" />
           Comparar entre Serviços e Indicadores
         </button>
       </div>

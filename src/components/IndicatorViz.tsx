@@ -3,23 +3,10 @@
 import { AgoraIcon } from "@/components/icons/AgoraIcon";
 
 /* ─────────────────────────────────────────────────────────────
-   Widgets de visualização do indicador (Tempo, Mapa, Canais).
+   Widgets de visualização do indicador (Tempo, Distrito, Canais).
    ILUSTRATIVOS: os controlos (toggles, dropdowns, botões) são
    apenas visuais — fiéis ao Figma, sem lógica funcional.
    ───────────────────────────────────────────────────────────── */
-
-const SCORE_SCALE = [
-  { v: 1, color: "#86131d" },
-  { v: 2, color: "#c41826" },
-  { v: 3, color: "#de2d3b" },
-  { v: 4, color: "#fbbb3c" },
-  { v: 5, color: "#ffd966" },
-  { v: 6, color: "#e4e178" },
-  { v: 7, color: "#bfe56e" },
-  { v: 8, color: "#87e368" },
-  { v: 9, color: "#1f9970" },
-  { v: 10, color: "#00724c" },
-];
 
 /* ── Controlos partilhados ──────────────────────────────────── */
 
@@ -99,9 +86,9 @@ function Dropdown({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-[2px] w-full">
       <p className="text-[14px] font-medium text-primary-800">{label}</p>
-      <div className="bg-primary-200 flex items-center justify-between px-[8px] py-[4px] rounded-[8px] h-[38px]">
-        <span className="text-[14px] font-medium text-primary-900">{value}</span>
-        <AgoraIcon name="chevron-down" className="size-[18px] text-primary-800" />
+      <div className="bg-neutral-100 flex items-center justify-between px-[8px] py-[4px] rounded-[8px] h-[38px] cursor-not-allowed">
+        <span className="text-[14px] font-medium text-neutral-400">{value}</span>
+        <AgoraIcon name="chevron-down" className="size-[18px] text-neutral-400" />
       </div>
     </div>
   );
@@ -116,16 +103,16 @@ function Footnote() {
 function FooterButtons() {
   return (
     <div className="flex gap-[16px] items-center pt-[16px]">
-      <div className="bg-primary-200 flex items-center justify-between px-[8px] py-[4px] rounded-[12px] w-[168px] h-[38px]">
-        <span className="flex items-center gap-[6px] text-[14px] font-medium text-primary-900">
-          <AgoraIcon name="download" className="size-[18px]" />
+      <div className="bg-neutral-100 flex items-center justify-between px-[8px] py-[4px] rounded-[12px] w-[168px] h-[38px] cursor-not-allowed">
+        <span className="flex items-center gap-[6px] text-[14px] font-medium text-neutral-400">
+          <AgoraIcon name="download" className="size-[18px] text-neutral-400" />
           Exportar
         </span>
-        <AgoraIcon name="chevron-down" className="size-[18px] text-primary-800" />
+        <AgoraIcon name="chevron-down" className="size-[18px] text-neutral-400" />
       </div>
-      <div className="bg-primary-200 flex gap-[6px] items-center justify-center px-[12px] py-[8px] rounded-[12px] h-[36px]">
-        <span className="text-[14px] font-medium text-primary-900">Partilhar</span>
-        <AgoraIcon name="share" className="size-[18px] text-primary-800" />
+      <div className="bg-neutral-100 flex gap-[6px] items-center justify-center px-[12px] py-[8px] rounded-[12px] h-[36px] cursor-not-allowed">
+        <span className="text-[14px] font-medium text-neutral-400">Partilhar</span>
+        <AgoraIcon name="share" className="size-[18px] text-neutral-400" />
       </div>
       <div className="bg-neutral-100 flex gap-[6px] items-center justify-center px-[12px] py-[8px] rounded-[15px] h-[36px] cursor-not-allowed">
         <span className="text-[14px] font-medium text-neutral-400">Adicionar aos Favoritos</span>
@@ -144,48 +131,43 @@ function ServiceLegend({ service }: { service: string }) {
   );
 }
 
-/* ── Escala de cor (Mapa) ───────────────────────────────────── */
+/* ── Gráfico de barras (Canais) — dados reais por canal ──────── */
 
-function ScoreScaleLegend() {
-  return (
-    <div className="flex flex-col gap-[4px]">
-      <p className="text-[16px] font-medium text-primary-900">Escala do Score do Indicador</p>
-      <div className="flex gap-[8px] items-center">
-        <div className="flex h-[25px] w-[266px] overflow-hidden rounded-[12px]">
-          {SCORE_SCALE.map((s) => (
-            <div
-              key={s.v}
-              className="flex-1 flex items-center justify-center text-[14px] font-medium text-white/90"
-              style={{ backgroundColor: s.color }}
-            >
-              {s.v}
-            </div>
-          ))}
-        </div>
-        <div className="bg-neutral-300 flex h-[25px] items-center justify-center px-[8px] rounded-[12px]">
-          <span className="text-[14px] font-medium italic text-primary-900">Sem Dados</span>
-        </div>
-      </div>
-    </div>
-  );
+// Arredonda para o próximo "número redondo" acima de n (ex: 23 → 30, 4.2 → 5).
+function niceCeil(n: number): number {
+  if (n <= 0) return 10;
+  const mag = Math.pow(10, Math.floor(Math.log10(n)));
+  return Math.ceil(n / mag) * mag;
 }
 
-/* ── Gráfico de barras (Canais) ─────────────────────────────── */
+function BarsCanais({
+  data,
+  scaleMin,
+  scaleMax,
+}: {
+  data: { channel: string; value: number }[];
+  scaleMin: number | null;
+  scaleMax: number | null;
+}) {
+  if (!data.length) {
+    return <p className="text-[13px] text-primary-400">Sem dados</p>;
+  }
 
-const CANAIS = [
-  { label: "Presencial*", v: 7 },
-  { label: "Internet*", v: 8 },
-  { label: "Portal Transacional*", v: 7 },
-  { label: "Formulário de contacto*", v: 8 },
-  { label: "Assistente Virtual*", v: 7 },
-];
+  const min = scaleMin ?? 0;
+  const max = scaleMax ?? niceCeil(Math.max(...data.map((c) => c.value)));
+  const span = max - min || 1;
 
-function BarsCanais() {
+  // Escala inteira 1-a-1 quando o intervalo é curto (ex: 1–10, 1–5); senão, 5 marcações uniformes.
+  const isWholeShortRange = Number.isInteger(min) && Number.isInteger(max) && span <= 12;
+  const ticks = isWholeShortRange
+    ? Array.from({ length: span + 1 }, (_, i) => max - i)
+    : Array.from({ length: 6 }, (_, i) => Math.round((max - (i * span) / 5) * 10) / 10);
+
   return (
     <div className="flex gap-[8px] w-full max-w-[460px]">
       {/* Eixo Y */}
       <div className="flex flex-col justify-between text-[12px] text-primary-800 h-[300px] py-[2px] shrink-0">
-        {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((n) => (
+        {ticks.map((n) => (
           <span key={n} className="leading-none">{n}</span>
         ))}
       </div>
@@ -193,24 +175,27 @@ function BarsCanais() {
       <div className="flex-1 min-w-0">
         <div className="relative h-[300px] border-l border-b border-primary-300">
           {/* Gridlines */}
-          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
-            <div key={i} className="absolute left-0 right-0 border-t border-primary-200" style={{ top: `${(i / 9) * 100}%` }} />
+          {ticks.slice(0, -1).map((_, i) => (
+            <div key={i} className="absolute left-0 right-0 border-t border-primary-200" style={{ top: `${(i / (ticks.length - 1)) * 100}%` }} />
           ))}
           {/* Barras */}
           <div className="absolute inset-0 flex items-end justify-around px-[8px] gap-[8px]">
-            {CANAIS.map((c) => (
-              <div key={c.label} className="flex-1 flex flex-col items-center justify-end h-full">
-                <span className="text-[13px] font-bold text-primary-800 mb-[4px]">{c.v}*</span>
-                <div className="w-full max-w-[52px] bg-primary-800 rounded-t-[2px]" style={{ height: `${(c.v / 10) * 100}%` }} />
-              </div>
-            ))}
+            {data.map((c) => {
+              const pct = Math.min(100, Math.max(0, ((c.value - min) / span) * 100));
+              return (
+                <div key={c.channel} className="flex-1 flex flex-col items-center justify-end h-full">
+                  <span className="text-[13px] font-bold text-primary-800 mb-[4px]">{c.value}</span>
+                  <div className="w-full max-w-[52px] bg-primary-800 rounded-t-[2px]" style={{ height: `${pct}%` }} />
+                </div>
+              );
+            })}
           </div>
         </div>
         {/* Eixo X */}
         <div className="flex justify-around px-[8px] gap-[8px] pt-[6px]">
-          {CANAIS.map((c) => (
-            <span key={c.label} className="flex-1 text-[12px] text-primary-900 text-center leading-[15px]">
-              {c.label}
+          {data.map((c) => (
+            <span key={c.channel} className="flex-1 text-[12px] text-primary-900 text-center leading-[15px]">
+              {c.channel}
             </span>
           ))}
         </div>
@@ -293,27 +278,55 @@ function LineTempo() {
   );
 }
 
-/* ── Mapa de Portugal ───────────────────────────────────────── */
+/* ── Tabela por Distrito — dados reais, só distritos com medições ─ */
 
-function MapaPortugal() {
+function DistrictTable({
+  data,
+  service,
+}: {
+  data: { geoName: string; value: number }[];
+  service: string;
+}) {
+  if (!data.length) {
+    return <p className="text-[13px] text-primary-400">Sem dados</p>;
+  }
+
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src="/widgets/portugal-map.svg"
-      alt="Mapa de Portugal com o score do indicador por região"
-      className="w-full max-w-[458px] h-auto"
-    />
+    <div className="w-full max-w-[520px] rounded-[10px] border border-primary-300 overflow-hidden">
+      <table className="w-full border-collapse text-[14px]">
+        <thead>
+          <tr>
+            <th className="bg-primary-100 border-b border-r border-primary-300 px-[16px] py-[12px]" />
+            <th className="bg-primary-200 border-b border-primary-300 px-[16px] py-[12px] text-left font-semibold text-primary-900">
+              {service}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((d, i) => (
+            <tr key={d.geoName} className={i % 2 === 1 ? "bg-primary-100" : "bg-white"}>
+              <td className="border-r border-b border-primary-300 px-[16px] py-[10px] font-semibold text-primary-900">
+                {d.geoName}
+              </td>
+              <td className="border-b border-primary-300 px-[16px] py-[10px] text-primary-900">
+                {d.value}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
 /* ── Moldura + composição por tab ───────────────────────────── */
 
-type VizTab = "tempo" | "mapa" | "canais";
+type VizTab = "tempo" | "distrito" | "canais";
 
 function buildTitle(tab: VizTab, indicatorName: string, service: string) {
   const base = `${indicatorName} no serviço "${service}" em Portugal`;
   if (tab === "tempo") return `${base} entre 2020 e 2025*`;
-  if (tab === "mapa") return `${base} no ano de 2025* por Regiões`;
+  if (tab === "distrito") return `${base} no ano de 2025 por Distrito`;
   return `${base} no ano de 2025 por Canais`;
 }
 
@@ -322,11 +335,19 @@ export default function IndicatorViz({
   indicatorName,
   service,
   metric,
+  channelData = [],
+  districtData = [],
+  scaleMin = null,
+  scaleMax = null,
 }: {
   tab: VizTab;
   indicatorName: string;
   service: string;
   metric: string;
+  channelData?: { channel: string; value: number }[];
+  districtData?: { geoName: string; value: number }[];
+  scaleMin?: number | null;
+  scaleMax?: number | null;
 }) {
   return (
     <div className="bg-primary-100 rounded-[10px] drop-shadow-[0px_4px_2px_rgba(0,0,0,0.1)] p-[16px] flex flex-col gap-[16px]">
@@ -337,23 +358,20 @@ export default function IndicatorViz({
         </h2>
         <div className="flex gap-[16px] items-center text-[16px] font-medium text-primary-900">
           <span>Métrica: {metric}</span>
-          <span>Valor Ideal: 10</span>
+          {tab === "tempo" && <span>Valor Ideal: 10</span>}
         </div>
       </div>
 
-      <VizToggles />
-      <RegionSearch />
-
-      {/* Escala de score (só no mapa, acima do gráfico) */}
-      {tab === "mapa" && <ScoreScaleLegend />}
+      {tab === "tempo" && <VizToggles />}
+      {tab === "tempo" && <RegionSearch />}
 
       {/* Gráfico + opções laterais */}
       <div className="flex gap-[32px] items-start">
         <div className="flex-1 min-w-0 flex flex-col gap-[24px] items-start">
-          {tab === "canais" && <BarsCanais />}
+          {tab === "canais" && <BarsCanais data={channelData} scaleMin={scaleMin} scaleMax={scaleMax} />}
           {tab === "tempo" && <LineTempo />}
-          {tab === "mapa" && <MapaPortugal />}
-          {tab !== "mapa" && <ServiceLegend service={service} />}
+          {tab === "distrito" && <DistrictTable data={districtData} service={service} />}
+          {tab === "tempo" && <ServiceLegend service={service} />}
         </div>
 
         <div className="w-[205px] shrink-0 flex flex-col gap-[16px]">
@@ -383,7 +401,7 @@ export default function IndicatorViz({
             <>
               <Dropdown label="Ano" value="2025" />
               <Dropdown label="Mês" value="Todos" />
-              {tab === "mapa" && <Dropdown label="Canal" value="Todos" />}
+              {tab === "distrito" && <Dropdown label="Canal" value="Todos" />}
             </>
           )}
         </div>

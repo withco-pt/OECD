@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 const LOCAL_LOGOS: Record<string, string> = {
   at: "/logo-at.jpeg",
   iss: "/logo-iss.jpg",
-  ec: "/logo-ec.png",
+  ec: "/logo-arte-entity.svg",
 };
 
 async function getEntities(): Promise<{ entities: Entity[]; error: boolean }> {
