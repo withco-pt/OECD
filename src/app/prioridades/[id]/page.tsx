@@ -186,7 +186,7 @@ export default function PriorityDetailPage() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-[400px] text-primary-400 text-[16px]">A carregar prioridade…</div>
+        <div className="flex items-center justify-center h-[400px] text-primary-400 text-[16px]">A carregar dimensão…</div>
       </AppLayout>
     );
   }
@@ -195,7 +195,7 @@ export default function PriorityDetailPage() {
       <AppLayout>
         <div className="flex flex-col items-center gap-[8px] justify-center h-[400px] text-danger-800">
           <AgoraIcon name="alert-triangle" className="size-[24px]" />
-          <p className="text-[16px] font-semibold">Não foi possível carregar a prioridade.</p>
+          <p className="text-[16px] font-semibold">Não foi possível carregar a dimensão.</p>
         </div>
       </AppLayout>
     );
@@ -204,7 +204,7 @@ export default function PriorityDetailPage() {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-[400px]">
-          <p className="text-[18px] text-primary-800">Prioridade não encontrada.</p>
+          <p className="text-[18px] text-primary-800">Dimensão não encontrada.</p>
         </div>
       </AppLayout>
     );
@@ -216,7 +216,7 @@ export default function PriorityDetailPage() {
     <AppLayout>
       <Breadcrumb
         items={[
-          { label: "Prioridades Temáticas", href: "/" },
+          { label: "Dimensões", href: "/" },
           { label: priority.title },
         ]}
       />

@@ -223,7 +223,7 @@ export default function ServiceDetailPage() {
   const visibleIndicators = filteredIndicators.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   const indicatorFilters = [
-    { label: "Prioridade Temática", isDropdown: true as const, value: selectedPriority, options: PRIORITIES, onChange: (v: string) => { setSelectedPriority(v); setCurrentPage(1); } },
+    { label: "Dimensão", isDropdown: true as const, value: selectedPriority, options: PRIORITIES, onChange: (v: string) => { setSelectedPriority(v); setCurrentPage(1); } },
     { label: "Incumprimento Legal", icon: <AgoraIcon name="x-circle" className="size-[14px] text-danger-800" />, active: filterNonCompliance, onToggle: () => { setFilterNonCompliance(!filterNonCompliance); setCurrentPage(1); } },
     { label: "Dados Incompletos", icon: <AgoraIcon name="alert-triangle" className="size-[14px] text-warning-900" />, active: filterMissingData, onToggle: () => { setFilterMissingData(!filterMissingData); setCurrentPage(1); } },
     { label: "Favoritos", icon: <AgoraIcon name="like" className="size-[14px] text-primary-600" />, active: filterFavorites, onToggle: () => { setFilterFavorites(!filterFavorites); setCurrentPage(1); } },

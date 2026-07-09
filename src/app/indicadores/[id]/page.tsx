@@ -851,7 +851,7 @@ export default function IndicatorDetailPage() {
 
         <div className="flex flex-wrap items-center gap-[16px] text-[14px] text-primary-900">
           <span>
-            <span className="font-semibold">Prioridade Temática:</span>{" "}
+            <span className="font-semibold">Dimensão:</span>{" "}
             {indicator.priority}
           </span>
           {indicator.legalBasis && (
@@ -1119,7 +1119,7 @@ export default function IndicatorDetailPage() {
             <div className="flex flex-col gap-[16px]">
               <p>
                 Esta secção apresenta um pequeno número de casos de estudo internacionais
-                relacionados com as prioridades temáticas da Matriz. Pretendem estimular ideias e
+                relacionados com as dimensões da Matriz. Pretendem estimular ideias e
                 demonstrar diferentes potenciais abordagens.
               </p>
               <div className="flex gap-[16px] flex-wrap">

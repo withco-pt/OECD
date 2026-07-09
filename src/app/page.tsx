@@ -66,9 +66,9 @@ export default async function PrioridadesTematicas() {
     <AppLayout>
       <div className="flex gap-[16px] items-center">
         <h1 className="font-bold text-[40px] leading-[55px] text-primary-900">
-          Prioridades Temáticas
+          Dimensões
         </h1>
-        <div className="mt-[11px]"><HelpTooltip size={30} label="As Prioridades Temáticas são as dimensões prioritárias a que os serviços públicos devem responder. Cada uma agrega um conjunto de indicadores." /></div>
+        <div className="mt-[11px]"><HelpTooltip size={30} label="As Dimensões são as áreas prioritárias a que os serviços públicos devem responder. Cada uma agrega um conjunto de indicadores." /></div>
       </div>
 
       <p className="text-[16px] leading-[23px] text-primary-900 mt-[8px] max-w-[742px]">
@@ -78,7 +78,7 @@ export default async function PrioridadesTematicas() {
 
       {priorityData.length === 0 ? (
         <div className="mt-[32px] text-center py-[48px] text-primary-400 text-[16px]">
-          Não foi possível carregar as prioridades temáticas.
+          Não foi possível carregar as dimensões.
         </div>
       ) : (
         <div className="mt-[16px] flex flex-col gap-[32px]">

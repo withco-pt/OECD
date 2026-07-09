@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabase";
 export default function Sidebar() {
   const pathname = usePathname();
 
-  // Sub-itens das Prioridades Temáticas — as 7 dimensões da base de dados.
+  // Sub-itens das Dimensões — as 7 categorias da base de dados.
   const [prioritySubItems, setPrioritySubItems] = useState<{ label: string; href: string }[]>([]);
   useEffect(() => {
     let active = true;
@@ -36,7 +36,7 @@ export default function Sidebar() {
       <div className="flex flex-col flex-1 justify-between">
         <div className="flex flex-col gap-[16px]">
           <div className="flex flex-col gap-[8px]">
-            {/* Prioridades Temáticas */}
+            {/* Dimensões */}
             <div className="flex flex-col rounded-[4px]">
               <div
                 className={`flex items-center justify-between px-[16px] py-[8px] rounded-[4px] ${
@@ -57,7 +57,7 @@ export default function Sidebar() {
                       ptActive ? "text-primary-50" : "text-primary-800"
                     }`}
                   >
-                    Prioridades Temáticas
+                    Dimensões
                   </span>
                 </Link>
                 <button
@@ -83,7 +83,7 @@ export default function Sidebar() {
                       pathname === "/" ? "font-semibold text-primary-900 bg-primary-300" : "text-primary-800 bg-primary-200 hover:bg-primary-300/50 transition-colors"
                     }`}
                   >
-                    Todas as Temáticas
+                    Todas as Dimensões
                   </Link>
                   {prioritySubItems.map((item) => (
                     <Link

@@ -300,7 +300,7 @@ export default function SwapIndicatorModal() {
 
   const filters = [
     {
-      label: `Prioridades Temáticas${selectedPriority ? ` (${selectedPriority})` : " (0)"}`,
+      label: `Dimensões${selectedPriority ? ` (${selectedPriority})` : " (0)"}`,
       isDropdown: true as const,
       icon: <AgoraIcon name="layers-menu" className="size-[14px]" />,
       value: selectedPriority,

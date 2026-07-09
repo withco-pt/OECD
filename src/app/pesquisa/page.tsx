@@ -16,7 +16,7 @@ type ResultType = "servicos" | "indicadores" | "prioridades";
 const TYPE_FILTERS: { value: ResultType; label: string }[] = [
   { value: "servicos", label: "Serviços" },
   { value: "indicadores", label: "Indicadores" },
-  { value: "prioridades", label: "Prioridades Temáticas" },
+  { value: "prioridades", label: "Dimensões" },
 ];
 
 // Normaliza texto para pesquisa: minúsculas e sem acentos.
@@ -105,10 +105,10 @@ function PesquisaContent() {
     <>
       <div className="flex items-center gap-[12px] mb-[8px]">
         <h1 className="text-[40px] font-bold text-primary-900 leading-tight">Pesquisar</h1>
-        <HelpTooltip size={24} label="Pesquise em toda a plataforma — serviços, indicadores e prioridades temáticas — a partir de uma única caixa de pesquisa." />
+        <HelpTooltip size={24} label="Pesquise em toda a plataforma — serviços, indicadores e dimensões — a partir de uma única caixa de pesquisa." />
       </div>
       <p className="text-[16px] leading-[23px] text-primary-900 mb-[24px] max-w-[742px]">
-        Encontre serviços, indicadores e prioridades temáticas em toda a plataforma.
+        Encontre serviços, indicadores e dimensões em toda a plataforma.
       </p>
 
       {/* Barra de pesquisa */}
@@ -121,7 +121,7 @@ function PesquisaContent() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && runSearch(input)}
-              placeholder="Procure por serviços, indicadores ou prioridades"
+              placeholder="Procure por serviços, indicadores ou dimensões"
               autoFocus
               className="w-full border border-primary-400 rounded-[8px] px-[16px] py-[12px] pr-[40px] text-[16px] text-primary-900 placeholder:text-neutral-700 focus:outline-none focus:border-primary-600"
             />
@@ -190,8 +190,8 @@ function PesquisaContent() {
           </div>
           <p className="text-[20px] font-bold text-primary-900">Comece a pesquisar</p>
           <p className="text-[16px] text-primary-800 max-w-[420px]">
-            Escreva na caixa acima para encontrar serviços, indicadores e prioridades
-            temáticas em toda a plataforma.
+            Escreva na caixa acima para encontrar serviços, indicadores e dimensões
+            em toda a plataforma.
           </p>
         </div>
       )}
@@ -267,7 +267,7 @@ function PesquisaContent() {
           {showPriorities && (
             <section className="flex flex-col gap-[16px]">
               <h2 className="text-[24px] font-bold text-primary-900 flex items-center gap-[8px]">
-                Prioridades Temáticas
+                Dimensões
                 <span className="text-[16px] font-medium text-primary-600">({results.priorities.length})</span>
               </h2>
               <div className="grid grid-cols-3 gap-[32px]">
