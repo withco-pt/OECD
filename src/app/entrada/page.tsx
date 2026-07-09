@@ -1,6 +1,10 @@
 import { EntitySelector, type Entity } from "@/components/EntitySelector";
 import { supabase } from "@/lib/supabase";
 
+// Entidades vêm da BD e podem mudar (ex: nome, logótipo) sem novo deploy de código —
+// nunca renderizar esta página como estática/cacheada em build, senão fica desatualizada.
+export const dynamic = "force-dynamic";
+
 // Logótipos locais por entidade (enquanto logo_url não estiver preenchido na BD)
 const LOCAL_LOGOS: Record<string, string> = {
   at: "/logo-at.jpeg",
