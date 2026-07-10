@@ -80,15 +80,28 @@ export function SelectedServiceProvider({ children }: { children: React.ReactNod
         if (csatId) {
           const { data: meas } = await supabase
             .from("measurements_catalog")
-            .select("service_id, value, total_inquiridos, channel")
+            .select("service_id, value, total_inquiridos, channel, geo_level")
             .eq("indicator_id", csatId)
             .in("service_id", ids);
           if (!active) return;
+          // Linha "agregada" real: sem canal E sem segmentação geográfica (as linhas por
+          // distrito também têm channel=null — mesmo critério da página de detalhe).
+          const bySvcRows = new Map<string, { value: number | string | null; total_inquiridos: number | null; channel: string | null; geo_level: string | null }[]>();
           for (const m of meas ?? []) {
-            if (m.channel !== null) continue;
-            byService.set(m.service_id as string, {
-              csat: m.value != null ? Number(m.value) : null,
-              n: (m.total_inquiridos as number | null) ?? null,
+            const key = m.service_id as string;
+            if (!bySvcRows.has(key)) bySvcRows.set(key, []);
+            bySvcRows.get(key)!.push({
+              value: m.value as number | string | null,
+              total_inquiridos: (m.total_inquiridos as number | null) ?? null,
+              channel: (m.channel as string | null) ?? null,
+              geo_level: (m.geo_level as string | null) ?? null,
+            });
+          }
+          for (const [serviceId, rows] of bySvcRows) {
+            const nullRow = rows.find((r) => r.channel === null && r.geo_level === null) ?? rows[0];
+            byService.set(serviceId, {
+              csat: nullRow.value != null ? Number(nullRow.value) : null,
+              n: nullRow.total_inquiridos,
             });
           }
         }

@@ -10,6 +10,7 @@ import IndicatorCard from "@/components/IndicatorCard";
 import Tooltip from "@/components/Tooltip";
 import { supabase } from "@/lib/supabase";
 import { useSelectedService } from "@/context/SelectedServiceContext";
+import { ToolsForInnovationSection, GetHelpSection, type CaseStudy, type InnovationSuggestion } from "@/components/InnovationHelp";
 
 const ITEMS_PER_PAGE = 9;
 
@@ -22,7 +23,7 @@ type ServiceMeta = {
   nResponses: number | null;
 };
 
-type MeasRow = { channel: string | null; value: number | string | null; category_counts: Record<string, number> | null };
+type MeasRow = { channel: string | null; geo_level: string | null; value: number | string | null; category_counts: Record<string, number> | null };
 
 type IndicatorItem = {
   id: string;
@@ -39,46 +40,13 @@ type IndicatorItem = {
   mandatory: boolean;
 };
 
-// Conteúdo editorial (genérico, não específico do serviço) — mantém-se estático
-// enquanto não existir na base de dados (public.innovation_suggestions está vazia).
-const suggestions = [
-  { title: "Automatizar a triagem de pedidos", description: "Utilizar inteligência artificial para classificar e encaminhar automaticamente os pedidos dos cidadãos, reduzindo o tempo de resposta." },
-  { title: "Criar um chatbot de apoio ao cidadão", description: "Implementar um assistente virtual que responda às perguntas mais frequentes dos utilizadores, libertando recursos humanos para casos complexos." },
-  { title: "Simplificar formulários digitais", description: "Redesenhar os formulários online com pré-preenchimento automático de dados já disponíveis, reduzindo o esforço do utilizador." },
-];
-
-const tools = [
-  { title: "Kit de Ferramentas de Design Thinking", description: "Conjunto de metodologias e templates para aplicar design thinking na melhoria de serviços públicos, incluindo mapas de empatia, jornadas de utilizador e prototipagem rápida." },
-  { title: "Guia de Simplificação Administrativa", description: "Manual prático com técnicas de simplificação de processos, eliminação de redundâncias e redução de carga administrativa para cidadãos e empresas." },
-  { title: "Framework de Medição de Impacto", description: "Metodologia para medir o impacto das inovações implementadas, com indicadores-chave e modelos de avaliação antes-depois." },
-];
-
-const helpResources = [
-  { title: "Rede de Inovadores Públicos", description: "Conecte-se com outros profissionais do setor público que estão a implementar inovações nos seus serviços. Partilhe experiências, desafios e soluções." },
-  { title: "Programa de Mentoria OCDE/OPSI", description: "Aceda a mentores especializados da OCDE e do OPSI que podem orientar a sua equipa na implementação de práticas inovadoras de prestação de serviços." },
-];
-
-function ExpandableSection({ title, description, defaultOpen = false }: { title: string; description: string; defaultOpen?: boolean }) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="border border-primary-200 rounded-[10px] bg-white">
-      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-[20px] py-[16px] text-left">
-        <span className="text-[16px] font-semibold text-primary-900">{title}</span>
-        {open ? <AgoraIcon name="chevron-up" className="size-[20px] text-primary-600" /> : <AgoraIcon name="chevron-down" className="size-[20px] text-primary-600" />}
-      </button>
-      {open && (
-        <div className="px-[20px] pb-[16px]">
-          <p className="text-[14px] text-primary-800 leading-[22px]">{description}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // Agrega as medições de um indicador num único valor:
 // prefere a linha "todos os canais" (channel = null); senão, média dos canais.
 function aggregateValue(rows: MeasRow[]): number | null {
-  const nullRow = rows.find((r) => r.channel === null);
+  // Linha "agregada" real: sem canal E sem segmentação geográfica (as linhas por distrito
+  // também têm channel=null, por isso é preciso excluir geo_level para não as confundir com
+  // o total — mesmo critério da página de detalhe do indicador).
+  const nullRow = rows.find((r) => r.channel === null && r.geo_level === null);
   const source = nullRow ? [nullRow] : rows;
   const nums = source.map((r) => Number(r.value)).filter((v) => !Number.isNaN(v));
   if (nums.length === 0) return null;
@@ -87,7 +55,8 @@ function aggregateValue(rows: MeasRow[]): number | null {
 }
 
 function pickCategoryCounts(rows: MeasRow[]): Record<string, number> | null {
-  const row = rows.find((r) => r.channel === null && r.category_counts) ?? rows.find((r) => r.category_counts);
+  const row = rows.find((r) => r.channel === null && r.geo_level === null && r.category_counts)
+    ?? rows.find((r) => r.category_counts);
   return row?.category_counts ?? null;
 }
 
@@ -101,6 +70,8 @@ export default function ServiceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [suggestions, setSuggestions] = useState<(InnovationSuggestion & { dimension: string })[]>([]);
+  const [caseStudies, setCaseStudies] = useState<(CaseStudy & { dimension: string })[]>([]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -134,7 +105,7 @@ export default function ServiceDetailPage() {
       // 2. Medições do serviço
       const { data: meas, error: measErr } = await supabase
         .from("measurements_catalog")
-        .select("indicator_id, channel, value, category_counts, total_inquiridos")
+        .select("indicator_id, channel, geo_level, value, category_counts, total_inquiridos")
         .eq("service_id", serviceId);
 
       if (!active) return;
@@ -149,7 +120,7 @@ export default function ServiceDetailPage() {
       // 3. Catálogo de indicadores (dimensão via embed)
       const { data: inds, error: indErr } = await supabase
         .from("indicators")
-        .select("id, description, is_mandatory, value_type, value_scale_max, escala_descricao, thematic_priorities(name_pt, display_order)")
+        .select("id, description, is_mandatory, value_type, value_scale_max, escala_descricao, thematic_priority_id, thematic_priorities(name_pt, display_order)")
         .in("id", ids);
 
       if (!active) return;
@@ -164,16 +135,24 @@ export default function ServiceDetailPage() {
         if (!byIndicator.has(key)) byIndicator.set(key, []);
         byIndicator.get(key)!.push({
           channel: (m.channel as string | null) ?? null,
+          geo_level: (m.geo_level as string | null) ?? null,
           value: m.value as number | string | null,
           category_counts: (m.category_counts as Record<string, number> | null) ?? null,
         });
       }
 
-      // Métricas de cabeçalho do serviço: CSAT (ux_csat = scale_1_10) e nº de respostas.
-      const csatInd = (inds ?? []).find((i) => i.value_type === "scale_1_10");
-      const csatVal = csatInd ? aggregateValue(byIndicator.get(csatInd.id as string) ?? []) : null;
-      const inqVals = (meas ?? []).map((m) => Number(m.total_inquiridos)).filter((n) => !Number.isNaN(n));
-      const nResp = inqVals.length ? Math.max(...inqVals) : null;
+      // Métricas de cabeçalho do serviço: CSAT (ux_csat) e nº de respostas — mesmo indicador
+      // oficial (etl_column_key) usado em SelectedServiceContext/catalogo, não qualquer
+      // indicador de escala 1-10 do serviço.
+      const { data: csatIndData } = await supabase
+        .from("indicators").select("id").eq("etl_column_key", "ux_csat").maybeSingle();
+      if (!active) return;
+      const csatId = csatIndData?.id as string | undefined;
+      const csatRows = csatId ? (meas ?? []).filter((m) => m.indicator_id === csatId) : [];
+      // Linha "agregada" real: sem canal E sem segmentação geográfica.
+      const csatNullRow = csatRows.find((r) => r.channel === null && r.geo_level === null) ?? csatRows[0];
+      const csatVal = csatNullRow?.value != null ? Number(csatNullRow.value) : null;
+      const nResp = csatNullRow ? ((csatNullRow.total_inquiridos as number | null) ?? null) : null;
       setService((prev) => (prev ? { ...prev, csat: csatVal, nResponses: nResp } : prev));
 
       const items: IndicatorItem[] = (inds ?? []).map((i) => {
@@ -197,6 +176,92 @@ export default function ServiceDetailPage() {
 
       items.sort((a, b) => a.priorityOrder - b.priorityOrder || a.name.localeCompare(b.name));
       setIndicatorItems(items);
+
+      // Dimensões relevantes a este serviço (as dos seus indicadores medidos), ordenadas
+      // por display_order — usadas para escolher, de seguida, 3 dimensões diferentes tanto
+      // para "Como Melhorar o Serviço?" como para os Casos de Estudo do OPSI.
+      const dimensionsMap = new Map<string, { name: string; order: number }>();
+      for (const i of inds ?? []) {
+        const tpId = i.thematic_priority_id as string | null;
+        const tp = (i.thematic_priorities ?? {}) as { name_pt?: string; display_order?: number };
+        if (tpId && !dimensionsMap.has(tpId)) {
+          dimensionsMap.set(tpId, { name: tp.name_pt ?? "—", order: tp.display_order ?? 99 });
+        }
+      }
+      const orderedDimensionIds = [...dimensionsMap.keys()].sort(
+        (a, b) => dimensionsMap.get(a)!.order - dimensionsMap.get(b)!.order
+      );
+
+      if (orderedDimensionIds.length) {
+        // "Como Melhorar o Serviço?" — 1 sugestão de cada uma de até 3 dimensões diferentes.
+        const { data: allSugg } = await supabase
+          .from("innovation_suggestions")
+          .select("id, title, description, saber_mais_url, thematic_priority_id, display_order")
+          .in("thematic_priority_id", orderedDimensionIds)
+          .order("display_order");
+        if (!active) return;
+        const suggByDim = new Map<string, { id: string; title: string; description: string; saber_mais_url: string | null }>();
+        for (const s of allSugg ?? []) {
+          const tpId = s.thematic_priority_id as string;
+          if (!suggByDim.has(tpId)) {
+            suggByDim.set(tpId, {
+              id: s.id as string,
+              title: s.title as string,
+              description: s.description as string,
+              saber_mais_url: (s.saber_mais_url as string | null) ?? null,
+            });
+          }
+        }
+        setSuggestions(
+          orderedDimensionIds
+            .filter((id) => suggByDim.has(id))
+            .slice(0, 3)
+            .map((id) => {
+              const s = suggByDim.get(id)!;
+              return { id: s.id, title: s.title, description: s.description, link: s.saber_mais_url, dimension: dimensionsMap.get(id)!.name };
+            })
+        );
+
+        // Casos de Estudo do OPSI — 3 exemplos de até 3 dimensões diferentes.
+        const { data: allCSRows } = await supabase
+          .from("case_study_thematic_priorities")
+          .select("thematic_priority_id, case_studies(id, country, title, external_url, display_order)")
+          .in("thematic_priority_id", orderedDimensionIds);
+        if (!active) return;
+        const csByDim = new Map<string, { id: string; country: string; title: string; external_url: string | null; display_order: number | null }>();
+        for (const row of allCSRows ?? []) {
+          const tpId = row.thematic_priority_id as string;
+          const csRaw = row.case_studies as unknown as
+            | { id: string; country: string; title: string; external_url: string | null; display_order: number | null }
+            | { id: string; country: string; title: string; external_url: string | null; display_order: number | null }[]
+            | null;
+          const cs = Array.isArray(csRaw) ? csRaw[0] : csRaw;
+          if (!cs) continue;
+          const existing = csByDim.get(tpId);
+          if (!existing || (cs.display_order ?? 999) < (existing.display_order ?? 999)) {
+            csByDim.set(tpId, cs);
+          }
+        }
+        setCaseStudies(
+          orderedDimensionIds
+            .filter((id) => csByDim.has(id))
+            .slice(0, 3)
+            .map((id) => {
+              const cs = csByDim.get(id)!;
+              return {
+                id: cs.id,
+                title: cs.title,
+                country: cs.country,
+                externalUrl: cs.external_url,
+                dimension: dimensionsMap.get(id)!.name,
+              };
+            })
+        );
+      } else {
+        setSuggestions([]);
+        setCaseStudies([]);
+      }
+
       setLoading(false);
     })();
     return () => { active = false; };
@@ -388,43 +453,46 @@ export default function ServiceDetailPage() {
         )}
       </div>
 
-      {/* Innovation Suggestions */}
+      {/* Innovation Suggestions — 1 sugestão de cada uma de até 3 dimensões diferentes do serviço */}
       <div className="mb-[48px]">
         <div className="flex items-center gap-[8px] mb-[24px]">
           <AgoraIcon name="award" className="size-[24px] text-primary-600" />
-          <h2 className="text-[28px] font-bold text-primary-900">Como Inovar para Melhorar o Serviço?</h2>
+          <h2 className="text-[28px] font-bold text-primary-900">Como Melhorar o Serviço?</h2>
         </div>
-        <div className="grid grid-cols-3 gap-[24px]">
-          {suggestions.map((s) => (
-            <div key={s.title} className="bg-white rounded-[10px] shadow-[0px_2px_4px_0px_rgba(0,0,0,0.06)] border border-primary-200 p-[24px]">
-              <h3 className="text-[16px] font-bold text-primary-900 mb-[8px]">{s.title}</h3>
-              <p className="text-[14px] text-primary-800 leading-[22px]">{s.description}</p>
-            </div>
-          ))}
-        </div>
+        {suggestions.length === 0 ? (
+          <p className="text-[13px] text-primary-400">Ainda não há boas práticas de inovação para as dimensões deste serviço.</p>
+        ) : (
+          <div className="grid grid-cols-3 gap-[24px]">
+            {suggestions.map((s) => (
+              <div key={s.id} className="bg-white rounded-[10px] shadow-[0px_2px_4px_0px_rgba(0,0,0,0.06)] border border-primary-200 p-[24px] flex flex-col gap-[8px]">
+                <span className="inline-flex items-center gap-[6px] text-[12px] font-medium text-primary-600">
+                  <AgoraIcon name="layers-menu" size={13} />
+                  {s.dimension}
+                </span>
+                <h3 className="text-[16px] font-bold text-primary-900">{s.title}</h3>
+                <p className="text-[14px] text-primary-800 leading-[22px]">{s.description}</p>
+                {s.link && (
+                  <a
+                    href={s.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-[6px] text-[13px] font-medium text-primary-700 hover:text-primary-900 transition-colors mt-auto pt-[8px]"
+                  >
+                    Saber Mais <AgoraIcon name="arrow-right-anchor" size={13} />
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Tools Section */}
-      <div className="mb-[48px]">
-        <div className="flex items-center gap-[8px] mb-[24px]">
-          <AgoraIcon name="hardware-settings" className="size-[24px] text-primary-600" />
-          <h2 className="text-[28px] font-bold text-primary-900">Ferramentas para a Inovação</h2>
-        </div>
-        <div className="flex flex-col gap-[12px]">
-          {tools.map((t) => (<ExpandableSection key={t.title} title={t.title} description={t.description} />))}
-        </div>
-      </div>
+      {/* Tools for Innovation — idêntico ao detalhe do indicador; Casos de Estudo com
+         3 exemplos de até 3 dimensões diferentes do serviço */}
+      <ToolsForInnovationSection caseStudies={caseStudies} />
 
-      {/* Help Section */}
-      <div className="mb-[48px]">
-        <div className="flex items-center gap-[8px] mb-[24px]">
-          <AgoraIcon name="help-support" className="size-[24px] text-primary-600" />
-          <h2 className="text-[28px] font-bold text-primary-900">Obtenha Ajuda para a Inovação</h2>
-        </div>
-        <div className="flex flex-col gap-[12px]">
-          {helpResources.map((h) => (<ExpandableSection key={h.title} title={h.title} description={h.description} />))}
-        </div>
-      </div>
+      {/* Get Help — idêntico ao detalhe do indicador */}
+      <GetHelpSection />
     </AppLayout>
   );
 }

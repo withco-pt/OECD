@@ -11,7 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { useSelectedService } from "@/context/SelectedServiceContext";
 
 type PriorityMeta = { id: string; title: string; description: string; icon: string | null };
-type MeasRow = { channel: string | null; value: number | string | null; category_counts: Record<string, number> | null };
+type MeasRow = { channel: string | null; geo_level: string | null; value: number | string | null; category_counts: Record<string, number> | null };
 type IndicatorItem = {
   id: string;
   name: string;
@@ -27,7 +27,10 @@ type IndicatorItem = {
 };
 
 function aggregateValue(rows: MeasRow[]): number | null {
-  const nullRow = rows.find((r) => r.channel === null);
+  // Linha "agregada" real: sem canal E sem segmentação geográfica (as linhas por distrito
+  // também têm channel=null, por isso é preciso excluir geo_level para não as confundir com
+  // o total — mesmo critério da página de detalhe do indicador).
+  const nullRow = rows.find((r) => r.channel === null && r.geo_level === null);
   const source = nullRow ? [nullRow] : rows;
   const nums = source.map((r) => Number(r.value)).filter((v) => !Number.isNaN(v));
   if (nums.length === 0) return null;
@@ -35,7 +38,8 @@ function aggregateValue(rows: MeasRow[]): number | null {
 }
 
 function pickCategoryCounts(rows: MeasRow[]): Record<string, number> | null {
-  const row = rows.find((r) => r.channel === null && r.category_counts) ?? rows.find((r) => r.category_counts);
+  const row = rows.find((r) => r.channel === null && r.geo_level === null && r.category_counts)
+    ?? rows.find((r) => r.category_counts);
   return row?.category_counts ?? null;
 }
 
@@ -93,7 +97,7 @@ export default function PriorityDetailPage() {
       if (selectedService && ids.length) {
         const { data: meas } = await supabase
           .from("measurements_catalog")
-          .select("indicator_id, channel, value, category_counts")
+          .select("indicator_id, channel, geo_level, value, category_counts")
           .eq("service_id", selectedService.id)
           .in("indicator_id", ids);
         if (!active) return;
@@ -102,6 +106,7 @@ export default function PriorityDetailPage() {
           if (!byIndicator.has(key)) byIndicator.set(key, []);
           byIndicator.get(key)!.push({
             channel: (m.channel as string | null) ?? null,
+            geo_level: (m.geo_level as string | null) ?? null,
             value: m.value as number | string | null,
             category_counts: (m.category_counts as Record<string, number> | null) ?? null,
           });
