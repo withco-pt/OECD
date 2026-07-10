@@ -1,6 +1,7 @@
 "use client";
 
 import { AgoraIcon } from "@/components/icons/AgoraIcon";
+import EmptyChartState from "@/components/EmptyChartState";
 
 /* ─────────────────────────────────────────────────────────────
    Widgets de visualização do indicador (Tempo, Distrito, Canais).
@@ -150,7 +151,14 @@ function BarsCanais({
   scaleMax: number | null;
 }) {
   if (!data.length) {
-    return <p className="text-[13px] text-primary-400">Sem dados</p>;
+    return (
+      <div className="w-full max-w-[460px] h-[300px] flex items-center justify-center">
+        <EmptyChartState
+          title="Sem dados disponíveis"
+          description="Ainda não há medições registadas por canal para este indicador."
+        />
+      </div>
+    );
   }
 
   const min = scaleMin ?? 0;
@@ -288,7 +296,14 @@ function DistrictTable({
   service: string;
 }) {
   if (!data.length) {
-    return <p className="text-[13px] text-primary-400">Sem dados</p>;
+    return (
+      <div className="w-full max-w-[520px] h-[180px] flex items-center justify-center">
+        <EmptyChartState
+          title="Sem dados disponíveis"
+          description="Ainda não há medições registadas por distrito para este indicador."
+        />
+      </div>
+    );
   }
 
   return (

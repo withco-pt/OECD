@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
 import Breadcrumb from "@/components/Breadcrumb";
+import EmptyChartState from "@/components/EmptyChartState";
 import HelpTooltip from "@/components/HelpTooltip";
 import IndicatorViz from "@/components/IndicatorViz";
 import { useSelectedService } from "@/context/SelectedServiceContext";
@@ -13,13 +14,23 @@ import { supabase } from "@/lib/supabase";
 /* ── Gauge SVG (exported from Figma) ─────────────────────────── */
 
 function FigmaGauge({ value, min = 1, max = 10 }: { value: number | null; min?: number; max?: number }) {
+  if (value == null) {
+    return (
+      <div className="w-full max-w-[481px] aspect-[481/262] flex items-center justify-center">
+        <EmptyChartState
+          title="Sem dados disponíveis"
+          description="Ainda não há medições registadas para este indicador e serviço."
+        />
+      </div>
+    );
+  }
+
   // Geometria do semicírculo (centro na base, raio exterior ~220).
   const cx = 220.5;
   const cy = 220;
-  const hasValue = value != null;
   // Fração da escala do indicador (min→esquerda, max→direita), independente da escala.
   const span = max - min || 1;
-  const frac = hasValue ? Math.min(1, Math.max(0, (value - min) / span)) : 0;
+  const frac = Math.min(1, Math.max(0, (value - min) / span));
   const rad = (180 - frac * 180) * (Math.PI / 180);
   const ux = Math.cos(rad);
   const uy = -Math.sin(rad);
@@ -79,12 +90,11 @@ function FigmaGauge({ value, min = 1, max = 10 }: { value: number | null; min?: 
         fill="#021c51"
         fontFamily="Noto Sans, sans-serif"
       >
-        {hasValue ? value : "—"}
+        {value}
       </text>
       {/* Seta indicadora */}
-      {hasValue && <polygon points={`${tip} ${b1} ${b2}`} fill="#021c51" />}
+      <polygon points={`${tip} ${b1} ${b2}`} fill="#021c51" />
     </svg>
-    {!hasValue && <p className="text-[13px] text-primary-400">Sem dados</p>}
     </div>
   );
 }
@@ -92,11 +102,21 @@ function FigmaGauge({ value, min = 1, max = 10 }: { value: number | null; min?: 
 /* ── Gauge Likert 1-5 (5 setores/cores próprios, replicado do Figma "Gráfico/Likert 1-5") ─ */
 
 function LikertGauge({ value, min = 1, max = 5 }: { value: number | null; min?: number; max?: number }) {
+  if (value == null) {
+    return (
+      <div className="w-full max-w-[481px] aspect-[481/262] flex items-center justify-center">
+        <EmptyChartState
+          title="Sem dados disponíveis"
+          description="Ainda não há medições registadas para este indicador e serviço."
+        />
+      </div>
+    );
+  }
+
   const cx = 220.5;
   const cy = 220;
-  const hasValue = value != null;
   const span = max - min || 1;
-  const frac = hasValue ? Math.min(1, Math.max(0, (value - min) / span)) : 0;
+  const frac = Math.min(1, Math.max(0, (value - min) / span));
   const rad = (180 - frac * 180) * (Math.PI / 180);
   const ux = Math.cos(rad);
   const uy = -Math.sin(rad);
@@ -182,16 +202,15 @@ function LikertGauge({ value, min = 1, max = 5 }: { value: number | null; min?: 
         })}
         {/* Valor central */}
         <text x={cx} y={205} textAnchor="middle" fontSize="54" fontWeight="700" fill="#021c51" fontFamily="Noto Sans, sans-serif">
-          {hasValue ? value : "—"}
+          {value}
         </text>
         {/* Seta indicadora */}
-        {hasValue && <polygon points={`${tip} ${b1} ${b2}`} fill="#021c51" />}
+        <polygon points={`${tip} ${b1} ${b2}`} fill="#021c51" />
       </svg>
       <div className="flex items-center justify-between w-full max-w-[441px] px-[4px]">
         <span className="text-[24px] leading-[32px] font-medium text-neutral-900">Muito difícil</span>
         <span className="text-[24px] leading-[32px] font-medium text-neutral-900">Muito fácil</span>
       </div>
-      {!hasValue && <p className="text-[13px] text-primary-400">Sem dados</p>}
     </div>
   );
 }
@@ -246,12 +265,11 @@ function CategoricalDonut({ counts }: { counts: Record<string, number> | null })
 
   if (!total) {
     return (
-      <div className="flex flex-col items-center gap-[8px] w-full">
-        <svg width="481" height="262" viewBox="-20 -20 481 262" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[481px]">
-          <path d={sectorPath(180, 0)} fill="#e1e4ea" />
-          <text x={cx} y={cy - 15} textAnchor="middle" fontSize="54" fontWeight="700" fill="#021c51" fontFamily="Noto Sans, sans-serif">—</text>
-        </svg>
-        <p className="text-[13px] text-primary-400">Sem dados</p>
+      <div className="w-full max-w-[481px] aspect-[481/262] flex items-center justify-center">
+        <EmptyChartState
+          title="Sem dados disponíveis"
+          description="Ainda não há medições registadas para este indicador e serviço."
+        />
       </div>
     );
   }
@@ -295,9 +313,16 @@ function CategoricalDonut({ counts }: { counts: Record<string, number> | null })
 /* ── KPI Contagem (nº) — valor + variação vs período anterior (só quando há 2+ períodos reais) ─ */
 
 function CountKPI({ value, previousValue }: { value: number | null; previousValue: number | null }) {
-  const hasValue = value != null;
-  const hasComparison = hasValue && previousValue != null && previousValue !== 0;
-  const delta = hasComparison ? Math.round(((value! - previousValue!) / previousValue!) * 1000) / 10 : null;
+  if (value == null) {
+    return (
+      <div className="w-full py-[16px] flex items-center justify-center">
+        <EmptyChartState size="sm" title="Sem dados" />
+      </div>
+    );
+  }
+
+  const hasComparison = previousValue != null && previousValue !== 0;
+  const delta = hasComparison ? Math.round(((value - previousValue!) / previousValue!) * 1000) / 10 : null;
   const isUp = delta != null && delta > 0;
   const isDown = delta != null && delta < 0;
 
@@ -305,7 +330,7 @@ function CountKPI({ value, previousValue }: { value: number | null; previousValu
     <div className="flex flex-col gap-[8px] w-full py-[16px]">
       <div className="flex items-end gap-[14px]">
         <span className="text-[64px] font-bold text-primary-900 leading-none">
-          {hasValue ? value!.toLocaleString("pt-PT") : "—"}
+          {value.toLocaleString("pt-PT")}
         </span>
         {delta != null && (
           <span className={`flex items-center gap-[4px] text-[18px] font-semibold pb-[10px] ${isUp ? "text-success-600" : isDown ? "text-danger-600" : "text-neutral-500"}`}>
@@ -315,7 +340,6 @@ function CountKPI({ value, previousValue }: { value: number | null; previousValu
         )}
       </div>
       {delta != null && <p className="text-[13px] text-primary-500">vs. período anterior</p>}
-      {!hasValue && <p className="text-[13px] text-primary-400">Sem dados</p>}
     </div>
   );
 }
@@ -323,15 +347,22 @@ function CountKPI({ value, previousValue }: { value: number | null; previousValu
 /* ── Estatística Rácio / Tempo médio — só o valor real, sem meta (não existe no schema) ─ */
 
 function RatioStat({ value, unit }: { value: number | null; unit: string | null }) {
+  if (value == null) {
+    return (
+      <div className="w-full py-[16px] flex items-center justify-center">
+        <EmptyChartState size="sm" title="Sem dados" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-[8px] w-full py-[16px]">
       <div className="flex items-baseline gap-[8px]">
         <span className="text-[64px] font-bold text-primary-900 leading-none">
-          {value != null ? value.toLocaleString("pt-PT", { maximumFractionDigits: 1 }) : "—"}
+          {value.toLocaleString("pt-PT", { maximumFractionDigits: 1 })}
         </span>
-        {unit && value != null && <span className="text-[24px] font-semibold text-primary-600">{unit}</span>}
+        {unit && <span className="text-[24px] font-semibold text-primary-600">{unit}</span>}
       </div>
-      {value == null && <p className="text-[13px] text-primary-400">Sem dados</p>}
     </div>
   );
 }
@@ -346,7 +377,9 @@ function OpenResponseCard({ text, respondents }: { text: string | null; responde
           “{text}”
         </blockquote>
       ) : (
-        <p className="text-[13px] text-primary-400">Sem dados</p>
+        <div className="py-[8px] flex items-center justify-center">
+          <EmptyChartState size="sm" title="Sem dados" />
+        </div>
       )}
       {respondents != null && (
         <p className="text-[13px] text-primary-500">
@@ -441,62 +474,69 @@ function ContactCard({
 
 /* ── Cartão de caso de estudo (OPSI) ─────────────────────────── */
 
-function CaseStudyCard({ title, flag, country }: { title: string; flag: string; country: string }) {
-  return (
-    <div className="bg-white rounded-[10px] border border-primary-200 p-[16px] flex flex-col gap-[10px] flex-1 min-w-0">
+// Bandeiras dos países presentes nos casos de estudo do OPSI (migration 018_case_studies.sql).
+const COUNTRY_FLAGS: Record<string, string> = {
+  "Grécia": "🇬🇷",
+  "Noruega": "🇳🇴",
+  "Peru": "🇵🇪",
+  "Brasil": "🇧🇷",
+  "Geórgia": "🇬🇪",
+  "Espanha": "🇪🇸",
+  "Uruguai": "🇺🇾",
+  "Suécia": "🇸🇪",
+  "Coreia do Sul": "🇰🇷",
+  "Irlanda": "🇮🇪",
+  "Reino Unido": "🇬🇧",
+  "Ucrânia": "🇺🇦",
+  "Azerbaijão": "🇦🇿",
+  "Estónia": "🇪🇪",
+  "Arábia Saudita": "🇸🇦",
+  "Austrália": "🇦🇺",
+  "Finlândia": "🇫🇮",
+  "Polónia": "🇵🇱",
+  "Canadá": "🇨🇦",
+  "Dinamarca": "🇩🇰",
+  "Colombia": "🇨🇴",
+  "Uganda": "🇺🇬",
+  "Estados Unidos da América": "🇺🇸",
+  "Argentina": "🇦🇷",
+  "Itália": "🇮🇹",
+};
+
+type CaseStudy = { id: string; title: string; country: string; externalUrl: string | null };
+
+function CaseStudyCard({ title, country, dimension, externalUrl }: { title: string; country: string; dimension: string; externalUrl: string | null }) {
+  const content = (
+    <>
       <span className="inline-flex items-center gap-[6px] text-[12px] font-medium text-primary-600">
         <AgoraIcon name="layers-menu" size={13} />
-        Simplicidade
+        {dimension}
       </span>
       <h4 className="text-[14px] font-bold text-primary-900 leading-snug flex-1">{title}</h4>
       <span className="inline-flex items-center gap-[6px] text-[13px] text-primary-800 bg-primary-100 rounded-full px-[10px] py-[4px] self-start">
-        <span aria-hidden="true">{flag}</span> {country}
+        <span aria-hidden="true">{COUNTRY_FLAGS[country] ?? "🏳️"}</span> {country}
       </span>
-    </div>
+    </>
+  );
+  const className = "bg-white rounded-[10px] border border-primary-200 p-[16px] flex flex-col gap-[10px] min-w-0";
+  return externalUrl ? (
+    <a href={externalUrl} target="_blank" rel="noopener noreferrer" className={`${className} hover:border-primary-400 transition-colors`}>
+      {content}
+    </a>
+  ) : (
+    <div className={className}>{content}</div>
   );
 }
 
 /* ── Diagrama do Duplo Diamante (Acelerador de Inovação) ─────── */
 
-const DIAMOND_STEPS = [
-  { label: "SCOPE", caption: "What challenges are we addressing?", offset: 44 },
-  { label: "ENGAGE", caption: "Who are we designing for and why?", offset: 0 },
-  { label: "UNDERSTAND", caption: "What is happening now, and why?", offset: 10 },
-  { label: "RE-FRAME", caption: "What is the real challenge we need to solve?", offset: 36, highlight: true },
-  { label: "DESIGN", caption: "What ideas could work in the real world?", offset: 10 },
-  { label: "TEST", caption: "Would the ideas likely work?", offset: 0 },
-  { label: "COMMUNICATE", caption: "What ongoing support for the new solution?", offset: 44 },
-];
-
 function DoubleDiamondDiagram() {
   return (
-    <div className="flex flex-col gap-[10px] w-full">
-      <div className="flex justify-between text-[13px] font-bold text-primary-900 px-[4px]">
-        <span>Today</span>
-        <span>Tomorrow</span>
-      </div>
-      <div className="flex items-start justify-between gap-[4px]">
-        {DIAMOND_STEPS.map((s) => (
-          <div
-            key={s.label}
-            className={`size-[30px] rotate-45 rounded-[4px] flex items-center justify-center shrink-0 ${
-              s.highlight ? "bg-secondary-600" : "bg-primary-600"
-            }`}
-            style={{ marginTop: s.offset }}
-          >
-            <span className="-rotate-45 text-white text-[9px] font-bold">{s.label[0]}</span>
-          </div>
-        ))}
-      </div>
-      <div className="flex justify-between gap-[4px]">
-        {DIAMOND_STEPS.map((s) => (
-          <div key={s.label} className="flex-1 text-center">
-            <p className="text-[8px] font-bold text-primary-900 mb-[2px]">{s.label}</p>
-            <p className="text-[8px] text-primary-700 leading-tight">{s.caption}</p>
-          </div>
-        ))}
-      </div>
-    </div>
+    <img
+      src="/acelerador_graf.png"
+      alt="Diagrama do duplo diamante: Today (Scope, Engage, Understand) e Tomorrow (Re-frame, Design, Test, Communicate)"
+      className="w-full h-auto"
+    />
   );
 }
 
@@ -573,45 +613,7 @@ const tabs = [
   "Visualização por Canais",
 ] as const;
 
-const innovationSuggestions = [
-  {
-    tag: "Alta Prioridade",
-    title: "Redesenho do processo de atendimento",
-    description:
-      "Simplificar o percurso do utilizador reduzindo o número de contactos necessários através de formulários inteligentes e FAQs dinâmicas.",
-  },
-  {
-    tag: "Média Prioridade",
-    title: "Implementação de chatbot assistido por IA",
-    description:
-      "Introduzir um assistente virtual para responder a questões frequentes e encaminhar pedidos complexos automaticamente.",
-  },
-  {
-    tag: "Exploratória",
-    title: "Plataforma de feedback contínuo",
-    description:
-      "Criar um sistema de recolha contínua de feedback dos utilizadores integrado no fluxo do serviço.",
-  },
-];
-
-const caseStudies = [
-  {
-    title:
-      "Superando a Complexidade nos Serviços Públicos: Facilitando o Acesso ao Sistema de Eliminação de Barreiras Burocráticas",
-    flag: "🇵🇪",
-    country: "Peru",
-  },
-  {
-    title: "Programa Amigável de Aprovações para Pequenas Empresas na Austrália",
-    flag: "🇦🇺",
-    country: "Austrália",
-  },
-  {
-    title: "Redesenho do serviço de atribuição do Certificado Único de Incapacidade Argentina",
-    flag: "🇦🇷",
-    country: "Argentina",
-  },
-];
+type InnovationSuggestion = { id: string; title: string; description: string; link: string | null };
 
 const goodPerformanceServices = [
   {
@@ -664,6 +666,8 @@ export default function IndicatorDetailPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [suggestions, setSuggestions] = useState<InnovationSuggestion[]>([]);
+  const [caseStudies, setCaseStudies] = useState<CaseStudy[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -672,13 +676,47 @@ export default function IndicatorDetailPage() {
 
       const { data: ind, error: indErr } = await supabase
         .from("indicators")
-        .select("id, description, is_mandatory, value_type, value_scale_min, value_scale_max, escala_descricao, channel_scope, base_legal, base_legal_url, instrumento_recolha, formula_calculo, frequencia_recolha, thematic_priorities(name_pt)")
+        .select("id, description, is_mandatory, value_type, value_scale_min, value_scale_max, escala_descricao, channel_scope, base_legal, base_legal_url, instrumento_recolha, formula_calculo, frequencia_recolha, thematic_priority_id, thematic_priorities(name_pt)")
         .eq("id", id)
         .maybeSingle();
 
       if (!active) return;
       if (indErr) { console.error("[indicador] erro:", indErr.message); setLoadError(true); setLoading(false); return; }
       if (!ind) { setNotFound(true); setLoading(false); return; }
+
+      // Boas práticas de inovação da dimensão do indicador (partilhadas por todos os
+      // indicadores dessa dimensão — ver docs/data-schema.md).
+      const { data: sugg } = await supabase
+        .from("innovation_suggestions")
+        .select("id, title, description, saber_mais_url")
+        .eq("thematic_priority_id", ind.thematic_priority_id as string)
+        .order("display_order");
+      if (!active) return;
+      setSuggestions(
+        (sugg ?? []).map((s) => ({
+          id: s.id as string,
+          title: s.title as string,
+          description: s.description as string,
+          link: (s.saber_mais_url as string | null) ?? null,
+        }))
+      );
+
+      // Casos de estudo do OPSI associados à dimensão do indicador (um caso pode estar
+      // associado a mais do que uma dimensão — ver docs/data-schema.md).
+      const { data: cs } = await supabase
+        .from("case_studies")
+        .select("id, country, title, external_url, display_order, case_study_thematic_priorities!inner(thematic_priority_id)")
+        .eq("case_study_thematic_priorities.thematic_priority_id", ind.thematic_priority_id as string)
+        .order("display_order");
+      if (!active) return;
+      setCaseStudies(
+        (cs ?? []).map((c) => ({
+          id: c.id as string,
+          title: c.title as string,
+          country: c.country as string,
+          externalUrl: (c.external_url as string | null) ?? null,
+        }))
+      );
 
       // Medição do indicador para o serviço selecionado
       type MRow = { channel: string | null; geo_level: string | null; geo_name: string | null; value: number | string | null; value_text: string | null; category_counts: Record<string, number> | null; total_respondentes: number | null; total_inquiridos: number | null; year: number | null; month: number | null };
@@ -1064,30 +1102,39 @@ export default function IndicatorDetailPage() {
         <h2 className="text-[22px] font-bold text-primary-900 mb-[16px]">
           Como Inovar para Melhorar o Indicador?
         </h2>
-        <div className="grid grid-cols-3 gap-[16px]">
-          {innovationSuggestions.map((s) => (
-            <div
-              key={s.title}
-              className="bg-primary-600 rounded-[12px] hover:bg-primary-700 transition-colors p-[24px] flex flex-col gap-[12px] min-h-[220px]"
-            >
-              <p className="text-white text-[13px] font-medium opacity-90 flex items-center gap-[6px]">
-                <AgoraIcon name="layers-menu" size={14} />
-                {s.tag}
-              </p>
-              <h3 className="text-[18px] font-bold text-white leading-snug flex-1">
-                {s.title}
-              </h3>
-              <p className="text-white text-[13px] leading-relaxed opacity-85">
-                {s.description}
-              </p>
-              <div className="flex justify-end mt-[4px]">
-                <button className="flex items-center gap-[6px] bg-white text-primary-800 text-[13px] font-medium rounded-full px-[16px] py-[8px] hover:bg-primary-100 transition-colors">
-                  Saber Mais <AgoraIcon name="arrow-right-anchor" size={13} />
-                </button>
+        {suggestions.length === 0 ? (
+          <p className="text-[13px] text-primary-400">
+            Ainda não há boas práticas de inovação para esta dimensão.
+          </p>
+        ) : (
+          <div className="grid grid-cols-3 gap-[16px]">
+            {suggestions.map((s) => (
+              <div
+                key={s.id}
+                className="bg-primary-600 rounded-[12px] hover:bg-primary-700 transition-colors p-[24px] flex flex-col gap-[12px] min-h-[220px]"
+              >
+                <h3 className="text-[18px] font-bold text-white leading-snug">
+                  {s.title}
+                </h3>
+                <p className="text-white text-[13px] leading-relaxed opacity-85 whitespace-pre-line">
+                  {s.description}
+                </p>
+                {s.link && (
+                  <div className="flex justify-end mt-auto pt-[4px]">
+                    <a
+                      href={s.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-[6px] bg-white text-primary-800 text-[13px] font-medium rounded-full px-[16px] py-[8px] hover:bg-primary-100 transition-colors"
+                    >
+                      Saber Mais <AgoraIcon name="arrow-right-anchor" size={13} />
+                    </a>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Tools for Innovation */}
@@ -1122,9 +1169,15 @@ export default function IndicatorDetailPage() {
                 relacionados com as dimensões da Matriz. Pretendem estimular ideias e
                 demonstrar diferentes potenciais abordagens.
               </p>
-              <div className="flex gap-[16px] flex-wrap">
+              <div className="grid grid-cols-3 gap-[16px]">
                 {caseStudies.map((c) => (
-                  <CaseStudyCard key={c.title} title={c.title} flag={c.flag} country={c.country} />
+                  <CaseStudyCard
+                    key={c.id}
+                    title={c.title}
+                    country={c.country}
+                    dimension={indicator.priority}
+                    externalUrl={c.externalUrl}
+                  />
                 ))}
               </div>
               <AccessButton>Aceder ao OPSI</AccessButton>
