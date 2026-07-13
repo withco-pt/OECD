@@ -10,6 +10,8 @@ const LOCAL_LOGOS: Record<string, string> = {
   at: "/logo-at.jpeg",
   iss: "/logo-iss.jpg",
   ec: "/logo-arte-entity.svg",
+  cml: "/logo-cml.png",
+  adc: "/logo-adc.png",
 };
 
 async function getEntities(): Promise<{ entities: Entity[]; error: boolean }> {
