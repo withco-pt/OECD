@@ -756,7 +756,9 @@ export default function IndicatorDetailPage() {
               indicatorName={indicator.name}
               service={selectedService?.name ?? ""}
               metric={indicator.metric}
-              channelData={indicator.channelData}
+              channelData={indicator.channelData
+                .filter((c) => c.value !== null)
+                .map((c) => ({ channel: c.channel, value: c.value as number }))}
               scaleMin={indicator.scaleMin}
               scaleMax={indicator.scaleMax}
             />
