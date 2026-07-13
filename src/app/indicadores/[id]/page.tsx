@@ -422,7 +422,7 @@ type IndicatorDetail = {
   scaleMin: number | null;
   scaleMax: number | null;
   categoryCounts: Record<string, number> | null;
-  channelData: { channel: string; value: number }[];
+  channelData: { channel: string; value: number | null; categoryCounts: Record<string, number> | null }[];
   districtData: { geoName: string; value: number }[];
 };
 type TechField = { label: string; value: string };
@@ -436,6 +436,7 @@ export default function IndicatorDetailPage() {
   const { selectedService, openIndicatorSwap } = useSelectedService();
 
   const [indicator, setIndicator] = useState<IndicatorDetail | null>(null);
+  const [selectedChannel, setSelectedChannel] = useState<string>("Todos");
   const [techFields, setTechFields] = useState<TechField[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -446,7 +447,7 @@ export default function IndicatorDetailPage() {
   useEffect(() => {
     let active = true;
     (async () => {
-      setLoading(true); setNotFound(false); setLoadError(false);
+      setLoading(true); setNotFound(false); setLoadError(false); setSelectedChannel("Todos");
 
       const { data: ind, error: indErr } = await supabase
         .from("indicators")
@@ -521,18 +522,20 @@ export default function IndicatorDetailPage() {
       const previousValue = periodRows.length > 1 ? Number(periodRows[periodRows.length - 2].value) : null;
 
       // Valor médio real por canal (só canais com medições reais, nunca inventados).
-      const channelValues = new Map<string, number[]>();
+      // Guarda também category_counts por canal, para indicadores categóricos (Sim/Não, agendamento).
+      const channelAgg = new Map<string, { vals: number[]; categoryCounts: Record<string, number> | null }>();
       for (const row of rows) {
         if (!row.channel) continue;
+        const entry = channelAgg.get(row.channel) ?? { vals: [], categoryCounts: null };
         const v = Number(row.value);
-        if (Number.isNaN(v)) continue;
-        const arr = channelValues.get(row.channel) ?? [];
-        arr.push(v);
-        channelValues.set(row.channel, arr);
+        if (!Number.isNaN(v)) entry.vals.push(v);
+        if (row.category_counts) entry.categoryCounts = row.category_counts;
+        channelAgg.set(row.channel, entry);
       }
-      const channelData = Array.from(channelValues.entries()).map(([channel, vals]) => ({
+      const channelData = Array.from(channelAgg.entries()).map(([channel, { vals, categoryCounts }]) => ({
         channel,
-        value: Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 100) / 100,
+        value: vals.length ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 100) / 100 : null,
+        categoryCounts,
       }));
 
       // Valor médio real por distrito, só para o serviço selecionado (nunca inventado; só
@@ -634,6 +637,13 @@ export default function IndicatorDetailPage() {
       </AppLayout>
     );
   }
+
+  // Quando há um canal selecionado (e existem dados reais para esse canal), o valor
+  // mostrado na Visualização Simples passa a ser o valor desse canal em vez do agregado.
+  const selectedChannelEntry =
+    selectedChannel !== "Todos" ? indicator.channelData.find((c) => c.channel === selectedChannel) ?? null : null;
+  const displayValue = selectedChannelEntry ? selectedChannelEntry.value : indicator.value;
+  const displayCategoryCounts = selectedChannelEntry ? selectedChannelEntry.categoryCounts : indicator.categoryCounts;
 
   return (
     <AppLayout>
@@ -770,21 +780,21 @@ export default function IndicatorDetailPage() {
               {/* Gráfico — depende do tipo de valor do indicador */}
               <div className="flex-1 min-w-0">
                 {indicator.valueType === "likert_1_5" ? (
-                  <LikertGauge value={indicator.value} min={indicator.scaleMin ?? 1} max={indicator.scaleMax ?? 5} />
+                  <LikertGauge value={displayValue} min={indicator.scaleMin ?? 1} max={indicator.scaleMax ?? 5} />
                 ) : indicator.valueType.startsWith("categorical") ? (
-                  <CategoricalDonut counts={indicator.categoryCounts} />
+                  <CategoricalDonut counts={displayCategoryCounts} />
                 ) : indicator.valueType === "text" ? (
                   <OpenResponseCard text={indicator.valueText} respondents={indicator.respondents} />
                 ) : indicator.valueType === "integer" ? (
-                  <CountKPI value={indicator.value} previousValue={indicator.previousValue} />
+                  <CountKPI value={displayValue} previousValue={indicator.previousValue} />
                 ) : indicator.valueType === "decimal" ? (
                   /Tempo|R[áa]cio/i.test(indicator.metric) ? (
-                    <RatioStat value={indicator.value} unit={indicator.metric.match(/\(([^)]+)\)/)?.[1] ?? null} />
+                    <RatioStat value={displayValue} unit={indicator.metric.match(/\(([^)]+)\)/)?.[1] ?? null} />
                   ) : (
-                    <CountKPI value={indicator.value} previousValue={indicator.previousValue} />
+                    <CountKPI value={displayValue} previousValue={indicator.previousValue} />
                   )
                 ) : (
-                  <FigmaGauge value={indicator.value} min={indicator.scaleMin ?? 1} max={indicator.scaleMax ?? 10} />
+                  <FigmaGauge value={displayValue} min={indicator.scaleMin ?? 1} max={indicator.scaleMax ?? 10} />
                 )}
               </div>
 
@@ -793,7 +803,6 @@ export default function IndicatorDetailPage() {
                 {[
                   { label: "Ano", defaultVal: "2025" },
                   { label: "Mês", defaultVal: "Todos" },
-                  { label: "Canal", defaultVal: "Todos" },
                 ].map((dd) => (
                   <div key={dd.label} className="flex flex-col gap-[4px]">
                     <label className="text-[12px] font-semibold text-primary-700 uppercase tracking-wide">
@@ -807,6 +816,38 @@ export default function IndicatorDetailPage() {
                     </div>
                   </div>
                 ))}
+
+                {/* Canal — ativo sempre que existirem dados reais por canal para este indicador+serviço */}
+                <div className="flex flex-col gap-[4px]">
+                  <label className="text-[12px] font-semibold text-primary-700 uppercase tracking-wide">
+                    Canal
+                  </label>
+                  <div className="relative">
+                    <select
+                      disabled={indicator.channelData.length === 0}
+                      value={selectedChannel}
+                      onChange={(e) => setSelectedChannel(e.target.value)}
+                      className={`appearance-none border rounded-[6px] px-[10px] py-[8px] pr-[28px] text-[13px] min-w-[120px] ${
+                        indicator.channelData.length === 0
+                          ? "bg-neutral-100 border-neutral-200 text-neutral-400 cursor-not-allowed"
+                          : "bg-white border-neutral-300 text-primary-900 cursor-pointer"
+                      }`}
+                    >
+                      <option value="Todos">Todos</option>
+                      {indicator.channelData.map((c) => (
+                        <option key={c.channel} value={c.channel}>
+                          {c.channel}
+                        </option>
+                      ))}
+                    </select>
+                    <AgoraIcon
+                      name="chevron-down"
+                      className={`size-[12px] absolute right-[8px] top-1/2 -translate-y-1/2 pointer-events-none ${
+                        indicator.channelData.length === 0 ? "text-neutral-400" : "text-primary-700"
+                      }`}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 

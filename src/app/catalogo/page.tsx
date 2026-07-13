@@ -36,6 +36,7 @@ export default function CatalogoPage() {
   const [filterNonCompliance, setFilterNonCompliance] = useState(false);
   const [filterMissingData, setFilterMissingData] = useState(false);
   const [filterMatrix, setFilterMatrix] = useState(false);
+  const [sortOrder, setSortOrder] = useState("Alfabeticamente");
 
   // Carrega apenas os serviços da entidade selecionada.
   // (o AppLayout garante que existe uma entidade antes de renderizar esta página)
@@ -121,14 +122,25 @@ export default function CatalogoPage() {
   }, [entity]);
 
   const filtered = useMemo(() => {
-    return services.filter((s) => {
+    const result = services.filter((s) => {
       if (search && !s.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (filterNonCompliance && !s.nonCompliance) return false;
       if (filterMissingData && !s.missingData) return false;
       if (filterMatrix && !s.matrixAdopted) return false;
       return true;
     });
-  }, [services, search, filterNonCompliance, filterMissingData, filterMatrix]);
+    // Ordenação por CSAT — serviços sem CSAT (dados incompletos) ficam sempre no fim.
+    if (sortOrder === "CSAT: maior → menor" || sortOrder === "CSAT: menor → maior") {
+      const dir = sortOrder === "CSAT: maior → menor" ? -1 : 1;
+      return [...result].sort((a, b) => {
+        if (a.csat == null && b.csat == null) return 0;
+        if (a.csat == null) return 1;
+        if (b.csat == null) return -1;
+        return (a.csat - b.csat) * dir;
+      });
+    }
+    return result;
+  }, [services, search, filterNonCompliance, filterMissingData, filterMatrix, sortOrder]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -212,8 +224,14 @@ export default function CatalogoPage() {
             <p className="text-[14px] font-semibold text-primary-900">Ordenar</p>
             <div className="relative">
               <AgoraIcon name="sort-alpha-down" className="size-[14px] text-primary-800 absolute left-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
-              <select className="appearance-none bg-primary-200 rounded-[8px] pl-[30px] pr-[32px] py-[8px] text-[14px] text-primary-800 focus:outline-none min-w-[180px]">
-                <option>Alfabeticamente</option>
+              <select
+                value={sortOrder}
+                onChange={(e) => { setSortOrder(e.target.value); setCurrentPage(1); }}
+                className="appearance-none bg-primary-200 rounded-[8px] pl-[30px] pr-[32px] py-[8px] text-[14px] text-primary-800 focus:outline-none min-w-[180px]"
+              >
+                <option value="Alfabeticamente">Alfabeticamente</option>
+                <option value="CSAT: maior → menor">CSAT: maior → menor</option>
+                <option value="CSAT: menor → maior">CSAT: menor → maior</option>
               </select>
               <AgoraIcon name="chevron-down" className="size-[14px] text-primary-600 absolute right-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>

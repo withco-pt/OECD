@@ -61,7 +61,7 @@ export default function IndicadoresPage() {
   const [filterMandatory, setFilterMandatory] = useState(false);
   const [filterNonCompliance, setFilterNonCompliance] = useState(false);
   const [filterMissingData, setFilterMissingData] = useState(false);
-  const [filterFavorites, setFilterFavorites] = useState(false);
+  const [sortOrder, setSortOrder] = useState("Alfabeticamente");
 
   // Catálogo completo de indicadores + valores para o serviço ativo.
   useEffect(() => {
@@ -125,7 +125,7 @@ export default function IndicadoresPage() {
   const METRICS = useMemo(() => [...new Set(items.map((i) => i.metric))].sort(), [items]);
 
   const filtered = useMemo(() => {
-    return items.filter((i) => {
+    const result = items.filter((i) => {
       if (search && !i.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (selectedPriority && i.priority !== selectedPriority) return false;
       if (selectedMetric && i.metric !== selectedMetric) return false;
@@ -134,7 +134,18 @@ export default function IndicadoresPage() {
       if (filterMissingData && !i.missingData) return false;
       return true;
     });
-  }, [items, search, selectedPriority, selectedMetric, filterMandatory, filterNonCompliance, filterMissingData]);
+    // Ordenação por valor — indicadores sem valor (dados incompletos) ficam sempre no fim.
+    if (sortOrder === "Valor: maior → menor" || sortOrder === "Valor: menor → maior") {
+      const dir = sortOrder === "Valor: maior → menor" ? -1 : 1;
+      return [...result].sort((a, b) => {
+        if (a.value == null && b.value == null) return 0;
+        if (a.value == null) return 1;
+        if (b.value == null) return -1;
+        return (a.value - b.value) * dir;
+      });
+    }
+    return result;
+  }, [items, search, selectedPriority, selectedMetric, filterMandatory, filterNonCompliance, filterMissingData, sortOrder]);
 
   const handleSearch = (value: string) => { setSearch(value); setCurrentPage(1); };
   const toggle = (setter: React.Dispatch<React.SetStateAction<boolean>>, val: boolean) => {
@@ -180,12 +191,6 @@ export default function IndicadoresPage() {
       active: filterMissingData,
       onToggle: () => toggle(setFilterMissingData, filterMissingData),
     },
-    {
-      label: "Favoritos",
-      icon: <AgoraIcon name="like" className="size-[14px] text-primary-600" />,
-      active: filterFavorites,
-      onToggle: () => toggle(setFilterFavorites, filterFavorites),
-    },
   ];
 
   return (
@@ -200,8 +205,11 @@ export default function IndicadoresPage() {
           searchLabel="Procurar Indicadores"
           searchPlaceholder="Procure um indicador pelo nome"
           filters={filters}
+          orderOptions={["Valor: maior → menor", "Valor: menor → maior"]}
+          orderValue={sortOrder}
+          onOrderChange={(v) => { setSortOrder(v); setCurrentPage(1); }}
           onSearch={handleSearch}
-          onClearFilters={() => { setSelectedPriority(""); setSelectedMetric(""); setFilterMandatory(false); setFilterNonCompliance(false); setFilterMissingData(false); setFilterFavorites(false); setCurrentPage(1); }}
+          onClearFilters={() => { setSelectedPriority(""); setSelectedMetric(""); setFilterMandatory(false); setFilterNonCompliance(false); setFilterMissingData(false); setCurrentPage(1); }}
         />
 
         {loading ? (

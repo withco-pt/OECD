@@ -59,7 +59,7 @@ export default function PriorityDetailPage() {
   const [filterMandatory, setFilterMandatory] = useState(false);
   const [filterNonCompliance, setFilterNonCompliance] = useState(false);
   const [filterMissingData, setFilterMissingData] = useState(false);
-  const [filterFavorites, setFilterFavorites] = useState(false);
+  const [sortOrder, setSortOrder] = useState("Alfabeticamente");
 
   useEffect(() => {
     let active = true;
@@ -141,7 +141,7 @@ export default function PriorityDetailPage() {
   const METRICS = useMemo(() => [...new Set(items.map((i) => i.metric))].sort(), [items]);
 
   const filteredIndicators = useMemo(() => {
-    return items.filter((i) => {
+    const result = items.filter((i) => {
       if (search && !i.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (selectedMetric && i.metric !== selectedMetric) return false;
       if (filterMandatory && !i.mandatory) return false;
@@ -149,7 +149,18 @@ export default function PriorityDetailPage() {
       if (filterMissingData && !i.missingData) return false;
       return true;
     });
-  }, [items, search, selectedMetric, filterMandatory, filterNonCompliance, filterMissingData, filterFavorites]);
+    // Ordenação por valor — indicadores sem valor (dados incompletos) ficam sempre no fim.
+    if (sortOrder === "Valor: maior → menor" || sortOrder === "Valor: menor → maior") {
+      const dir = sortOrder === "Valor: maior → menor" ? -1 : 1;
+      return [...result].sort((a, b) => {
+        if (a.value == null && b.value == null) return 0;
+        if (a.value == null) return 1;
+        if (b.value == null) return -1;
+        return (a.value - b.value) * dir;
+      });
+    }
+    return result;
+  }, [items, search, selectedMetric, filterMandatory, filterNonCompliance, filterMissingData, sortOrder]);
 
   const toggle = (setter: React.Dispatch<React.SetStateAction<boolean>>, val: boolean) => setter(!val);
 
@@ -179,12 +190,6 @@ export default function PriorityDetailPage() {
       icon: <AgoraIcon name="alert-triangle" className="size-[14px] text-warning-900" />,
       active: filterMissingData,
       onToggle: () => toggle(setFilterMissingData, filterMissingData),
-    },
-    {
-      label: "Favoritos",
-      icon: <AgoraIcon name="like" className="size-[14px] text-primary-600" />,
-      active: filterFavorites,
-      onToggle: () => toggle(setFilterFavorites, filterFavorites),
     },
   ];
 
@@ -267,6 +272,9 @@ export default function PriorityDetailPage() {
           searchLabel="Pesquisar indicador"
           searchPlaceholder="Nome do indicador..."
           filters={filters}
+          orderOptions={["Valor: maior → menor", "Valor: menor → maior"]}
+          orderValue={sortOrder}
+          onOrderChange={setSortOrder}
           onSearch={(v) => setSearch(v)}
         />
 
