@@ -36,6 +36,19 @@ export default function Sidebar() {
       <div className="flex flex-col flex-1 justify-between">
         <div className="flex flex-col gap-[16px]">
           <div className="flex flex-col gap-[8px]">
+            {/* Dashboard */}
+            <Link
+              href="/dashboard"
+              className={`flex gap-[8px] items-center px-[16px] py-[6px] rounded-[4px] cursor-pointer ${
+                isActive("/dashboard") ? "bg-primary-600" : "hover:bg-primary-300/30 transition-colors"
+              }`}
+            >
+              <AgoraIcon name="bar-chart" className={`size-[20px] ${isActive("/dashboard") ? "text-primary-50" : "text-primary-800"}`} />
+              <span className={`font-medium text-[16px] leading-[23px] ${isActive("/dashboard") ? "text-primary-50 font-semibold" : "text-primary-800"}`}>
+                Dashboard
+              </span>
+            </Link>
+
             {/* Dimensões */}
             <div className="flex flex-col rounded-[4px]">
               <div

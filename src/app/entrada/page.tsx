@@ -1,18 +1,10 @@
 import { EntitySelector, type Entity } from "@/components/EntitySelector";
 import { supabase } from "@/lib/supabase";
+import { LOCAL_ENTITY_LOGOS } from "@/lib/entityLogos";
 
 // Entidades vêm da BD e podem mudar (ex: nome, logótipo) sem novo deploy de código —
 // nunca renderizar esta página como estática/cacheada em build, senão fica desatualizada.
 export const dynamic = "force-dynamic";
-
-// Logótipos locais por entidade (enquanto logo_url não estiver preenchido na BD)
-const LOCAL_LOGOS: Record<string, string> = {
-  at: "/logo-at.jpeg",
-  iss: "/logo-iss.jpg",
-  ec: "/logo-arte-entity.svg",
-  cml: "/logo-cml.png",
-  adc: "/logo-adc.png",
-};
 
 async function getEntities(): Promise<{ entities: Entity[]; error: boolean }> {
   const { data, error } = await supabase
@@ -30,7 +22,7 @@ async function getEntities(): Promise<{ entities: Entity[]; error: boolean }> {
     id: o.short_name,
     name: o.name,
     ministry: o.area_governamental,
-    logo: o.logo_url ?? LOCAL_LOGOS[o.short_name] ?? null,
+    logo: o.logo_url ?? LOCAL_ENTITY_LOGOS[o.short_name] ?? null,
   }));
 
   return { entities, error: false };
