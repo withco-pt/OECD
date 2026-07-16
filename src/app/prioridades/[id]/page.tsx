@@ -43,7 +43,7 @@ export default function PriorityDetailPage() {
 
   const [search, setSearch] = useState("");
   const [selectedMetric, setSelectedMetric] = useState("");
-  const [filterMandatory, setFilterMandatory] = useState(false);
+  const [filterOutOfMatrix, setFilterOutOfMatrix] = useState(false);
   const [filterNonCompliance, setFilterNonCompliance] = useState(false);
   const [filterMissingData, setFilterMissingData] = useState(false);
   const [sortOrder, setSortOrder] = useState("Alfabeticamente");
@@ -138,7 +138,7 @@ export default function PriorityDetailPage() {
     const result = items.filter((i) => {
       if (search && !i.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (selectedMetric && i.metric !== selectedMetric) return false;
-      if (filterMandatory && !i.mandatory) return false;
+      if (filterOutOfMatrix && i.mandatory) return false;
       if (filterNonCompliance && !i.nonCompliance) return false;
       if (filterMissingData && !i.missingData) return false;
       return true;
@@ -154,7 +154,7 @@ export default function PriorityDetailPage() {
       });
     }
     return result;
-  }, [items, search, selectedMetric, filterMandatory, filterNonCompliance, filterMissingData, sortOrder]);
+  }, [items, search, selectedMetric, filterOutOfMatrix, filterNonCompliance, filterMissingData, sortOrder]);
 
   const toggle = (setter: React.Dispatch<React.SetStateAction<boolean>>, val: boolean) => setter(!val);
 
@@ -168,10 +168,10 @@ export default function PriorityDetailPage() {
       onChange: (v: string) => setSelectedMetric(v),
     },
     {
-      label: "Indicadores da Matriz",
-      icon: <AgoraIcon name="alert-circle" className="size-[14px]" />,
-      active: filterMandatory,
-      onToggle: () => toggle(setFilterMandatory, filterMandatory),
+      label: "Fora da Matriz",
+      icon: <AgoraIcon name="log-out" className="size-[14px]" />,
+      active: filterOutOfMatrix,
+      onToggle: () => toggle(setFilterOutOfMatrix, filterOutOfMatrix),
     },
     {
       label: "Incumprimento Legal",

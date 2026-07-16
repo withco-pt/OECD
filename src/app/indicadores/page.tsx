@@ -63,7 +63,7 @@ export default function IndicadoresPage() {
   const [search, setSearch] = useState("");
   const [selectedPriority, setSelectedPriority] = useState("");
   const [selectedMetric, setSelectedMetric] = useState("");
-  const [filterMandatory, setFilterMandatory] = useState(false);
+  const [filterOutOfMatrix, setFilterOutOfMatrix] = useState(false);
   const [filterNonCompliance, setFilterNonCompliance] = useState(false);
   const [filterMissingData, setFilterMissingData] = useState(false);
   const [sortOrder, setSortOrder] = useState("Alfabeticamente");
@@ -142,7 +142,7 @@ export default function IndicadoresPage() {
       if (search && !i.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (selectedPriority && i.priority !== selectedPriority) return false;
       if (selectedMetric && i.metric !== selectedMetric) return false;
-      if (filterMandatory && !i.mandatory) return false;
+      if (filterOutOfMatrix && i.mandatory) return false;
       if (filterNonCompliance && !i.nonCompliance) return false;
       if (filterMissingData && !i.missingData) return false;
       return true;
@@ -158,7 +158,7 @@ export default function IndicadoresPage() {
       });
     }
     return result;
-  }, [items, search, selectedPriority, selectedMetric, filterMandatory, filterNonCompliance, filterMissingData, sortOrder]);
+  }, [items, search, selectedPriority, selectedMetric, filterOutOfMatrix, filterNonCompliance, filterMissingData, sortOrder]);
 
   const handleSearch = (value: string) => { setSearch(value); setCurrentPage(1); };
   const toggle = (setter: React.Dispatch<React.SetStateAction<boolean>>, val: boolean) => {
@@ -187,10 +187,10 @@ export default function IndicadoresPage() {
       onChange: (v: string) => { setSelectedMetric(v); setCurrentPage(1); },
     },
     {
-      label: "Indicadores da Matriz",
-      icon: <AgoraIcon name="alert-circle" className="size-[14px]" />,
-      active: filterMandatory,
-      onToggle: () => toggle(setFilterMandatory, filterMandatory),
+      label: "Fora da Matriz",
+      icon: <AgoraIcon name="log-out" className="size-[14px]" />,
+      active: filterOutOfMatrix,
+      onToggle: () => toggle(setFilterOutOfMatrix, filterOutOfMatrix),
     },
     {
       label: "Incumprimento Legal",
@@ -222,7 +222,7 @@ export default function IndicadoresPage() {
           orderValue={sortOrder}
           onOrderChange={(v) => { setSortOrder(v); setCurrentPage(1); }}
           onSearch={handleSearch}
-          onClearFilters={() => { setSelectedPriority(""); setSelectedMetric(""); setFilterMandatory(false); setFilterNonCompliance(false); setFilterMissingData(false); setCurrentPage(1); }}
+          onClearFilters={() => { setSelectedPriority(""); setSelectedMetric(""); setFilterOutOfMatrix(false); setFilterNonCompliance(false); setFilterMissingData(false); setCurrentPage(1); }}
         />
 
         {loading ? (

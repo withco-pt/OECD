@@ -188,7 +188,7 @@ export default function SwapIndicatorModal() {
   const [search, setSearch] = useState("");
   const [selectedPriority, setSelectedPriority] = useState("");
   const [selectedMetric, setSelectedMetric] = useState("");
-  const [filterMandatory, setFilterMandatory] = useState(false);
+  const [filterOutOfMatrix, setFilterOutOfMatrix] = useState(false);
   const [filterNonCompliance, setFilterNonCompliance] = useState(false);
   const [filterMissingData, setFilterMissingData] = useState(false);
   const [filterFavorites, setFilterFavorites] = useState(false);
@@ -274,12 +274,12 @@ export default function SwapIndicatorModal() {
       if (search && !i.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (selectedPriority && i.priority !== selectedPriority) return false;
       if (selectedMetric && i.metric !== selectedMetric) return false;
-      if (filterMandatory && !i.mandatory) return false;
+      if (filterOutOfMatrix && i.mandatory) return false;
       if (filterNonCompliance && !i.nonCompliance) return false;
       if (filterMissingData && !i.missingData) return false;
       return true;
     });
-  }, [items, search, selectedPriority, selectedMetric, filterMandatory, filterNonCompliance, filterMissingData, filterFavorites]);
+  }, [items, search, selectedPriority, selectedMetric, filterOutOfMatrix, filterNonCompliance, filterMissingData, filterFavorites]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -295,7 +295,7 @@ export default function SwapIndicatorModal() {
   const clearFilters = () => {
     setSelectedPriority("");
     setSelectedMetric("");
-    setFilterMandatory(false);
+    setFilterOutOfMatrix(false);
     setFilterNonCompliance(false);
     setFilterMissingData(false);
     setFilterFavorites(false);
@@ -321,10 +321,10 @@ export default function SwapIndicatorModal() {
       onChange: (v: string) => { setSelectedMetric(v); resetPage(); },
     },
     {
-      label: "Indicadores da Matriz",
-      icon: <AgoraIcon name="alert-circle" className="size-[14px]" />,
-      active: filterMandatory,
-      onToggle: () => { setFilterMandatory((v) => !v); resetPage(); },
+      label: "Fora da Matriz",
+      icon: <AgoraIcon name="log-out" className="size-[14px]" />,
+      active: filterOutOfMatrix,
+      onToggle: () => { setFilterOutOfMatrix((v) => !v); resetPage(); },
     },
     {
       label: "Incumprimento Legal",
