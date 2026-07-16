@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import HelpTooltip from "@/components/HelpTooltip";
 
@@ -9,6 +10,9 @@ import HelpTooltip from "@/components/HelpTooltip";
    a Inovação" (têm de ser exatamente iguais nos dois sítios). ─────────────── */
 
 export type CaseStudy = { id: string; title: string; country: string; externalUrl: string | null };
+
+export const TOOLKIT_URL = "https://oecd-public-service-innovation-b.gitbook.io/publicservicebooster/pt";
+export const OPSI_URL = "https://oecd-opsi.org/case_type/opsi/";
 export type InnovationSuggestion = { id: string; title: string; description: string; link: string | null };
 
 /* ── Linha expansível ─────────────────────────────────────────── */
@@ -183,9 +187,15 @@ export function CaseStudyCard({ title, country, dimension, externalUrl }: { titl
 
 /* ── Cartão de sugestão de inovação (Como Inovar / Como Melhorar o Serviço) ── */
 
-export function SuggestionCard({ title, description, link }: { title: string; description: string; link: string | null }) {
+export function SuggestionCard({ title, description, link, dimension }: { title: string; description: string; link: string | null; dimension?: string }) {
   return (
     <div className="bg-primary-600 rounded-[12px] hover:bg-primary-700 transition-colors p-[24px] flex flex-col gap-[12px] min-h-[220px]">
+      {dimension && (
+        <span className="inline-flex items-center gap-[6px] text-[12px] font-medium text-primary-100">
+          <AgoraIcon name="layers-menu" size={13} />
+          {dimension}
+        </span>
+      )}
       <h3 className="text-[18px] font-bold text-white leading-snug">{title}</h3>
       <p className="text-white text-[13px] leading-relaxed opacity-85 whitespace-pre-line">{description}</p>
       {link && (
@@ -234,12 +244,29 @@ export function LivroAmareloLogo() {
 
 /* ── Botão "Aceder" (Ferramentas/Ajuda) ──────────────────────── */
 
-export function AccessButton({ children }: { children: React.ReactNode }) {
-  return (
-    <button className="flex items-center gap-[8px] bg-primary-800 text-white rounded-full px-[20px] py-[10px] text-[14px] font-medium hover:bg-primary-900 transition-colors w-fit">
+export function AccessButton({ children, href }: { children: React.ReactNode; href?: string }) {
+  const className = "flex items-center gap-[8px] bg-primary-800 text-white rounded-full px-[20px] py-[10px] text-[14px] font-medium hover:bg-primary-900 transition-colors w-fit";
+  const content = (
+    <>
       {children} <AgoraIcon name="arrow-right-anchor" className="size-[16px]" />
-    </button>
+    </>
   );
+  if (href) {
+    const isExternal = href.startsWith("http");
+    if (isExternal) {
+      return (
+        <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
+          {content}
+        </a>
+      );
+    }
+    return (
+      <Link href={href} className={className}>
+        {content}
+      </Link>
+    );
+  }
+  return <button className={className}>{content}</button>;
 }
 
 /* ── Contactos estáticos partilhados ("Obtenha Ajuda para a Inovação") ──── */
@@ -321,7 +348,8 @@ export function GetHelpSection() {
 /* ── Secção "Ferramentas para a Inovação" (idêntica em todo o lado; os Casos
    de Estudo variam consoante a(s) dimensão(ões) passada(s)) ─────────────── */
 
-export function ToolsForInnovationSection({ caseStudies }: { caseStudies: (CaseStudy & { dimension: string })[] }) {
+export function ToolsForInnovationSection({ caseStudies, dimension }: { caseStudies: (CaseStudy & { dimension: string })[]; dimension?: string }) {
+  const inovacaoHref = dimension ? `/inovacao?dimensao=${encodeURIComponent(dimension)}` : "/inovacao";
   return (
     <section className="mb-[40px]">
       <h2 className="text-[22px] font-bold text-primary-900 mb-[16px]">Ferramentas para a Inovação</h2>
@@ -337,7 +365,7 @@ export function ToolsForInnovationSection({ caseStudies }: { caseStudies: (CaseS
                 sobre como alcançar resultados eficazes na aplicação da inovação para melhorar os
                 serviços públicos.
               </p>
-              <AccessButton>Aceder ao Toolkit</AccessButton>
+              <AccessButton href={TOOLKIT_URL}>Aceder ao Toolkit</AccessButton>
             </div>
             <div className="w-[300px] shrink-0">
               <DoubleDiamondDiagram />
@@ -357,7 +385,10 @@ export function ToolsForInnovationSection({ caseStudies }: { caseStudies: (CaseS
                 <CaseStudyCard key={c.id} title={c.title} country={c.country} dimension={c.dimension} externalUrl={c.externalUrl} />
               ))}
             </div>
-            <AccessButton>Aceder ao OPSI</AccessButton>
+            <div className="flex gap-[12px]">
+              <AccessButton href={inovacaoHref}>Inovação</AccessButton>
+              <AccessButton href={OPSI_URL}>Aceder ao OPSI</AccessButton>
+            </div>
           </div>
         </ExpandableRow>
 

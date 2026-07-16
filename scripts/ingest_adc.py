@@ -125,7 +125,7 @@ COLMAP = [
 
 
 def load_survey():
-    path = f"{BASE}/Matriz_ Questionário de avaliação da experiência de utilização do Balcão dos Fundos\xa0(1-85).xlsx"
+    path = f"{BASE}/Matriz_ Questionário de avaliação da experiência de utilização do Balcão dos Fundos\xa0(1-111).xlsx"
     wb = openpyxl.load_workbook(path, data_only=True)
     ws = wb["Sheet1"]
 

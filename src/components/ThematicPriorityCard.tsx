@@ -6,18 +6,30 @@ import { createPortal } from "react-dom";
 import { PILL_STYLES } from "@/components/status-pill";
 import HelpTooltip from "@/components/HelpTooltip";
 
-export type PriorityStatus = "ok" | "missing_data" | "non_compliance" | "both";
+export interface DimensionCounts {
+  missingData: number;
+  nonCompliance: number;
+  underperformingOperational: number;
+  underperformingUx: number;
+}
+
+const EMPTY_COUNTS: DimensionCounts = {
+  missingData: 0,
+  nonCompliance: 0,
+  underperformingOperational: 0,
+  underperformingUx: 0,
+};
 
 interface ThematicPriorityCardProps {
   title: string;
   description?: string;
   icon: React.ReactNode;
   variant?: "large" | "small";
-  status?: PriorityStatus;
+  counts?: DimensionCounts;
   href?: string;
 }
 
-function Pill({ children, tooltip, variant = "warning" }: { children: React.ReactNode; tooltip: string; variant?: "warning" | "danger" }) {
+function Pill({ children, tooltip, variant = "warning" }: { children: React.ReactNode; tooltip: string; variant?: "warning" | "danger" | "secondary" | "informative" }) {
   const s = PILL_STYLES[variant];
   const [show, setShow] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
@@ -57,20 +69,50 @@ function Pill({ children, tooltip, variant = "warning" }: { children: React.Reac
   );
 }
 
-function StatusPills({ status }: { status: PriorityStatus }) {
+function pluralize(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function StatusPills({ counts }: { counts: DimensionCounts }) {
   return (
     <div className="flex gap-[6px] items-center z-[2]">
-      {(status === "non_compliance" || status === "both") && (
-        <Pill tooltip="Indicador tem Incumprimento Legal" variant="danger">
+      {counts.nonCompliance > 0 && (
+        <Pill
+          tooltip={`${pluralize(counts.nonCompliance, "indicador", "indicadores")} com incumprimento legal`}
+          variant="danger"
+        >
           <div className="bg-danger-100 flex items-center p-[5px] rounded-full cursor-default">
             <AgoraIcon name="x-circle" className="size-[20px] text-danger-800" />
           </div>
         </Pill>
       )}
-      {(status === "missing_data" || status === "both") && (
-        <Pill tooltip="Indicador tem Dados Incompletos">
+      {counts.missingData > 0 && (
+        <Pill
+          tooltip={`${pluralize(counts.missingData, "indicador", "indicadores")} com dados em falta`}
+          variant="warning"
+        >
           <div className="bg-warning-100 flex items-center p-[5px] rounded-full cursor-default">
             <AgoraIcon name="alert-triangle" className="size-[20px] text-warning-900" />
+          </div>
+        </Pill>
+      )}
+      {counts.underperformingOperational > 0 && (
+        <Pill
+          tooltip={`${pluralize(counts.underperformingOperational, "indicador", "indicadores")} com mau desempenho operacional`}
+          variant="secondary"
+        >
+          <div className="bg-secondary-100 flex items-center p-[5px] rounded-full cursor-default">
+            <AgoraIcon name="bar-chart" className="size-[20px] text-secondary-900" />
+          </div>
+        </Pill>
+      )}
+      {counts.underperformingUx > 0 && (
+        <Pill
+          tooltip={`${pluralize(counts.underperformingUx, "indicador", "indicadores")} com mau desempenho de UX`}
+          variant="informative"
+        >
+          <div className="bg-informative-100 flex items-center p-[5px] rounded-full cursor-default">
+            <AgoraIcon name="alert-circle" className="size-[20px] text-informative-800" />
           </div>
         </Pill>
       )}
@@ -83,9 +125,14 @@ export default function ThematicPriorityCard({
   description,
   icon,
   variant = "small",
-  status = "ok",
+  counts = EMPTY_COUNTS,
   href,
 }: ThematicPriorityCardProps) {
+  const hasIssues =
+    counts.missingData > 0 ||
+    counts.nonCompliance > 0 ||
+    counts.underperformingOperational > 0 ||
+    counts.underperformingUx > 0;
   const isLarge = variant === "large";
   const [hovered, setHovered] = useState(false);
 
@@ -122,8 +169,8 @@ export default function ThematicPriorityCard({
 
       {/* Bottom row */}
       <div className="flex items-center justify-between w-full z-[2]">
-        {status !== "ok" ? (
-          <StatusPills status={status} />
+        {hasIssues ? (
+          <StatusPills counts={counts} />
         ) : (
           <div />
         )}

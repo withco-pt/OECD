@@ -148,12 +148,9 @@ export default function IndicatorCard({
       <div className="flex gap-[6px] items-end w-full">
         {bottomMetric}
         {mandatory && (
-          <Tooltip label="Indicador de preenchimento obrigatório">
-            <div className="bg-primary-100 flex gap-[4px] items-center h-[30px] px-[8px] rounded-full">
+          <Tooltip label="Indicador da Matriz">
+            <div className="bg-primary-100 flex items-center p-[5px] rounded-full">
               <AgoraIcon name="alert-circle" className="size-[20px] text-primary-700" />
-              <span className="text-[14px] font-medium text-primary-700">
-                Obrigatório
-              </span>
             </div>
           </Tooltip>
         )}

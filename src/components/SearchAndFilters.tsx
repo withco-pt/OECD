@@ -147,26 +147,28 @@ export default function SearchAndFilters({
           </div>
         </div>
 
-        {/* Ordenar */}
-        <div>
-          <p className="text-[14px] font-semibold text-primary-900 mb-[8px]">
-            Ordenar
-          </p>
-          <div className="relative">
-            <AgoraIcon name="sort-alpha-down" className="size-[14px] text-primary-800 absolute left-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
-            <select
-              value={orderValue ?? orderLabel}
-              onChange={(e) => onOrderChange?.(e.target.value)}
-              className="appearance-none bg-primary-200 rounded-[8px] pl-[30px] pr-[32px] py-[8px] text-[14px] text-primary-800 focus:outline-none min-w-[180px]"
-            >
-              <option value={orderLabel}>{orderLabel}</option>
-              {orderOptions.map((o) => (
-                <option key={o} value={o}>{o}</option>
-              ))}
-            </select>
-            <AgoraIcon name="chevron-down" className="size-[14px] text-primary-600 absolute right-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
+        {/* Ordenar — só quando há opções de ordenação */}
+        {orderOptions.length > 0 && (
+          <div>
+            <p className="text-[14px] font-semibold text-primary-900 mb-[8px]">
+              Ordenar
+            </p>
+            <div className="relative">
+              <AgoraIcon name="sort-alpha-down" className="size-[14px] text-primary-800 absolute left-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
+              <select
+                value={orderValue ?? orderLabel}
+                onChange={(e) => onOrderChange?.(e.target.value)}
+                className="appearance-none bg-primary-200 rounded-[8px] pl-[30px] pr-[32px] py-[8px] text-[14px] text-primary-800 focus:outline-none min-w-[180px]"
+              >
+                <option value={orderLabel}>{orderLabel}</option>
+                {orderOptions.map((o) => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
+              <AgoraIcon name="chevron-down" className="size-[14px] text-primary-600 absolute right-[10px] top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

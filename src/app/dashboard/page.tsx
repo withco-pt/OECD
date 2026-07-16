@@ -119,6 +119,11 @@ export default function DashboardPage() {
           {/* Bloco 1 — KPIs */}
           <KpiTiles data={data} />
 
+          {/* Bloco — Qualidade dos dados */}
+          <Reveal>
+            <DataQualityBlock data={data} />
+          </Reveal>
+
           {/* Blocos 2 + 3 — Perfil por dimensão e ranking de serviços */}
           <div className="flex gap-[24px] items-stretch flex-col xl:flex-row">
             <DimensionProfile data={data} />
@@ -136,11 +141,6 @@ export default function DashboardPage() {
             <DistrictMapBlock data={data} />
             <ComplianceGrid data={data} />
           </div>
-
-          {/* Bloco 8 — Qualidade dos dados */}
-          <Reveal>
-            <DataQualityBlock data={data} />
-          </Reveal>
         </div>
       )}
     </AppLayout>

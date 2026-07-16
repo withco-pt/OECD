@@ -16,6 +16,7 @@ import {
   type InnovationSuggestion,
 } from "@/components/InnovationHelp";
 import { useSelectedService } from "@/context/SelectedServiceContext";
+import { useSelectedChannel } from "@/context/SelectedChannelContext";
 import { supabase } from "@/lib/supabase";
 
 /* ── Gauge SVG (exported from Figma) ─────────────────────────── */
@@ -434,6 +435,7 @@ export default function IndicatorDetailPage() {
   const id = params.id as string;
   const [activeTab, setActiveTab] = useState<string>(tabs[0]);
   const { selectedService, openIndicatorSwap } = useSelectedService();
+  const { viewMode, selectedChannel: globalChannel } = useSelectedChannel();
 
   const [indicator, setIndicator] = useState<IndicatorDetail | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<string>("Todos");
@@ -593,6 +595,14 @@ export default function IndicatorDetailPage() {
         districtData,
       });
 
+      // Modo Canal (lente global): o dropdown de canal desta página arranca no canal
+      // global escolhido, desde que o indicador tenha dados reais desse canal; senão "Todos".
+      const initialChannel =
+        viewMode === "channel" && globalChannel && channelData.some((c) => c.channel === globalChannel)
+          ? globalChannel
+          : "Todos";
+      setSelectedChannel(initialChannel);
+
       // Ficha técnica — apenas campos com valor
       const inq = totalsRow?.total_inquiridos ?? null;
       const per = totalsRow?.year ? `${MESES[(totalsRow.month ?? 1) - 1] ?? ""} ${totalsRow.year}`.trim() : null;
@@ -609,7 +619,7 @@ export default function IndicatorDetailPage() {
       setLoading(false);
     })();
     return () => { active = false; };
-  }, [id, selectedService]);
+  }, [id, selectedService, viewMode, globalChannel]);
 
   if (loading) {
     return (
@@ -935,6 +945,7 @@ export default function IndicatorDetailPage() {
       {/* Tools for Innovation */}
       <ToolsForInnovationSection
         caseStudies={caseStudies.map((c) => ({ ...c, dimension: indicator.priority }))}
+        dimension={indicator.priority}
       />
 
       {/* Get Help */}

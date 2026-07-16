@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabase";
 export default function Sidebar() {
   const pathname = usePathname();
 
-  // Sub-itens das Dimensões — as 7 categorias da base de dados.
+  // Sub-itens das Dimensões — as 9 dimensões da matriz.
   const [prioritySubItems, setPrioritySubItems] = useState<{ label: string; href: string }[]>([]);
   useEffect(() => {
     let active = true;
@@ -177,6 +177,19 @@ export default function Sidebar() {
                 </div>
               )}
             </div>
+
+            {/* Inovação */}
+            <Link
+              href="/inovacao"
+              className={`flex gap-[8px] items-center px-[16px] py-[6px] rounded-[4px] cursor-pointer ${
+                isActive("/inovacao") ? "bg-primary-600" : "hover:bg-primary-300/30 transition-colors"
+              }`}
+            >
+              <AgoraIcon name="award" className={`size-[20px] ${isActive("/inovacao") ? "text-primary-50" : "text-primary-800"}`} />
+              <span className={`font-medium text-[16px] leading-[23px] ${isActive("/inovacao") ? "text-primary-50 font-semibold" : "text-primary-800"}`}>
+                Inovação
+              </span>
+            </Link>
           </div>
 
           <div className="h-px bg-primary-300" />

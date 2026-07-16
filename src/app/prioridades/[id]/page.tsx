@@ -9,9 +9,11 @@ import SearchAndFilters from "@/components/SearchAndFilters";
 import IndicatorCard from "@/components/IndicatorCard";
 import { supabase } from "@/lib/supabase";
 import { useSelectedService } from "@/context/SelectedServiceContext";
+import { useSelectedChannel } from "@/context/SelectedChannelContext";
+import { useSelectedEntity } from "@/context/SelectedEntityContext";
+import { aggregateValue, pickCategoryCounts, fetchEntityChannelAggregates, type MeasRow } from "@/lib/measurements";
 
 type PriorityMeta = { id: string; title: string; description: string; icon: string | null };
-type MeasRow = { channel: string | null; geo_level: string | null; value: number | string | null; category_counts: Record<string, number> | null };
 type IndicatorItem = {
   id: string;
   name: string;
@@ -26,27 +28,12 @@ type IndicatorItem = {
   mandatory: boolean;
 };
 
-function aggregateValue(rows: MeasRow[]): number | null {
-  // Linha "agregada" real: sem canal E sem segmentação geográfica (as linhas por distrito
-  // também têm channel=null, por isso é preciso excluir geo_level para não as confundir com
-  // o total — mesmo critério da página de detalhe do indicador).
-  const nullRow = rows.find((r) => r.channel === null && r.geo_level === null);
-  const source = nullRow ? [nullRow] : rows;
-  const nums = source.map((r) => Number(r.value)).filter((v) => !Number.isNaN(v));
-  if (nums.length === 0) return null;
-  return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100;
-}
-
-function pickCategoryCounts(rows: MeasRow[]): Record<string, number> | null {
-  const row = rows.find((r) => r.channel === null && r.geo_level === null && r.category_counts)
-    ?? rows.find((r) => r.category_counts);
-  return row?.category_counts ?? null;
-}
-
 export default function PriorityDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const { selectedService } = useSelectedService();
+  const { entity } = useSelectedEntity();
+  const { viewMode, selectedChannel } = useSelectedChannel();
 
   const [priority, setPriority] = useState<PriorityMeta | null>(null);
   const [items, setItems] = useState<IndicatorItem[]>([]);
@@ -92,9 +79,16 @@ export default function PriorityDetailPage() {
 
       const ids = (inds ?? []).map((i) => i.id as string);
 
-      // Medições do serviço ativo para estes indicadores
+      // Modo Canal: valores agregados por entidade, fatiados pelo canal (serviço desligado).
+      // Modo Serviço: medições do serviço ativo (comportamento de sempre).
+      const channelMode = viewMode === "channel";
       const byIndicator = new Map<string, MeasRow[]>();
-      if (selectedService && ids.length) {
+      const channelAgg = channelMode && entity
+        ? await fetchEntityChannelAggregates(entity.id, selectedChannel)
+        : null;
+      if (!active) return;
+
+      if (!channelMode && selectedService && ids.length) {
         const { data: meas } = await supabase
           .from("measurements_catalog")
           .select("indicator_id, channel, geo_level, value, category_counts")
@@ -115,8 +109,8 @@ export default function PriorityDetailPage() {
 
       const list: IndicatorItem[] = (inds ?? []).map((i) => {
         const rows = byIndicator.get(i.id as string) ?? [];
-        const value = aggregateValue(rows);
-        const categoryCounts = pickCategoryCounts(rows);
+        const value = channelAgg ? (channelAgg.get(i.id as string)?.value ?? null) : aggregateValue(rows);
+        const categoryCounts = channelAgg ? (channelAgg.get(i.id as string)?.categoryCounts ?? null) : pickCategoryCounts(rows);
         return {
           id: i.id as string,
           name: i.description as string,
@@ -126,7 +120,7 @@ export default function PriorityDetailPage() {
           value,
           scaleMax: (i.value_scale_max as number | null) ?? null,
           categoryCounts,
-          missingData: value === null && categoryCounts === null, // sem dados para o serviço ativo
+          missingData: value === null && categoryCounts === null, // sem dados para o serviço/canal ativo
           nonCompliance: false,
           mandatory: Boolean(i.is_mandatory),
         };
@@ -136,7 +130,7 @@ export default function PriorityDetailPage() {
       setLoading(false);
     })();
     return () => { active = false; };
-  }, [id, selectedService]);
+  }, [id, selectedService, viewMode, selectedChannel, entity]);
 
   const METRICS = useMemo(() => [...new Set(items.map((i) => i.metric))].sort(), [items]);
 
@@ -174,7 +168,7 @@ export default function PriorityDetailPage() {
       onChange: (v: string) => setSelectedMetric(v),
     },
     {
-      label: "Obrigatórios",
+      label: "Indicadores da Matriz",
       icon: <AgoraIcon name="alert-circle" className="size-[14px]" />,
       active: filterMandatory,
       onToggle: () => toggle(setFilterMandatory, filterMandatory),
@@ -280,7 +274,11 @@ export default function PriorityDetailPage() {
 
         <p className="text-[14px] text-primary-600 mt-[24px] mb-[16px]">
           A mostrar {filteredIndicators.length} de {items.length} indicadores
-          {selectedService && <> · serviço: <span className="font-semibold">{selectedService.name}</span></>}
+          {viewMode === "channel" ? (
+            <> · canal: <span className="font-semibold">{selectedChannel ?? "Todos os canais"}</span></>
+          ) : selectedService ? (
+            <> · serviço: <span className="font-semibold">{selectedService.name}</span></>
+          ) : null}
         </p>
 
         <div className="grid grid-cols-3 gap-[16px]">

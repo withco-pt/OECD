@@ -1,16 +1,19 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import AppLayout from "@/components/AppLayout";
-import ThematicPriorityCard from "@/components/ThematicPriorityCard";
-import type { PriorityStatus } from "@/components/ThematicPriorityCard";
+import ThematicPriorityCard, { type DimensionCounts } from "@/components/ThematicPriorityCard";
 import HelpTooltip from "@/components/HelpTooltip";
 import { supabase } from "@/lib/supabase";
+import { useSelectedService } from "@/context/SelectedServiceContext";
+import { aggregateValue, pickCategoryCounts, type MeasRow } from "@/lib/measurements";
 
 type PriorityRow = {
   id: string;
   title: string;
   description: string;
   icon: string | null;
-  missingData: number;
-  nonCompliance: number;
+  counts: DimensionCounts;
 };
 
 function PriorityIcon({ src, alt, size = 50 }: { src: string | null; alt: string; size?: number }) {
@@ -28,37 +31,122 @@ function PriorityIcon({ src, alt, size = 50 }: { src: string | null; alt: string
   );
 }
 
-function getStatus(p: { nonCompliance: number; missingData: number }): PriorityStatus {
-  if (p.nonCompliance > 0 && p.missingData > 0) return "both";
-  if (p.nonCompliance > 0) return "non_compliance";
-  if (p.missingData > 0) return "missing_data";
-  return "ok";
-}
+export default function PrioridadesTematicas() {
+  const { selectedService } = useSelectedService();
+  const [priorityData, setPriorityData] = useState<PriorityRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
-async function getPriorities(): Promise<PriorityRow[]> {
-  const { data, error } = await supabase
-    .from("thematic_priorities")
-    .select("id, name_pt, description, icon_name, display_order")
-    .order("display_order");
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      setLoading(true);
+      setLoadError(false);
 
-  if (error || !data) {
-    console.error("[prioridades] erro ao carregar:", error?.message);
-    return [];
-  }
+      const { data: priorities, error: priErr } = await supabase
+        .from("thematic_priorities")
+        .select("id, name_pt, description, icon_name, display_order")
+        .order("display_order");
+      if (!active) return;
+      if (priErr || !priorities) {
+        console.error("[prioridades] erro ao carregar:", priErr?.message);
+        setLoadError(true);
+        setLoading(false);
+        return;
+      }
 
-  return data.map((p) => ({
-    id: p.id as string,
-    title: p.name_pt as string,
-    description: (p.description as string) ?? "",
-    icon: p.icon_name ? `/icons/${p.icon_name}` : null,
-    // Sem dados de incumprimento/dados-incompletos recolhidos ainda.
-    missingData: 0,
-    nonCompliance: 0,
-  }));
-}
+      const { data: indicators, error: indErr } = await supabase
+        .from("indicators")
+        .select("id, thematic_priority_id, type_of_indicator, target_value, target_direction");
+      if (!active) return;
+      if (indErr || !indicators) {
+        console.error("[prioridades] erro ao carregar indicadores:", indErr?.message);
+        setLoadError(true);
+        setLoading(false);
+        return;
+      }
 
-export default async function PrioridadesTematicas() {
-  const priorityData = await getPriorities();
+      const indicatorIds = indicators.map((i) => i.id as string);
+      const byIndicator = new Map<string, MeasRow[]>();
+      if (selectedService && indicatorIds.length) {
+        const { data: meas } = await supabase
+          .from("measurements_catalog")
+          .select("indicator_id, channel, geo_level, value, category_counts")
+          .eq("service_id", selectedService.id)
+          .in("indicator_id", indicatorIds);
+        if (!active) return;
+        for (const m of meas ?? []) {
+          const key = m.indicator_id as string;
+          if (!byIndicator.has(key)) byIndicator.set(key, []);
+          byIndicator.get(key)!.push({
+            channel: (m.channel as string | null) ?? null,
+            geo_level: (m.geo_level as string | null) ?? null,
+            value: m.value as number | string | null,
+            category_counts: (m.category_counts as Record<string, number> | null) ?? null,
+          });
+        }
+      }
+
+      const countsByPriority = new Map<string, DimensionCounts>();
+      for (const i of indicators) {
+        const priorityId = i.thematic_priority_id as string;
+        if (!countsByPriority.has(priorityId)) {
+          countsByPriority.set(priorityId, {
+            missingData: 0,
+            nonCompliance: 0,
+            underperformingOperational: 0,
+            underperformingUx: 0,
+          });
+        }
+        const counts = countsByPriority.get(priorityId)!;
+
+        const rows = byIndicator.get(i.id as string) ?? [];
+        const value = aggregateValue(rows);
+        const categoryCounts = pickCategoryCounts(rows);
+        const type = i.type_of_indicator as string | null;
+
+        if (value === null && categoryCounts === null) {
+          counts.missingData += 1;
+          continue;
+        }
+
+        if (type === "compliance" && value !== null && value < 50) {
+          counts.nonCompliance += 1;
+        }
+
+        const targetValue = i.target_value as number | null;
+        const targetDirection = i.target_direction as "above" | "below" | null;
+        if (value !== null && targetValue !== null && targetDirection) {
+          const underperforming =
+            targetDirection === "above" ? value < targetValue : value > targetValue;
+          if (underperforming) {
+            if (type === "operational") counts.underperformingOperational += 1;
+            if (type === "user_experience") counts.underperformingUx += 1;
+          }
+        }
+      }
+
+      setPriorityData(
+        priorities.map((p) => ({
+          id: p.id as string,
+          title: p.name_pt as string,
+          description: (p.description as string) ?? "",
+          icon: p.icon_name ? `/icons/${p.icon_name}` : null,
+          counts: countsByPriority.get(p.id as string) ?? {
+            missingData: 0,
+            nonCompliance: 0,
+            underperformingOperational: 0,
+            underperformingUx: 0,
+          },
+        }))
+      );
+      setLoading(false);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [selectedService]);
+
   const featured = priorityData[0];
   const rest = priorityData.slice(1);
 
@@ -76,7 +164,9 @@ export default async function PrioridadesTematicas() {
         desafios para o serviço.
       </p>
 
-      {priorityData.length === 0 ? (
+      {loading ? (
+        <div className="mt-[32px] text-center py-[48px] text-primary-400 text-[16px]">A carregar dimensões…</div>
+      ) : loadError || priorityData.length === 0 ? (
         <div className="mt-[32px] text-center py-[48px] text-primary-400 text-[16px]">
           Não foi possível carregar as dimensões.
         </div>
@@ -87,7 +177,7 @@ export default async function PrioridadesTematicas() {
             description={featured.description}
             icon={<PriorityIcon src={featured.icon} alt={featured.title} size={85} />}
             variant="large"
-            status={getStatus(featured)}
+            counts={featured.counts}
             href={`/prioridades/${featured.id}`}
           />
 
@@ -98,7 +188,7 @@ export default async function PrioridadesTematicas() {
                 title={p.title}
                 description={p.description}
                 icon={<PriorityIcon src={p.icon} alt={p.title} />}
-                status={getStatus(p)}
+                counts={p.counts}
                 href={`/prioridades/${p.id}`}
               />
             ))}

@@ -2,7 +2,6 @@
 
 import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import { useRouter } from "next/navigation";
-import { useSelectedEntity } from "@/context/SelectedEntityContext";
 
 export type Entity = {
   id: string;
@@ -19,7 +18,6 @@ export function EntitySelector({
   error?: boolean;
 }) {
   const router = useRouter();
-  const { setEntity } = useSelectedEntity();
 
   // Estado de erro
   if (error) {
@@ -61,10 +59,7 @@ export function EntitySelector({
       {entities.map((entity) => (
         <button
           key={entity.id}
-          onClick={() => {
-            setEntity({ id: entity.id, name: entity.name, area: entity.ministry });
-            router.push("/");
-          }}
+          onClick={() => router.push(`/entrada/${entity.id}`)}
           className="flex flex-row items-center text-left transition-all"
           style={{
             gap: 20,

@@ -7,8 +7,7 @@ import AppLayout from "@/components/AppLayout";
 import HelpTooltip from "@/components/HelpTooltip";
 import ServiceCard from "@/components/ServiceCard";
 import IndicatorCard from "@/components/IndicatorCard";
-import ThematicPriorityCard from "@/components/ThematicPriorityCard";
-import type { PriorityStatus } from "@/components/ThematicPriorityCard";
+import ThematicPriorityCard, { type DimensionCounts } from "@/components/ThematicPriorityCard";
 import { supabase } from "@/lib/supabase";
 import { useSelectedService } from "@/context/SelectedServiceContext";
 
@@ -73,11 +72,13 @@ function PriorityIcon({ src, alt, size = 50 }: { src: string | null; alt: string
   );
 }
 
-function getPriorityStatus(p: PriorityResult): PriorityStatus {
-  if (p.nonCompliance > 0 && p.missingData > 0) return "both";
-  if (p.nonCompliance > 0) return "non_compliance";
-  if (p.missingData > 0) return "missing_data";
-  return "ok";
+function getPriorityCounts(p: PriorityResult): DimensionCounts {
+  return {
+    missingData: p.missingData,
+    nonCompliance: p.nonCompliance,
+    underperformingOperational: 0,
+    underperformingUx: 0,
+  };
 }
 
 // Agrega as medições de um indicador num único valor: prefere a linha "agregada"
@@ -464,7 +465,7 @@ function PesquisaContent() {
                     title={p.title}
                     description={p.description}
                     icon={<PriorityIcon src={p.icon} alt={p.title} />}
-                    status={getPriorityStatus(p)}
+                    counts={getPriorityCounts(p)}
                     href={`/prioridades/${p.id}`}
                   />
                 ))}

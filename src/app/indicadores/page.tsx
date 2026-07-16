@@ -9,6 +9,9 @@ import IndicatorCard from "@/components/IndicatorCard";
 import Pagination from "@/components/Pagination";
 import { supabase } from "@/lib/supabase";
 import { useSelectedService } from "@/context/SelectedServiceContext";
+import { useSelectedChannel } from "@/context/SelectedChannelContext";
+import { useSelectedEntity } from "@/context/SelectedEntityContext";
+import { fetchEntityChannelAggregates } from "@/lib/measurements";
 
 const ITEMS_PER_PAGE = 9;
 
@@ -49,6 +52,8 @@ function pickCategoryCounts(rows: MeasRow[]): Record<string, number> | null {
 
 export default function IndicadoresPage() {
   const { selectedService } = useSelectedService();
+  const { entity } = useSelectedEntity();
+  const { viewMode, selectedChannel } = useSelectedChannel();
 
   const [items, setItems] = useState<IndicatorItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,8 +79,16 @@ export default function IndicadoresPage() {
       if (!active) return;
       if (indErr) { console.error("[indicadores] erro:", indErr.message); setLoadError(true); setItems([]); setLoading(false); return; }
 
+      // Modo Canal: valores agregados por entidade, fatiados pelo canal (serviço desligado).
+      // Modo Serviço: valores do serviço selecionado (comportamento de sempre).
+      const channelMode = viewMode === "channel";
       const byIndicator = new Map<string, MeasRow[]>();
-      if (selectedService) {
+      const channelAgg = channelMode && entity
+        ? await fetchEntityChannelAggregates(entity.id, selectedChannel)
+        : null;
+      if (!active) return;
+
+      if (!channelMode && selectedService) {
         const { data: meas } = await supabase
           .from("measurements_catalog")
           .select("indicator_id, channel, geo_level, value, category_counts")
@@ -96,8 +109,8 @@ export default function IndicadoresPage() {
       const list: IndicatorItem[] = (inds ?? []).map((i) => {
         const tp = (i.thematic_priorities ?? {}) as { name_pt?: string; display_order?: number };
         const rows = byIndicator.get(i.id as string) ?? [];
-        const value = aggregateValue(rows);
-        const categoryCounts = pickCategoryCounts(rows);
+        const value = channelAgg ? (channelAgg.get(i.id as string)?.value ?? null) : aggregateValue(rows);
+        const categoryCounts = channelAgg ? (channelAgg.get(i.id as string)?.categoryCounts ?? null) : pickCategoryCounts(rows);
         const hasData = value !== null || categoryCounts !== null;
         return {
           id: i.id as string,
@@ -119,7 +132,7 @@ export default function IndicadoresPage() {
       setLoading(false);
     })();
     return () => { active = false; };
-  }, [selectedService]);
+  }, [selectedService, viewMode, selectedChannel, entity]);
 
   const PRIORITIES = useMemo(() => [...new Set(items.map((i) => i.priority))].sort(), [items]);
   const METRICS = useMemo(() => [...new Set(items.map((i) => i.metric))].sort(), [items]);
@@ -174,7 +187,7 @@ export default function IndicadoresPage() {
       onChange: (v: string) => { setSelectedMetric(v); setCurrentPage(1); },
     },
     {
-      label: "Obrigatórios",
+      label: "Indicadores da Matriz",
       icon: <AgoraIcon name="alert-circle" className="size-[14px]" />,
       active: filterMandatory,
       onToggle: () => toggle(setFilterMandatory, filterMandatory),
@@ -223,7 +236,11 @@ export default function IndicadoresPage() {
           <>
             <p className="text-[14px] text-primary-600">
               A mostrar {paginatedIndicators.length} de {filtered.length} indicadores
-              {selectedService && <> · serviço: <span className="font-semibold">{selectedService.name}</span></>}
+              {viewMode === "channel" ? (
+                <> · canal: <span className="font-semibold">{selectedChannel ?? "Todos os canais"}</span></>
+              ) : selectedService ? (
+                <> · serviço: <span className="font-semibold">{selectedService.name}</span></>
+              ) : null}
             </p>
 
             <div className="grid grid-cols-3 gap-[20px]">

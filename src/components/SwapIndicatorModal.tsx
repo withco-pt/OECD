@@ -321,7 +321,7 @@ export default function SwapIndicatorModal() {
       onChange: (v: string) => { setSelectedMetric(v); resetPage(); },
     },
     {
-      label: "Obrigatórios",
+      label: "Indicadores da Matriz",
       icon: <AgoraIcon name="alert-circle" className="size-[14px]" />,
       active: filterMandatory,
       onToggle: () => { setFilterMandatory((v) => !v); resetPage(); },
