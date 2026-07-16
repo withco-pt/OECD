@@ -28,6 +28,12 @@ export function pickCategoryCounts(rows: MeasRow[]): Record<string, number> | nu
   return row?.category_counts ?? null;
 }
 
+/** Indica se há pelo menos uma resposta real nas contagens categóricas — um objeto
+ * com todas as categorias a 0 não conta como "ter dados" (indicador continua em falta). */
+export function hasCategoryData(counts: Record<string, number> | null | undefined): boolean {
+  return !!counts && Object.values(counts).some((v) => typeof v === "number" && v > 0);
+}
+
 /* ── Modo Canal (lente por canal) ──────────────────────────────
    Agrega as medições de TODA a entidade por indicador, para um dado
    canal (null = "Todos os canais"), excluindo segmentação geográfica.

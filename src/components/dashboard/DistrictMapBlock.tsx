@@ -139,29 +139,36 @@ function MapSvg({
   );
 }
 
+function computeView(result: { values: Map<string, DistrictValue>; foreign: number } | null, metric: Metric) {
+  if (!result) return null;
+  const entries = [...result.values.entries()]
+    .map(([name, v]) => ({ name, value: metric === "respostas" ? v.respostas : v.csat }))
+    .filter((e): e is { name: string; value: number } => e.value != null && (metric === "csat" || e.value > 0));
+  if (!entries.length) return null;
+  const min = metric === "respostas" ? 0 : Math.min(...entries.map((e) => e.value));
+  const max = Math.max(...entries.map((e) => e.value));
+  const fills = new Map(entries.map((e) => [e.name, RAMP[binIndex(e.value, min, max)]]));
+  const top = [...entries].sort((a, b) => b.value - a.value).slice(0, 5);
+  // Limites dos intervalos da legenda
+  const legend = RAMP.map((color, i) => {
+    const lo = min + ((max - min) / RAMP.length) * i;
+    const hi = min + ((max - min) / RAMP.length) * (i + 1);
+    const fmt = (n: number) => (metric === "csat" ? n.toFixed(1) : String(Math.round(n)));
+    return { color, label: `${fmt(lo)} – ${fmt(hi)}` };
+  });
+  return { entries, fills, top, legend };
+}
+
 export default function DistrictMapBlock({ data }: { data: DashboardData }) {
   const result = useMemo(() => computeDistricts(data), [data]);
   const [metric, setMetric] = useState<Metric>("respostas");
 
-  const view = useMemo(() => {
-    if (!result) return null;
-    const entries = [...result.values.entries()]
-      .map(([name, v]) => ({ name, value: metric === "respostas" ? v.respostas : v.csat }))
-      .filter((e): e is { name: string; value: number } => e.value != null && (metric === "csat" || e.value > 0));
-    if (!entries.length) return null;
-    const min = metric === "respostas" ? 0 : Math.min(...entries.map((e) => e.value));
-    const max = Math.max(...entries.map((e) => e.value));
-    const fills = new Map(entries.map((e) => [e.name, RAMP[binIndex(e.value, min, max)]]));
-    const top = [...entries].sort((a, b) => b.value - a.value).slice(0, 5);
-    // Limites dos intervalos da legenda
-    const legend = RAMP.map((color, i) => {
-      const lo = min + ((max - min) / RAMP.length) * i;
-      const hi = min + ((max - min) / RAMP.length) * (i + 1);
-      const fmt = (n: number) => (metric === "csat" ? n.toFixed(1) : String(Math.round(n)));
-      return { color, label: `${fmt(lo)} – ${fmt(hi)}` };
-    });
-    return { entries, fills, top, legend };
-  }, [result, metric]);
+  // Calculado para as duas métricas (não só a selecionada) para saber quais têm dados —
+  // sem isto, ao escolher uma métrica sem dados o cartão inteiro (incl. o próprio toggle)
+  // desaparecia e o utilizador ficava sem forma de voltar à métrica que tinha dados.
+  const viewRespostas = useMemo(() => computeView(result, "respostas"), [result]);
+  const viewCsat = useMemo(() => computeView(result, "csat"), [result]);
+  const view = metric === "respostas" ? viewRespostas : viewCsat;
 
   const fmtValue = (v: number) => (metric === "csat" ? v.toFixed(1) : String(Math.round(v)));
 
@@ -172,7 +179,7 @@ export default function DistrictMapBlock({ data }: { data: DashboardData }) {
       help="Mostra de onde vêm as respostas ao questionário de satisfação e como varia a satisfação média entre distritos. Distritos a cinzento não têm dados."
       className="flex-1 min-w-0"
     >
-      {!result || !view ? (
+      {!result ? (
         <div className="h-[340px] flex items-center justify-center">
           <EmptyChartState
             title="Sem dados por distrito"
@@ -181,19 +188,26 @@ export default function DistrictMapBlock({ data }: { data: DashboardData }) {
         </div>
       ) : (
         <div className="flex flex-col gap-[12px]">
-          {/* Toggle de métrica */}
+          {/* Toggle de métrica — fica sempre visível; a opção sem dados para esta entidade
+              fica cinzenta/inativa em vez de desaparecer com o resto do cartão. */}
           <div className="bg-primary-200 flex gap-[4px] items-center px-[5px] py-[4px] rounded-[12px] self-start">
             {(
               [
-                { key: "respostas", label: "Respostas" },
-                { key: "csat", label: "Satisfação (1–10)" },
-              ] as { key: Metric; label: string }[]
+                { key: "respostas" as Metric, label: "Respostas", available: viewRespostas != null },
+                { key: "csat" as Metric, label: "Satisfação (1–10)", available: viewCsat != null },
+              ]
             ).map((o) => (
               <button
                 key={o.key}
-                onClick={() => setMetric(o.key)}
-                className={`h-[30px] px-[12px] rounded-[12px] text-[14px] font-medium whitespace-nowrap cursor-pointer transition-colors ${
-                  metric === o.key ? "bg-primary-600 text-white" : "text-primary-900 hover:bg-primary-300/60"
+                onClick={() => o.available && setMetric(o.key)}
+                disabled={!o.available}
+                title={!o.available ? "Sem dados disponíveis para esta métrica" : undefined}
+                className={`h-[30px] px-[12px] rounded-[12px] text-[14px] font-medium whitespace-nowrap transition-colors ${
+                  !o.available
+                    ? "text-neutral-400 cursor-not-allowed"
+                    : metric === o.key
+                      ? "bg-primary-600 text-white cursor-pointer"
+                      : "text-primary-900 hover:bg-primary-300/60 cursor-pointer"
                 }`}
               >
                 {o.label}
@@ -201,6 +215,14 @@ export default function DistrictMapBlock({ data }: { data: DashboardData }) {
             ))}
           </div>
 
+          {!view ? (
+            <div className="h-[300px] flex items-center justify-center">
+              <EmptyChartState
+                title="Sem dados para esta métrica"
+                description="Esta entidade não tem medições desta métrica com segmentação por distrito."
+              />
+            </div>
+          ) : (
           <div className="flex gap-[20px] items-start">
             {/* Mapa */}
             <MapSvg
@@ -251,6 +273,7 @@ export default function DistrictMapBlock({ data }: { data: DashboardData }) {
               )}
             </div>
           </div>
+          )}
         </div>
       )}
     </DashboardCard>

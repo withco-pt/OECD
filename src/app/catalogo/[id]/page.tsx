@@ -120,7 +120,7 @@ export default function ServiceDetailPage() {
       // 3. Catálogo de indicadores (dimensão via embed)
       const { data: inds, error: indErr } = await supabase
         .from("indicators")
-        .select("id, description, is_mandatory, value_type, value_scale_max, escala_descricao, thematic_priority_id, thematic_priorities(name_pt, display_order)")
+        .select("id, description, is_mandatory, value_type, type_of_indicator, value_scale_max, escala_descricao, thematic_priority_id, thematic_priorities(name_pt, display_order)")
         .in("id", ids);
 
       if (!active) return;
@@ -158,6 +158,7 @@ export default function ServiceDetailPage() {
       const items: IndicatorItem[] = (inds ?? []).map((i) => {
         const tp = (i.thematic_priorities ?? {}) as { name_pt?: string; display_order?: number };
         const rows = byIndicator.get(i.id as string) ?? [];
+        const value = aggregateValue(rows);
         return {
           id: i.id as string,
           name: i.description as string,
@@ -165,11 +166,11 @@ export default function ServiceDetailPage() {
           priorityOrder: tp.display_order ?? 99,
           metric: (i.escala_descricao as string) ?? "—",
           valueType: (i.value_type as string) ?? null,
-          value: aggregateValue(rows),
+          value,
           scaleMax: (i.value_scale_max as number | null) ?? null,
           categoryCounts: pickCategoryCounts(rows),
           missingData: false,
-          nonCompliance: false,
+          nonCompliance: (i.type_of_indicator as string | null) === "compliance" && value !== null && value < 50,
           mandatory: Boolean(i.is_mandatory),
         };
       });

@@ -5,12 +5,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { useSelectedService } from "@/context/SelectedServiceContext";
+import { aggregateValue, pickCategoryCounts, type MeasRow } from "@/lib/measurements";
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { selectedService } = useSelectedService();
 
   // Sub-itens das Dimensões — as 9 dimensões da matriz.
-  const [prioritySubItems, setPrioritySubItems] = useState<{ label: string; href: string }[]>([]);
+  const [prioritySubItems, setPrioritySubItems] = useState<{ id: string; label: string; href: string }[]>([]);
   useEffect(() => {
     let active = true;
     (async () => {
@@ -19,10 +22,52 @@ export default function Sidebar() {
         .select("id, name_pt, display_order")
         .order("display_order");
       if (!active || !data) return;
-      setPrioritySubItems(data.map((p) => ({ label: p.name_pt as string, href: `/prioridades/${p.id}` })));
+      setPrioritySubItems(data.map((p) => ({ id: p.id as string, label: p.name_pt as string, href: `/prioridades/${p.id}` })));
     })();
     return () => { active = false; };
   }, []);
+
+  // Dimensões com pelo menos um indicador visível (obrigatório, ou não-obrigatório com
+  // dados reais) para o serviço atual — as restantes ficam inativas no menu, em vez de
+  // levarem a uma lista de indicadores completamente vazia (mesmo critério do card na
+  // página inicial). Sem serviço selecionado, mostra sempre tudo ativo.
+  const [dimensionsWithData, setDimensionsWithData] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    if (!selectedService) { setDimensionsWithData(null); return; }
+    let active = true;
+    (async () => {
+      const { data: indicators } = await supabase
+        .from("indicators")
+        .select("id, thematic_priority_id, is_mandatory");
+      if (!active || !indicators) return;
+      const ids = indicators.map((i) => i.id as string);
+      const { data: meas } = await supabase
+        .from("measurements_catalog")
+        .select("indicator_id, channel, geo_level, value, category_counts")
+        .eq("service_id", selectedService.id)
+        .in("indicator_id", ids);
+      if (!active) return;
+      const byIndicator = new Map<string, MeasRow[]>();
+      for (const m of meas ?? []) {
+        const key = m.indicator_id as string;
+        if (!byIndicator.has(key)) byIndicator.set(key, []);
+        byIndicator.get(key)!.push({
+          channel: (m.channel as string | null) ?? null,
+          geo_level: (m.geo_level as string | null) ?? null,
+          value: m.value as number | string | null,
+          category_counts: (m.category_counts as Record<string, number> | null) ?? null,
+        });
+      }
+      const withData = new Set<string>();
+      for (const i of indicators) {
+        const rows = byIndicator.get(i.id as string) ?? [];
+        const hasData = aggregateValue(rows) !== null || pickCategoryCounts(rows) !== null;
+        if (i.is_mandatory || hasData) withData.add(i.thematic_priority_id as string);
+      }
+      setDimensionsWithData(withData);
+    })();
+    return () => { active = false; };
+  }, [selectedService]);
   const [ptOpen, setPtOpen] = useState(pathname === "/" || pathname.startsWith("/prioridades"));
   const [catOpen, setCatOpen] = useState(pathname.startsWith("/catalogo"));
 
@@ -98,7 +143,21 @@ export default function Sidebar() {
                   >
                     Todas as Dimensões
                   </Link>
-                  {prioritySubItems.map((item) => (
+                  {prioritySubItems.map((item) => {
+                    const isDimDisabled = dimensionsWithData !== null && !dimensionsWithData.has(item.id);
+                    if (isDimDisabled) {
+                      return (
+                        <span
+                          key={item.href}
+                          aria-disabled="true"
+                          title="Sem indicadores com dados para este serviço"
+                          className="text-[14px] px-[16px] py-[6px] text-primary-400 bg-primary-200 cursor-not-allowed select-none"
+                        >
+                          {item.label}
+                        </span>
+                      );
+                    }
+                    return (
                     <Link
                       key={item.href}
                       href={item.href}
@@ -108,7 +167,8 @@ export default function Sidebar() {
                     >
                       {item.label}
                     </Link>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

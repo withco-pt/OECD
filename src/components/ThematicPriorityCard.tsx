@@ -27,6 +27,9 @@ interface ThematicPriorityCardProps {
   variant?: "large" | "small";
   counts?: DimensionCounts;
   href?: string;
+  /** Sem indicadores com dados reais para o serviço/canal atual — fica cinzento/inativo
+   * em vez de deixar o utilizador clicar para uma lista vazia. */
+  disabled?: boolean;
 }
 
 function Pill({ children, tooltip, variant = "warning" }: { children: React.ReactNode; tooltip: string; variant?: "warning" | "danger" | "secondary" | "informative" }) {
@@ -127,6 +130,7 @@ export default function ThematicPriorityCard({
   variant = "small",
   counts = EMPTY_COUNTS,
   href,
+  disabled = false,
 }: ThematicPriorityCardProps) {
   const hasIssues =
     counts.missingData > 0 ||
@@ -135,18 +139,19 @@ export default function ThematicPriorityCard({
     counts.underperformingUx > 0;
   const isLarge = variant === "large";
   const [hovered, setHovered] = useState(false);
+  const isHovered = hovered && !disabled;
 
   const content = (
     <div
-      className="flex flex-col isolate items-start justify-between overflow-hidden p-[16px] rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.05)] relative w-full h-[152px] transition-all duration-200"
+      className={`flex flex-col isolate items-start justify-between overflow-hidden p-[16px] rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.05)] relative w-full h-[152px] transition-all duration-200 ${disabled ? "grayscale opacity-60" : ""}`}
       style={{
-        backgroundImage: hovered
+        backgroundImage: isHovered
           ? "linear-gradient(113deg, #C4D5FF 0%, #BBD1FD 100%)"
           : isLarge
           ? "linear-gradient(144deg, #D6E3FF 0%, #E5EEFF 100%)"
           : "linear-gradient(113deg, #E5EEFF 0%, #D6E3FF 100%)",
       }}
-      onMouseEnter={() => setHovered(true)}
+      onMouseEnter={() => !disabled && setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       {/* Top row */}
@@ -176,27 +181,32 @@ export default function ThematicPriorityCard({
         )}
 
         {/* Ver Indicadores button — only on hover */}
-        <div
-          className="flex items-center gap-[6px] text-white font-semibold text-[13px] px-[14px] py-[8px] rounded-full transition-all duration-200"
-          style={{
-            background: "rgb(0,43,130)",
-            opacity: hovered ? 1 : 0,
-            transform: hovered ? "translateY(0)" : "translateY(4px)",
-            pointerEvents: hovered ? "auto" : "none",
-          }}
-        >
-          Ver Indicadores <AgoraIcon name="arrow-right-anchor" className="size-[13px]" />
-        </div>
+        {!disabled && (
+          <div
+            className="flex items-center gap-[6px] text-white font-semibold text-[13px] px-[14px] py-[8px] rounded-full transition-all duration-200"
+            style={{
+              background: "rgb(0,43,130)",
+              opacity: isHovered ? 1 : 0,
+              transform: isHovered ? "translateY(0)" : "translateY(4px)",
+              pointerEvents: isHovered ? "auto" : "none",
+            }}
+          >
+            Ver Indicadores <AgoraIcon name="arrow-right-anchor" className="size-[13px]" />
+          </div>
+        )}
+        {disabled && (
+          <span className="text-[13px] font-medium text-primary-700">Sem indicadores com dados</span>
+        )}
       </div>
 
       {/* Decorative: icon default, sparkles on hover */}
-      <div className="absolute right-[16px] bottom-[16px] z-[1] transition-opacity duration-200" style={{ opacity: hovered ? 0 : 1 }}>
+      <div className="absolute right-[16px] bottom-[16px] z-[1] transition-opacity duration-200" style={{ opacity: isHovered ? 0 : 1 }}>
         {icon}
       </div>
     </div>
   );
 
-  if (href) {
+  if (href && !disabled) {
     return (
       <a href={href} className="cursor-pointer block">
         {content}
@@ -204,5 +214,9 @@ export default function ThematicPriorityCard({
     );
   }
 
-  return content;
+  return (
+    <div title={disabled ? "Sem indicadores com dados para este serviço" : undefined} className={disabled ? "cursor-not-allowed" : undefined}>
+      {content}
+    </div>
+  );
 }

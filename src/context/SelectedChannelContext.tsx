@@ -33,7 +33,7 @@ const channelKey = (entityId: string) => `ocde.selectedChannel.${entityId}`;
 
 // Ordem canónica dos canais mais comuns; os restantes (específicos de entidade)
 // aparecem a seguir por ordem alfabética.
-const CANONICAL_ORDER = [
+export const CANONICAL_ORDER = [
   "Presencial",
   "Telefone",
   "Videochamada",

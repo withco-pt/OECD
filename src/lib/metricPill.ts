@@ -5,6 +5,20 @@ import type { AgoraIconName } from "@/components/icons/AgoraIcon";
 
 export type MetricPill = { label: string; icon: AgoraIconName };
 
+// Rótulo do "Tipo de Indicador" (type_of_indicator) para o filtro por tipo,
+// partilhado entre Indicadores, Dimensão e o popup de troca de indicador.
+export const INDICATOR_TYPE_LABELS: Record<string, string> = {
+  operational: "Indicador Operacional",
+  user_experience: "UX (Experiência do Utilizador)",
+  compliance: "Cumprimento Legal",
+};
+
+export const INDICATOR_TYPE_OPTIONS = Object.values(INDICATOR_TYPE_LABELS);
+
+export function indicatorTypeLabel(type?: string | null): string | null {
+  return type ? INDICATOR_TYPE_LABELS[type] ?? null : null;
+}
+
 export function metricPill(valueType?: string | null, metricText?: string | null): MetricPill {
   const m = (metricText ?? "").toLowerCase();
   switch (valueType) {

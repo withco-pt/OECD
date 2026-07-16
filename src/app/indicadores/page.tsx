@@ -11,7 +11,8 @@ import { supabase } from "@/lib/supabase";
 import { useSelectedService } from "@/context/SelectedServiceContext";
 import { useSelectedChannel } from "@/context/SelectedChannelContext";
 import { useSelectedEntity } from "@/context/SelectedEntityContext";
-import { fetchEntityChannelAggregates } from "@/lib/measurements";
+import { fetchEntityChannelAggregates, hasCategoryData } from "@/lib/measurements";
+import { indicatorTypeLabel, INDICATOR_TYPE_OPTIONS } from "@/lib/metricPill";
 
 const ITEMS_PER_PAGE = 9;
 
@@ -30,6 +31,7 @@ type IndicatorItem = {
   missingData: boolean;
   nonCompliance: boolean;
   mandatory: boolean;
+  typeLabel: string | null;
 };
 
 function aggregateValue(rows: MeasRow[]): number | null {
@@ -63,7 +65,8 @@ export default function IndicadoresPage() {
   const [search, setSearch] = useState("");
   const [selectedPriority, setSelectedPriority] = useState("");
   const [selectedMetric, setSelectedMetric] = useState("");
-  const [filterOutOfMatrix, setFilterOutOfMatrix] = useState(false);
+  const [selectedType, setSelectedType] = useState("");
+  const [filterMandatory, setFilterMandatory] = useState(false);
   const [filterNonCompliance, setFilterNonCompliance] = useState(false);
   const [filterMissingData, setFilterMissingData] = useState(false);
   const [sortOrder, setSortOrder] = useState("Alfabeticamente");
@@ -75,7 +78,7 @@ export default function IndicadoresPage() {
       setLoading(true); setLoadError(false);
       const { data: inds, error: indErr } = await supabase
         .from("indicators")
-        .select("id, description, is_mandatory, value_type, value_scale_max, escala_descricao, thematic_priorities(name_pt, display_order)");
+        .select("id, description, is_mandatory, value_type, type_of_indicator, value_scale_max, escala_descricao, thematic_priorities(name_pt, display_order)");
       if (!active) return;
       if (indErr) { console.error("[indicadores] erro:", indErr.message); setLoadError(true); setItems([]); setLoading(false); return; }
 
@@ -111,7 +114,8 @@ export default function IndicadoresPage() {
         const rows = byIndicator.get(i.id as string) ?? [];
         const value = channelAgg ? (channelAgg.get(i.id as string)?.value ?? null) : aggregateValue(rows);
         const categoryCounts = channelAgg ? (channelAgg.get(i.id as string)?.categoryCounts ?? null) : pickCategoryCounts(rows);
-        const hasData = value !== null || categoryCounts !== null;
+        const hasData = value !== null || hasCategoryData(categoryCounts);
+        const typeOfIndicator = (i.type_of_indicator as string | null) ?? null;
         return {
           id: i.id as string,
           name: i.description as string,
@@ -123,12 +127,23 @@ export default function IndicadoresPage() {
           scaleMax: (i.value_scale_max as number | null) ?? null,
           categoryCounts,
           missingData: !hasData,
-          nonCompliance: false,
+          // Cumprimento Legal: indicadores de compliance são Sim/Não convertidos em
+          // percentagem (100=Sim, 0=Não); < 50 = incumprimento (mesmo critério do Dashboard).
+          nonCompliance: typeOfIndicator === "compliance" && value !== null && value < 50,
           mandatory: Boolean(i.is_mandatory),
+          typeLabel: indicatorTypeLabel(typeOfIndicator),
         };
       });
-      list.sort((a, b) => a.priorityOrder - b.priorityOrder || a.name.localeCompare(b.name));
-      setItems(list);
+      // Indicadores não-obrigatórios (fora das 9 dimensões oficiais da Matriz) só fazem
+      // sentido quando têm dados reais para o serviço/canal em análise — vários foram
+      // escritos a descrever um único procedimento de uma entidade específica (ex.:
+      // indicadores de "Procura" da CML) e não devem aparecer nos serviços de outras
+      // entidades só porque partilham a mesma tabela de indicadores. Os obrigatórios
+      // continuam sempre visíveis (mesmo sem dados) para manter o alerta de
+      // "Dados Incompletos"/"Fora da Matriz".
+      const relevant = list.filter((i) => i.mandatory || !i.missingData);
+      relevant.sort((a, b) => a.priorityOrder - b.priorityOrder || a.name.localeCompare(b.name));
+      setItems(relevant);
       setLoading(false);
     })();
     return () => { active = false; };
@@ -142,7 +157,8 @@ export default function IndicadoresPage() {
       if (search && !i.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (selectedPriority && i.priority !== selectedPriority) return false;
       if (selectedMetric && i.metric !== selectedMetric) return false;
-      if (filterOutOfMatrix && i.mandatory) return false;
+      if (selectedType && i.typeLabel !== selectedType) return false;
+      if (filterMandatory && !i.mandatory) return false;
       if (filterNonCompliance && !i.nonCompliance) return false;
       if (filterMissingData && !i.missingData) return false;
       return true;
@@ -158,7 +174,7 @@ export default function IndicadoresPage() {
       });
     }
     return result;
-  }, [items, search, selectedPriority, selectedMetric, filterOutOfMatrix, filterNonCompliance, filterMissingData, sortOrder]);
+  }, [items, search, selectedPriority, selectedMetric, selectedType, filterMandatory, filterNonCompliance, filterMissingData, sortOrder]);
 
   const handleSearch = (value: string) => { setSearch(value); setCurrentPage(1); };
   const toggle = (setter: React.Dispatch<React.SetStateAction<boolean>>, val: boolean) => {
@@ -171,7 +187,7 @@ export default function IndicadoresPage() {
 
   const filters = [
     {
-      label: `Dimensões${selectedPriority ? ` (${selectedPriority})` : " (0)"}`,
+      label: `Dimensões${selectedPriority ? ` (${selectedPriority})` : ""}`,
       isDropdown: true as const,
       icon: <AgoraIcon name="layers-menu" className="size-[14px]" />,
       value: selectedPriority,
@@ -179,7 +195,7 @@ export default function IndicadoresPage() {
       onChange: (v: string) => { setSelectedPriority(v); setCurrentPage(1); },
     },
     {
-      label: `Métrica${selectedMetric ? ` (${selectedMetric})` : " (0)"}`,
+      label: `Métrica${selectedMetric ? ` (${selectedMetric})` : ""}`,
       isDropdown: true as const,
       icon: <AgoraIcon name="bar-chart" className="size-[14px]" />,
       value: selectedMetric,
@@ -187,10 +203,18 @@ export default function IndicadoresPage() {
       onChange: (v: string) => { setSelectedMetric(v); setCurrentPage(1); },
     },
     {
-      label: "Fora da Matriz",
-      icon: <AgoraIcon name="log-out" className="size-[14px]" />,
-      active: filterOutOfMatrix,
-      onToggle: () => toggle(setFilterOutOfMatrix, filterOutOfMatrix),
+      label: `Tipo de Indicador${selectedType ? ` (${selectedType})` : ""}`,
+      isDropdown: true as const,
+      icon: <AgoraIcon name="list" className="size-[14px]" />,
+      value: selectedType,
+      options: INDICATOR_TYPE_OPTIONS,
+      onChange: (v: string) => { setSelectedType(v); setCurrentPage(1); },
+    },
+    {
+      label: "Indicador da Matriz",
+      icon: <AgoraIcon name="alert-circle" className="size-[14px]" />,
+      active: filterMandatory,
+      onToggle: () => toggle(setFilterMandatory, filterMandatory),
     },
     {
       label: "Incumprimento Legal",
@@ -222,7 +246,7 @@ export default function IndicadoresPage() {
           orderValue={sortOrder}
           onOrderChange={(v) => { setSortOrder(v); setCurrentPage(1); }}
           onSearch={handleSearch}
-          onClearFilters={() => { setSelectedPriority(""); setSelectedMetric(""); setFilterOutOfMatrix(false); setFilterNonCompliance(false); setFilterMissingData(false); setCurrentPage(1); }}
+          onClearFilters={() => { setSelectedPriority(""); setSelectedMetric(""); setSelectedType(""); setFilterMandatory(false); setFilterNonCompliance(false); setFilterMissingData(false); setCurrentPage(1); }}
         />
 
         {loading ? (

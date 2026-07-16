@@ -210,20 +210,33 @@ export default function DimensionProfile({ data }: { data: DashboardData }) {
         <div className="flex flex-col gap-[12px]">
           <Radar dims={dims} />
 
-          {/* Lista compacta com ligação às páginas de dimensão */}
+          {/* Lista compacta com ligação às páginas de dimensão — sem score (sem dados
+              de experiência/conformidade para esta entidade) fica inativa em vez de
+              parecer uma ligação normal para uma página sem indicadores relevantes. */}
           <div className="grid grid-cols-2 gap-x-[16px] gap-y-[6px]">
-            {dims.map((d) => (
-              <Link
-                key={d.id}
-                href={`/prioridades/${d.id}`}
-                className="flex items-center justify-between gap-[8px] rounded-[6px] px-[8px] py-[4px] hover:bg-primary-200/60 transition-colors"
-              >
-                <span className="text-[13px] text-primary-900 truncate" title={d.name}>{d.name}</span>
-                <span className={`text-[13px] font-bold shrink-0 ${d.score != null ? "text-primary-800" : "text-neutral-500"}`}>
-                  {d.score != null ? Math.round(d.score) : "—"}
+            {dims.map((d) =>
+              d.score == null ? (
+                <span
+                  key={d.id}
+                  title={`${d.name}: sem dados`}
+                  className="flex items-center justify-between gap-[8px] rounded-[6px] px-[8px] py-[4px] cursor-not-allowed"
+                >
+                  <span className="text-[13px] text-neutral-400 truncate">{d.name}</span>
+                  <span className="text-[13px] font-bold shrink-0 text-neutral-400">—</span>
                 </span>
-              </Link>
-            ))}
+              ) : (
+                <Link
+                  key={d.id}
+                  href={`/prioridades/${d.id}`}
+                  className="flex items-center justify-between gap-[8px] rounded-[6px] px-[8px] py-[4px] hover:bg-primary-200/60 transition-colors"
+                >
+                  <span className="text-[13px] text-primary-900 truncate" title={d.name}>{d.name}</span>
+                  <span className="text-[13px] font-bold shrink-0 text-primary-800">
+                    {Math.round(d.score)}
+                  </span>
+                </Link>
+              )
+            )}
           </div>
         </div>
       )}

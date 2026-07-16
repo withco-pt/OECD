@@ -14,6 +14,7 @@ type PriorityRow = {
   description: string;
   icon: string | null;
   counts: DimensionCounts;
+  hasData: boolean;
 };
 
 function PriorityIcon({ src, alt, size = 50 }: { src: string | null; alt: string; size?: number }) {
@@ -57,7 +58,7 @@ export default function PrioridadesTematicas() {
 
       const { data: indicators, error: indErr } = await supabase
         .from("indicators")
-        .select("id, thematic_priority_id, type_of_indicator, target_value, target_direction");
+        .select("id, thematic_priority_id, type_of_indicator, target_value, target_direction, is_mandatory");
       if (!active) return;
       if (indErr || !indicators) {
         console.error("[prioridades] erro ao carregar indicadores:", indErr?.message);
@@ -88,6 +89,13 @@ export default function PrioridadesTematicas() {
       }
 
       const countsByPriority = new Map<string, DimensionCounts>();
+      // Nº de indicadores que realmente aparecem na página desta dimensão para o
+      // serviço selecionado (obrigatórios sempre + não-obrigatórios só com dados reais
+      // — mesmo critério de "relevant" usado em /prioridades/[id]). Uma dimensão com 0
+      // indicadores obrigatórios (ex.: "Procura") pode ficar com a lista completamente
+      // vazia para um serviço sem dados; nesse caso o card deve aparecer inativo em vez
+      // de convidar a um clique que leva a uma página sem nada.
+      const visibleByPriority = new Map<string, number>();
       for (const i of indicators) {
         const priorityId = i.thematic_priority_id as string;
         if (!countsByPriority.has(priorityId)) {
@@ -104,9 +112,17 @@ export default function PrioridadesTematicas() {
         const value = aggregateValue(rows);
         const categoryCounts = pickCategoryCounts(rows);
         const type = i.type_of_indicator as string | null;
+        const hasData = value !== null || categoryCounts !== null;
 
-        if (value === null && categoryCounts === null) {
-          counts.missingData += 1;
+        if (i.is_mandatory || hasData) {
+          visibleByPriority.set(priorityId, (visibleByPriority.get(priorityId) ?? 0) + 1);
+        }
+
+        if (!hasData) {
+          // Indicadores não-obrigatórios sem dados para este serviço não entram na
+          // contagem — vários descrevem um único procedimento de uma entidade
+          // específica e nunca terão dados nos serviços de outras entidades.
+          if (i.is_mandatory) counts.missingData += 1;
           continue;
         }
 
@@ -138,6 +154,7 @@ export default function PrioridadesTematicas() {
             underperformingOperational: 0,
             underperformingUx: 0,
           },
+          hasData: (visibleByPriority.get(p.id as string) ?? 0) > 0,
         }))
       );
       setLoading(false);
@@ -179,6 +196,7 @@ export default function PrioridadesTematicas() {
             variant="large"
             counts={featured.counts}
             href={`/prioridades/${featured.id}`}
+            disabled={!featured.hasData}
           />
 
           <div className="grid grid-cols-3 gap-[32px]">
@@ -190,6 +208,7 @@ export default function PrioridadesTematicas() {
                 icon={<PriorityIcon src={p.icon} alt={p.title} />}
                 counts={p.counts}
                 href={`/prioridades/${p.id}`}
+                disabled={!p.hasData}
               />
             ))}
           </div>

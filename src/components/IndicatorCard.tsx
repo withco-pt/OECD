@@ -91,10 +91,17 @@ export default function IndicatorCard({
   const pill = metricPill(valueType, metric);
 
   const isSimNao = valueType === "categorical_sim_nao";
+  const isAgendamento = valueType === "categorical_agendamento";
   const isScale = valueType === "likert_1_5" || valueType === "scale_1_10";
   const isNps = valueType === "nps";
   const max = scaleMax ?? DEFAULT_SCALE_MAX[valueType ?? ""] ?? null;
   const metricTip = metric && metric !== "—" ? metric : pill.label;
+
+  // Categorias extra além de Sim/Não (ex.: "Não aplicável") — sem isto, respostas
+  // reais que caem só nestas categorias ficavam invisíveis e o card parecia sem dados.
+  const extraCategories = Object.entries(categoryCounts ?? {}).filter(
+    ([label, v]) => label !== "Sim" && label !== "Não" && (v ?? 0) > 0
+  );
 
   let bottomMetric: React.ReactNode = null;
   if (isSimNao) {
@@ -102,6 +109,17 @@ export default function IndicatorCard({
       <>
         <Tooltip label="Nº de respostas «Sim»"><CategoryPill label="Sim" value={categoryCounts?.["Sim"]} /></Tooltip>
         <Tooltip label="Nº de respostas «Não»"><CategoryPill label="Não" value={categoryCounts?.["Não"]} /></Tooltip>
+        {extraCategories.map(([label, v]) => (
+          <Tooltip key={label} label={`Nº de respostas «${label}»`}><CategoryPill label={label} value={v} /></Tooltip>
+        ))}
+      </>
+    );
+  } else if (isAgendamento) {
+    bottomMetric = (
+      <>
+        <Tooltip label="Nº de respostas «Sim»"><CategoryPill label="Sim" value={categoryCounts?.["Sim"]} /></Tooltip>
+        <Tooltip label="Nº de respostas «Não»"><CategoryPill label="Não" value={categoryCounts?.["Não"]} /></Tooltip>
+        <Tooltip label="Nº de respostas «Não, mas tentei»"><CategoryPill label="Não, mas tentei" value={categoryCounts?.["Não, mas tentei"]} /></Tooltip>
       </>
     );
   } else if (isScale) {

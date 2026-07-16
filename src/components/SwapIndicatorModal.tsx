@@ -3,7 +3,7 @@
 import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import { useSelectedService } from "@/context/SelectedServiceContext";
 import { supabase } from "@/lib/supabase";
-import { metricPill } from "@/lib/metricPill";
+import { metricPill, indicatorTypeLabel, INDICATOR_TYPE_OPTIONS } from "@/lib/metricPill";
 import SearchAndFilters from "@/components/SearchAndFilters";
 import Pagination from "@/components/Pagination";
 import Tooltip from "@/components/Tooltip";
@@ -27,6 +27,7 @@ type IndicatorItem = {
   missingData: boolean;
   nonCompliance: boolean;
   mandatory: boolean;
+  typeLabel: string | null;
 };
 
 function aggregateValue(rows: MeasRow[]): number | null {
@@ -188,7 +189,8 @@ export default function SwapIndicatorModal() {
   const [search, setSearch] = useState("");
   const [selectedPriority, setSelectedPriority] = useState("");
   const [selectedMetric, setSelectedMetric] = useState("");
-  const [filterOutOfMatrix, setFilterOutOfMatrix] = useState(false);
+  const [selectedType, setSelectedType] = useState("");
+  const [filterMandatory, setFilterMandatory] = useState(false);
   const [filterNonCompliance, setFilterNonCompliance] = useState(false);
   const [filterMissingData, setFilterMissingData] = useState(false);
   const [filterFavorites, setFilterFavorites] = useState(false);
@@ -224,7 +226,7 @@ export default function SwapIndicatorModal() {
 
       const { data: inds, error: indErr } = await supabase
         .from("indicators")
-        .select("id, description, is_mandatory, value_type, value_scale_max, escala_descricao, thematic_priorities(name_pt, display_order)")
+        .select("id, description, is_mandatory, value_type, type_of_indicator, value_scale_max, escala_descricao, thematic_priorities(name_pt, display_order)")
         .in("id", ids);
       if (!active) return;
       if (indErr) { console.error("[alterar indicador] erro:", indErr.message); setItems([]); setLoading(false); return; }
@@ -244,6 +246,8 @@ export default function SwapIndicatorModal() {
       const list: IndicatorItem[] = (inds ?? []).map((i) => {
         const tp = (i.thematic_priorities ?? {}) as { name_pt?: string; display_order?: number };
         const rows = byIndicator.get(i.id as string) ?? [];
+        const value = aggregateValue(rows);
+        const typeOfIndicator = (i.type_of_indicator as string | null) ?? null;
         return {
           id: i.id as string,
           name: i.description as string,
@@ -251,12 +255,13 @@ export default function SwapIndicatorModal() {
           priorityOrder: tp.display_order ?? 99,
           metric: (i.escala_descricao as string) ?? "—",
           valueType: (i.value_type as string) ?? null,
-          value: aggregateValue(rows),
+          value,
           scaleMax: (i.value_scale_max as number | null) ?? null,
           categoryCounts: pickCategoryCounts(rows),
           missingData: false,
-          nonCompliance: false,
+          nonCompliance: typeOfIndicator === "compliance" && value !== null && value < 50,
           mandatory: Boolean(i.is_mandatory),
+          typeLabel: indicatorTypeLabel(typeOfIndicator),
         };
       });
       list.sort((a, b) => a.priorityOrder - b.priorityOrder || a.name.localeCompare(b.name));
@@ -274,12 +279,13 @@ export default function SwapIndicatorModal() {
       if (search && !i.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (selectedPriority && i.priority !== selectedPriority) return false;
       if (selectedMetric && i.metric !== selectedMetric) return false;
-      if (filterOutOfMatrix && i.mandatory) return false;
+      if (selectedType && i.typeLabel !== selectedType) return false;
+      if (filterMandatory && !i.mandatory) return false;
       if (filterNonCompliance && !i.nonCompliance) return false;
       if (filterMissingData && !i.missingData) return false;
       return true;
     });
-  }, [items, search, selectedPriority, selectedMetric, filterOutOfMatrix, filterNonCompliance, filterMissingData, filterFavorites]);
+  }, [items, search, selectedPriority, selectedMetric, selectedType, filterMandatory, filterNonCompliance, filterMissingData, filterFavorites]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -295,7 +301,8 @@ export default function SwapIndicatorModal() {
   const clearFilters = () => {
     setSelectedPriority("");
     setSelectedMetric("");
-    setFilterOutOfMatrix(false);
+    setSelectedType("");
+    setFilterMandatory(false);
     setFilterNonCompliance(false);
     setFilterMissingData(false);
     setFilterFavorites(false);
@@ -305,7 +312,7 @@ export default function SwapIndicatorModal() {
 
   const filters = [
     {
-      label: `Dimensões${selectedPriority ? ` (${selectedPriority})` : " (0)"}`,
+      label: `Dimensões${selectedPriority ? ` (${selectedPriority})` : ""}`,
       isDropdown: true as const,
       icon: <AgoraIcon name="layers-menu" className="size-[14px]" />,
       value: selectedPriority,
@@ -313,7 +320,7 @@ export default function SwapIndicatorModal() {
       onChange: (v: string) => { setSelectedPriority(v); resetPage(); },
     },
     {
-      label: `Métrica${selectedMetric ? ` (${selectedMetric})` : " (0)"}`,
+      label: `Métrica${selectedMetric ? ` (${selectedMetric})` : ""}`,
       isDropdown: true as const,
       icon: <AgoraIcon name="bar-chart" className="size-[14px]" />,
       value: selectedMetric,
@@ -321,10 +328,18 @@ export default function SwapIndicatorModal() {
       onChange: (v: string) => { setSelectedMetric(v); resetPage(); },
     },
     {
-      label: "Fora da Matriz",
-      icon: <AgoraIcon name="log-out" className="size-[14px]" />,
-      active: filterOutOfMatrix,
-      onToggle: () => { setFilterOutOfMatrix((v) => !v); resetPage(); },
+      label: `Tipo de Indicador${selectedType ? ` (${selectedType})` : ""}`,
+      isDropdown: true as const,
+      icon: <AgoraIcon name="list" className="size-[14px]" />,
+      value: selectedType,
+      options: INDICATOR_TYPE_OPTIONS,
+      onChange: (v: string) => { setSelectedType(v); resetPage(); },
+    },
+    {
+      label: "Indicador da Matriz",
+      icon: <AgoraIcon name="alert-circle" className="size-[14px]" />,
+      active: filterMandatory,
+      onToggle: () => { setFilterMandatory((v) => !v); resetPage(); },
     },
     {
       label: "Incumprimento Legal",
