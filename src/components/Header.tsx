@@ -11,7 +11,7 @@ export default function Header() {
   return (
     <header className="bg-primary-600 drop-shadow-[0px_2px_2px_rgba(0,0,0,0.05)] flex items-center gap-[24px] px-[35px] py-[12px] w-full h-[72px] fixed top-0 z-50">
       <p className="font-bold leading-[24px] text-[20px] text-white w-[295px] shrink-0">
-        Matriz para a Inovação nos Serviços Públicos
+        Matriz para a Avaliação nos Serviços Públicos
       </p>
 
       <HeaderChannelDropdown />

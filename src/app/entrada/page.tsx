@@ -62,7 +62,7 @@ export default async function EntradaPage() {
             className="text-white font-bold"
             style={{ margin: 0, fontSize: 40, lineHeight: 1.15, letterSpacing: "-0.01em" }}
           >
-            Matriz para a Inovação nos Serviços Públicos
+            Matriz para a Avaliação nos Serviços Públicos
           </h1>
           <p
             className="text-white"

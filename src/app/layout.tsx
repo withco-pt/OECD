@@ -5,7 +5,7 @@ import { SelectedEntityProvider } from "@/context/SelectedEntityContext";
 import { SelectedChannelProvider } from "@/context/SelectedChannelContext";
 
 export const metadata: Metadata = {
-  title: "Matriz para a Inovação nos Serviços Públicos",
+  title: "Matriz para a Avaliação nos Serviços Públicos",
   description: "Plataforma de monitorização de serviços públicos — OCDE/OPSI",
 };
 
