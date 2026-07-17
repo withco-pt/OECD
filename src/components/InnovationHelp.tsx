@@ -287,7 +287,7 @@ export const goodPerformanceServices = [
 ];
 
 export const ARTE_CONTACT = {
-  title: "ARTE – Agência para a Reforma Tecnológica do Estado, I.P.",
+  title: "Agência para a Reforma Tecnológica do Estado, I.P.",
   email: "arte@arte.gov.pt",
   phone: "+351 21 798 55 00",
   address: "Rua de Santa Marta n.º 55, 1150 - 294 Lisboa",
@@ -322,11 +322,11 @@ export function GetHelpSection() {
           </div>
         </ExpandableRow>
 
-        <ExpandableRow title="Contacte a ARTE" bg="bg-secondary-200">
+        <ExpandableRow title="Contacte a Agência para a Reforma Tecnológica do Estado" bg="bg-secondary-200">
           <div className="flex gap-[24px] items-start flex-wrap">
             <p className="flex-1 min-w-[220px] max-w-[300px]">
               Caso necessite de apoio na melhoria do seu serviço pode entrar em contacto com a
-              ARTE – Agência para a Reforma Tecnológica do Estado, I.P.
+              Agência para a Reforma Tecnológica do Estado, I.P.
             </p>
             <div className="flex-1 min-w-[280px]">
               <ContactCard

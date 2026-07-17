@@ -54,7 +54,7 @@ export default async function EntradaPage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo-arte.png"
-            alt="ARTE — Agência para a Reforma Tecnológica do Estado"
+            alt="Agência para a Reforma Tecnológica do Estado"
             style={{ height: 104, width: "auto", marginBottom: 4 }}
           />
 
@@ -113,7 +113,7 @@ export default async function EntradaPage() {
           className="text-center"
           style={{ marginTop: 28, fontSize: 13, lineHeight: 1.4, color: "rgb(140,150,166)" }}
         >
-          Uma plataforma da ARTE — Agência para a Reforma Tecnológica do Estado
+          Uma plataforma da Agência para a Reforma Tecnológica do Estado
         </span>
       </div>
     </div>
