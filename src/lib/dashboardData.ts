@@ -122,9 +122,12 @@ export async function fetchDashboardData(entityShort: string): Promise<Dashboard
 
 /* ── Helpers de agregação ───────────────────────────────────── */
 
-/** Linha "agregada": sem canal e sem geografia (pode haver 1 por mês). */
-export function isAggRow(r: MeasurementRow): boolean {
-  return r.channel === null && r.geo_name === null;
+/** Linha do canal ativo: sem canal nem geografia (agregado, quando `channel` é
+ * null); ou, com um canal selecionado na dropdown global, a linha desse canal
+ * específico (continua a excluir segmentação geográfica). */
+export function isAggRow(r: MeasurementRow, channel: string | null = null): boolean {
+  if (channel === null) return r.channel === null && r.geo_name === null;
+  return r.channel === channel && r.geo_name === null;
 }
 
 function weight(r: MeasurementRow): number {

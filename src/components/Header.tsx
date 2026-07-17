@@ -3,16 +3,20 @@
 import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import { useRouter } from "next/navigation";
 import { useSelectedEntity } from "@/context/SelectedEntityContext";
+import HeaderChannelDropdown from "@/components/HeaderChannelDropdown";
 
 export default function Header() {
   const router = useRouter();
   const { entity, clearEntity } = useSelectedEntity();
   return (
-    <header className="bg-primary-600 drop-shadow-[0px_2px_2px_rgba(0,0,0,0.05)] flex items-center justify-between px-[35px] py-[12px] w-full h-[72px] fixed top-0 z-50">
-      <p className="font-bold leading-[24px] text-[20px] text-white w-[295px]">
+    <header className="bg-primary-600 drop-shadow-[0px_2px_2px_rgba(0,0,0,0.05)] flex items-center gap-[24px] px-[35px] py-[12px] w-full h-[72px] fixed top-0 z-50">
+      <p className="font-bold leading-[24px] text-[20px] text-white w-[295px] shrink-0">
         Matriz para a Inovação nos Serviços Públicos
       </p>
-      <div className="flex gap-[32px] items-center">
+
+      <HeaderChannelDropdown />
+
+      <div className="flex gap-[32px] items-center shrink-0">
         <div className="flex gap-[8px] items-center">
           <div className="inline-grid place-items-center relative">
             <div className="col-start-1 row-start-1 size-[42px] rounded-full bg-primary-200 flex items-center justify-center">

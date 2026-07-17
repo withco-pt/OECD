@@ -4,7 +4,6 @@
 import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import { useSelectedService } from "@/context/SelectedServiceContext";
 import { useRouter } from "next/navigation";
-import ModeSwitch from "@/components/ModeSwitch";
 
 export default function SwapServiceBar() {
   const { selectedService, openSwap } = useSelectedService();
@@ -12,7 +11,7 @@ export default function SwapServiceBar() {
 
   return (
     <div className="bg-secondary-200 drop-shadow-[0px_2px_2px_rgba(0,0,0,0.05)] flex flex-col gap-[10px] px-[32px] py-[16px] w-full">
-      <ModeSwitch />
+      <p className="font-semibold text-[16px] leading-[23px] text-primary-900">Serviço Selecionado</p>
       <div className="bg-[#B5E0FF] flex items-center justify-between px-[12px] py-[6px] rounded-[10px] w-full gap-[12px]">
         <div className="flex gap-[8px] items-center min-w-0">
           <AgoraIcon name="like" className="size-[20px] text-neutral-400 shrink-0 cursor-not-allowed" />

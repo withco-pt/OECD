@@ -5,20 +5,13 @@ import { supabase } from "@/lib/supabase";
 import { useSelectedEntity } from "@/context/SelectedEntityContext";
 
 /* ─────────────────────────────────────────────────────────────
-   Lente ativa da plataforma: "serviço" ou "canal".
-   São mutuamente exclusivas — em cada momento só uma filtra os
-   dados. Em modo "serviço" tudo funciona como sempre (filtra pelo
-   serviço selecionado). Em modo "canal" os ecrãs mostram apenas os
-   dados do canal escolhido (agregados por entidade), e os
-   indicadores sem quebra por canal ficam marcados como sem dados.
-   Não há ligação entre a seleção de serviço e a de canal.
+   Filtro global de canal (dropdown na barra de topo). Aplica-se em
+   conjunto com o serviço selecionado (interseção): os indicadores
+   mostrados passam a ser os do serviço ativo, fatiados pelo canal
+   escolhido. null = "Todos os canais" (sem filtro de canal).
    ───────────────────────────────────────────────────────────── */
 
-export type ViewMode = "service" | "channel";
-
 interface SelectedChannelContextValue {
-  viewMode: ViewMode;
-  setViewMode: (m: ViewMode) => void;
   channels: string[];
   channelsLoading: boolean;
   /** null = "Todos os canais". */
@@ -28,7 +21,6 @@ interface SelectedChannelContextValue {
 
 const SelectedChannelContext = createContext<SelectedChannelContextValue | null>(null);
 
-const VIEW_MODE_KEY = "ocde.viewMode";
 const channelKey = (entityId: string) => `ocde.selectedChannel.${entityId}`;
 
 // Ordem canónica dos canais mais comuns; os restantes (específicos de entidade)
@@ -57,20 +49,9 @@ function sortChannels(list: string[]): string[] {
 export function SelectedChannelProvider({ children }: { children: React.ReactNode }) {
   const { entity } = useSelectedEntity();
 
-  const [viewMode, setViewModeState] = useState<ViewMode>("service");
   const [channels, setChannels] = useState<string[]>([]);
   const [channelsLoading, setChannelsLoading] = useState(false);
   const [selectedChannel, setSelectedChannelState] = useState<string | null>(null);
-
-  // Restaura a lente ativa (global, independente da entidade).
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(VIEW_MODE_KEY);
-      if (saved === "service" || saved === "channel") setViewModeState(saved);
-    } catch {
-      // ignora
-    }
-  }, []);
 
   // Carrega os canais disponíveis para a entidade ativa.
   useEffect(() => {
@@ -116,15 +97,6 @@ export function SelectedChannelProvider({ children }: { children: React.ReactNod
     };
   }, [entity]);
 
-  const setViewMode = useCallback((m: ViewMode) => {
-    setViewModeState(m);
-    try {
-      localStorage.setItem(VIEW_MODE_KEY, m);
-    } catch {
-      // ignora
-    }
-  }, []);
-
   const setSelectedChannel = useCallback(
     (c: string | null) => {
       setSelectedChannelState(c);
@@ -142,14 +114,12 @@ export function SelectedChannelProvider({ children }: { children: React.ReactNod
 
   const value = useMemo(
     () => ({
-      viewMode,
-      setViewMode,
       channels,
       channelsLoading,
       selectedChannel,
       setSelectedChannel,
     }),
-    [viewMode, setViewMode, channels, channelsLoading, selectedChannel, setSelectedChannel]
+    [channels, channelsLoading, selectedChannel, setSelectedChannel]
   );
 
   return <SelectedChannelContext.Provider value={value}>{children}</SelectedChannelContext.Provider>;

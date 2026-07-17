@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
-import SwapSelectorBar from "./SwapSelectorBar";
+import SwapServiceBar from "./SwapServiceBar";
 import { useSelectedEntity } from "@/context/SelectedEntityContext";
 
 export default function AppLayout({
@@ -36,7 +36,7 @@ export default function AppLayout({
       <Header />
       <Sidebar />
       <main className="ml-[316px] mt-[72px]">
-        {!hideSwapBar && <SwapSelectorBar />}
+        {!hideSwapBar && <SwapServiceBar />}
         <div className="px-[32px] pt-[40px] pb-[40px]">{children}</div>
       </main>
     </div>

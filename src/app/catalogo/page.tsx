@@ -9,6 +9,7 @@ import ServiceCard from "@/components/ServiceCard";
 import Pagination from "@/components/Pagination";
 import { supabase } from "@/lib/supabase";
 import { useSelectedEntity } from "@/context/SelectedEntityContext";
+import { useSelectedChannel } from "@/context/SelectedChannelContext";
 
 const ITEMS_PER_PAGE = 9;
 
@@ -26,6 +27,7 @@ type Service = {
 
 export default function CatalogoPage() {
   const { entity } = useSelectedEntity();
+  const { selectedChannel } = useSelectedChannel();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -89,10 +91,17 @@ export default function CatalogoPage() {
             });
           }
           for (const [serviceId, rows] of bySvcRows) {
-            const nullRow = rows.find((r) => r.channel === null && r.geo_level === null) ?? rows[0];
+            // Sem canal selecionado: linha agregada (sem canal nem geografia), com fallback
+            // à primeira linha. Com um canal ativo: só a linha desse canal específico (sem
+            // fallback — se não houver dados desse canal, o serviço fica sem CSAT).
+            const row =
+              selectedChannel === null
+                ? rows.find((r) => r.channel === null && r.geo_level === null) ?? rows[0]
+                : rows.find((r) => r.channel === selectedChannel && r.geo_level === null);
+            if (!row) continue;
             byService.set(serviceId, {
-              csat: nullRow.value != null ? Number(nullRow.value) : null,
-              n: nullRow.total_inquiridos,
+              csat: row.value != null ? Number(row.value) : null,
+              n: row.total_inquiridos,
             });
           }
         }
@@ -119,7 +128,7 @@ export default function CatalogoPage() {
     return () => {
       active = false;
     };
-  }, [entity]);
+  }, [entity, selectedChannel]);
 
   const filtered = useMemo(() => {
     const result = services.filter((s) => {
@@ -291,6 +300,9 @@ export default function CatalogoPage() {
             A mostrar{" "}
             <span className="font-semibold">{Math.max(Math.min(visibleServices.length + startIndex, filtered.length) - startIndex, 0)}</span>{" "}
             de <span className="font-semibold">{filtered.length}</span> serviços
+            {selectedChannel && (
+              <> · canal: <span className="font-semibold">{selectedChannel}</span></>
+            )}
           </p>
 
           <div className="grid grid-cols-3 gap-[24px]">

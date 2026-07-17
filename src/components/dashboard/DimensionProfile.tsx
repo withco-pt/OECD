@@ -17,7 +17,7 @@ import { type DashboardData, isAggRow, wavg, normalizeScore } from "@/lib/dashbo
 
 type DimScore = { id: string; name: string; score: number | null; n: number };
 
-function computeScores(data: DashboardData): DimScore[] {
+function computeScores(data: DashboardData, channel: string | null): DimScore[] {
   const scorable = data.indicators.filter(
     (i) =>
       (i.typeOfIndicator === "user_experience" || i.typeOfIndicator === "compliance") &&
@@ -30,27 +30,29 @@ function computeScores(data: DashboardData): DimScore[] {
     byPriority.get(ind.priorityId)!.push(ind);
   }
 
-  return data.priorities
-    .filter((p) => byPriority.has(p.id)) // exclui dimensões sem indicadores de score (ex.: Procura)
-    .map((p) => {
-      let weighted = 0;
-      let totalW = 0;
-      for (const ind of byPriority.get(p.id)!) {
-        const rows = data.rows.filter((r) => r.indicator_id === ind.id && isAggRow(r));
-        const agg = wavg(rows);
-        if (!agg) continue;
-        const score = normalizeScore(ind.valueType, agg.avg);
-        if (score == null) continue;
-        weighted += score * agg.n;
-        totalW += agg.n;
-      }
-      return {
-        id: p.id,
-        name: p.namePt,
-        score: totalW > 0 ? weighted / totalW : null,
-        n: totalW,
-      };
-    });
+  // Mostra sempre as 9 dimensões oficiais da Matriz — as sem indicadores de
+  // score (ex.: Procura, que mede volumes) ou sem dados ficam marcadas como
+  // "sem dados" em vez de desaparecerem do radar.
+  return data.priorities.map((p) => {
+    const inds = byPriority.get(p.id) ?? [];
+    let weighted = 0;
+    let totalW = 0;
+    for (const ind of inds) {
+      const rows = data.rows.filter((r) => r.indicator_id === ind.id && isAggRow(r, channel));
+      const agg = wavg(rows);
+      if (!agg) continue;
+      const score = normalizeScore(ind.valueType, agg.avg);
+      if (score == null) continue;
+      weighted += score * agg.n;
+      totalW += agg.n;
+    }
+    return {
+      id: p.id,
+      name: p.namePt,
+      score: totalW > 0 ? weighted / totalW : null,
+      n: totalW,
+    };
+  });
 }
 
 /** Parte o nome da dimensão em ≤3 linhas para caber junto ao eixo. */
@@ -188,8 +190,8 @@ function Radar({ dims }: { dims: DimScore[] }) {
   );
 }
 
-export default function DimensionProfile({ data }: { data: DashboardData }) {
-  const dims = useMemo(() => computeScores(data), [data]);
+export default function DimensionProfile({ data, selectedChannel }: { data: DashboardData; selectedChannel: string | null }) {
+  const dims = useMemo(() => computeScores(data, selectedChannel), [data, selectedChannel]);
   const hasAny = dims.some((d) => d.score != null);
 
   return (

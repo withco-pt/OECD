@@ -16,10 +16,10 @@ import { type DashboardData, isAggRow, MONTHS_PT } from "@/lib/dashboardData";
 type SeriesPoint = { year: number; month: number; value: number };
 type Series = { indicatorId: string; label: string; isSum: boolean; points: SeriesPoint[] };
 
-function computeSeries(data: DashboardData): Series[] {
+function computeSeries(data: DashboardData, channel: string | null): Series[] {
   const out: Series[] = [];
   for (const ind of data.indicators.filter((i) => i.typeOfIndicator === "operational")) {
-    const rows = data.rows.filter((r) => r.indicator_id === ind.id && isAggRow(r) && r.month != null && r.value != null);
+    const rows = data.rows.filter((r) => r.indicator_id === ind.id && isAggRow(r, channel) && r.month != null && r.value != null);
     if (!rows.length) continue;
     const isSum = /^(número|nº|n\.?º)/i.test(ind.description.trim());
     const byMonth = new Map<string, { year: number; month: number; sum: number; count: number }>();
@@ -126,8 +126,8 @@ function LineChart({ points }: { points: SeriesPoint[] }) {
   );
 }
 
-export default function TrendBlock({ data }: { data: DashboardData }) {
-  const series = useMemo(() => computeSeries(data), [data]);
+export default function TrendBlock({ data, selectedChannel }: { data: DashboardData; selectedChannel: string | null }) {
+  const series = useMemo(() => computeSeries(data, selectedChannel), [data, selectedChannel]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const current = series.find((s) => s.indicatorId === selectedId) ?? series[0];
 

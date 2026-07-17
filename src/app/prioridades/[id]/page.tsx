@@ -10,8 +10,7 @@ import IndicatorCard from "@/components/IndicatorCard";
 import { supabase } from "@/lib/supabase";
 import { useSelectedService } from "@/context/SelectedServiceContext";
 import { useSelectedChannel } from "@/context/SelectedChannelContext";
-import { useSelectedEntity } from "@/context/SelectedEntityContext";
-import { aggregateValue, pickCategoryCounts, hasCategoryData, fetchEntityChannelAggregates, type MeasRow } from "@/lib/measurements";
+import { aggregateValue, pickCategoryCounts, hasCategoryData, rowsForChannel, type MeasRow } from "@/lib/measurements";
 import { indicatorTypeLabel, INDICATOR_TYPE_OPTIONS } from "@/lib/metricPill";
 
 type PriorityMeta = { id: string; title: string; description: string; icon: string | null };
@@ -34,8 +33,7 @@ export default function PriorityDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const { selectedService } = useSelectedService();
-  const { entity } = useSelectedEntity();
-  const { viewMode, selectedChannel } = useSelectedChannel();
+  const { selectedChannel } = useSelectedChannel();
 
   const [priority, setPriority] = useState<PriorityMeta | null>(null);
   const [items, setItems] = useState<IndicatorItem[]>([]);
@@ -82,16 +80,10 @@ export default function PriorityDetailPage() {
 
       const ids = (inds ?? []).map((i) => i.id as string);
 
-      // Modo Canal: valores agregados por entidade, fatiados pelo canal (serviço desligado).
-      // Modo Serviço: medições do serviço ativo (comportamento de sempre).
-      const channelMode = viewMode === "channel";
+      // Medições do serviço ativo, fatiadas pelo canal escolhido na dropdown global
+      // (interseção serviço + canal; canal null = todos os canais, comportamento de sempre).
       const byIndicator = new Map<string, MeasRow[]>();
-      const channelAgg = channelMode && entity
-        ? await fetchEntityChannelAggregates(entity.id, selectedChannel)
-        : null;
-      if (!active) return;
-
-      if (!channelMode && selectedService && ids.length) {
+      if (selectedService && ids.length) {
         const { data: meas } = await supabase
           .from("measurements_catalog")
           .select("indicator_id, channel, geo_level, value, category_counts")
@@ -111,9 +103,9 @@ export default function PriorityDetailPage() {
       }
 
       const list: IndicatorItem[] = (inds ?? []).map((i) => {
-        const rows = byIndicator.get(i.id as string) ?? [];
-        const value = channelAgg ? (channelAgg.get(i.id as string)?.value ?? null) : aggregateValue(rows);
-        const categoryCounts = channelAgg ? (channelAgg.get(i.id as string)?.categoryCounts ?? null) : pickCategoryCounts(rows);
+        const rows = rowsForChannel(byIndicator.get(i.id as string) ?? [], selectedChannel);
+        const value = aggregateValue(rows);
+        const categoryCounts = pickCategoryCounts(rows);
         const typeOfIndicator = (i.type_of_indicator as string | null) ?? null;
         return {
           id: i.id as string,
@@ -140,7 +132,7 @@ export default function PriorityDetailPage() {
       setLoading(false);
     })();
     return () => { active = false; };
-  }, [id, selectedService, viewMode, selectedChannel, entity]);
+  }, [id, selectedService, selectedChannel]);
 
   const METRICS = useMemo(() => [...new Set(items.map((i) => i.metric))].sort(), [items]);
 
@@ -293,11 +285,12 @@ export default function PriorityDetailPage() {
 
         <p className="text-[14px] text-primary-600 mt-[24px] mb-[16px]">
           A mostrar {filteredIndicators.length} de {items.length} indicadores
-          {viewMode === "channel" ? (
-            <> · canal: <span className="font-semibold">{selectedChannel ?? "Todos os canais"}</span></>
-          ) : selectedService ? (
+          {selectedService && (
             <> · serviço: <span className="font-semibold">{selectedService.name}</span></>
-          ) : null}
+          )}
+          {selectedChannel && (
+            <> · canal: <span className="font-semibold">{selectedChannel}</span></>
+          )}
         </p>
 
         <div className="grid grid-cols-3 gap-[16px]">

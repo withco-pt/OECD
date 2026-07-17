@@ -10,8 +10,7 @@ import Pagination from "@/components/Pagination";
 import { supabase } from "@/lib/supabase";
 import { useSelectedService } from "@/context/SelectedServiceContext";
 import { useSelectedChannel } from "@/context/SelectedChannelContext";
-import { useSelectedEntity } from "@/context/SelectedEntityContext";
-import { fetchEntityChannelAggregates, hasCategoryData } from "@/lib/measurements";
+import { hasCategoryData, rowsForChannel } from "@/lib/measurements";
 import { indicatorTypeLabel, INDICATOR_TYPE_OPTIONS } from "@/lib/metricPill";
 
 const ITEMS_PER_PAGE = 9;
@@ -54,8 +53,7 @@ function pickCategoryCounts(rows: MeasRow[]): Record<string, number> | null {
 
 export default function IndicadoresPage() {
   const { selectedService } = useSelectedService();
-  const { entity } = useSelectedEntity();
-  const { viewMode, selectedChannel } = useSelectedChannel();
+  const { selectedChannel } = useSelectedChannel();
 
   const [items, setItems] = useState<IndicatorItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,16 +80,10 @@ export default function IndicadoresPage() {
       if (!active) return;
       if (indErr) { console.error("[indicadores] erro:", indErr.message); setLoadError(true); setItems([]); setLoading(false); return; }
 
-      // Modo Canal: valores agregados por entidade, fatiados pelo canal (serviço desligado).
-      // Modo Serviço: valores do serviço selecionado (comportamento de sempre).
-      const channelMode = viewMode === "channel";
+      // Valores do serviço selecionado, fatiados pelo canal escolhido na dropdown global
+      // (interseção serviço + canal; canal null = todos os canais, comportamento de sempre).
       const byIndicator = new Map<string, MeasRow[]>();
-      const channelAgg = channelMode && entity
-        ? await fetchEntityChannelAggregates(entity.id, selectedChannel)
-        : null;
-      if (!active) return;
-
-      if (!channelMode && selectedService) {
+      if (selectedService) {
         const { data: meas } = await supabase
           .from("measurements_catalog")
           .select("indicator_id, channel, geo_level, value, category_counts")
@@ -111,9 +103,9 @@ export default function IndicadoresPage() {
 
       const list: IndicatorItem[] = (inds ?? []).map((i) => {
         const tp = (i.thematic_priorities ?? {}) as { name_pt?: string; display_order?: number };
-        const rows = byIndicator.get(i.id as string) ?? [];
-        const value = channelAgg ? (channelAgg.get(i.id as string)?.value ?? null) : aggregateValue(rows);
-        const categoryCounts = channelAgg ? (channelAgg.get(i.id as string)?.categoryCounts ?? null) : pickCategoryCounts(rows);
+        const rows = rowsForChannel(byIndicator.get(i.id as string) ?? [], selectedChannel);
+        const value = aggregateValue(rows);
+        const categoryCounts = pickCategoryCounts(rows);
         const hasData = value !== null || hasCategoryData(categoryCounts);
         const typeOfIndicator = (i.type_of_indicator as string | null) ?? null;
         return {
@@ -147,7 +139,7 @@ export default function IndicadoresPage() {
       setLoading(false);
     })();
     return () => { active = false; };
-  }, [selectedService, viewMode, selectedChannel, entity]);
+  }, [selectedService, selectedChannel]);
 
   const PRIORITIES = useMemo(() => [...new Set(items.map((i) => i.priority))].sort(), [items]);
   const METRICS = useMemo(() => [...new Set(items.map((i) => i.metric))].sort(), [items]);
@@ -260,11 +252,12 @@ export default function IndicadoresPage() {
           <>
             <p className="text-[14px] text-primary-600">
               A mostrar {paginatedIndicators.length} de {filtered.length} indicadores
-              {viewMode === "channel" ? (
-                <> · canal: <span className="font-semibold">{selectedChannel ?? "Todos os canais"}</span></>
-              ) : selectedService ? (
+              {selectedService && (
                 <> · serviço: <span className="font-semibold">{selectedService.name}</span></>
-              ) : null}
+              )}
+              {selectedChannel && (
+                <> · canal: <span className="font-semibold">{selectedChannel}</span></>
+              )}
             </p>
 
             <div className="grid grid-cols-3 gap-[20px]">

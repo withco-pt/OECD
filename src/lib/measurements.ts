@@ -34,64 +34,11 @@ export function hasCategoryData(counts: Record<string, number> | null | undefine
   return !!counts && Object.values(counts).some((v) => typeof v === "number" && v > 0);
 }
 
-/* ── Modo Canal (lente por canal) ──────────────────────────────
-   Agrega as medições de TODA a entidade por indicador, para um dado
-   canal (null = "Todos os canais"), excluindo segmentação geográfica.
-   Usado quando a lente ativa é "canal" (o serviço fica desligado): os
-   valores passam a ser da entidade inteira, fatiados pelo canal.
-   Valor = média ponderada pelo nº de respondentes de cada serviço
-   (mesmo critério do dashboard; peso 1 quando não há respondentes);
-   category_counts = soma. */
-
-export type ChannelAgg = { value: number | null; categoryCounts: Record<string, number> | null };
-
-export async function fetchEntityChannelAggregates(
-  entityShort: string,
-  channel: string | null
-): Promise<Map<string, ChannelAgg>> {
-  const PAGE = 1000;
-  const acc = new Map<string, { sum: number; weight: number; hasValue: boolean; cats: Record<string, number> | null }>();
-
-  for (let page = 0; ; page++) {
-    let q = supabase
-      .from("measurements_catalog")
-      .select("indicator_id, value, category_counts, total_respondentes")
-      .eq("entity_short", entityShort)
-      .is("geo_level", null);
-    q = channel === null ? q.is("channel", null) : q.eq("channel", channel);
-
-    const { data, error } = await q.range(page * PAGE, (page + 1) * PAGE - 1);
-    if (error) throw error;
-
-    for (const r of data ?? []) {
-      const id = r.indicator_id as string;
-      if (!acc.has(id)) acc.set(id, { sum: 0, weight: 0, hasValue: false, cats: null });
-      const e = acc.get(id)!;
-      const n = Number(r.value);
-      if (r.value !== null && !Number.isNaN(n)) {
-        const resp = r.total_respondentes as number | null;
-        const w = resp && resp > 0 ? resp : 1;
-        e.sum += n * w;
-        e.weight += w;
-        e.hasValue = true;
-      }
-      const cc = (r.category_counts as Record<string, number> | null) ?? null;
-      if (cc) {
-        e.cats = e.cats ?? {};
-        for (const [k, v] of Object.entries(cc)) {
-          e.cats[k] = (e.cats[k] ?? 0) + (typeof v === "number" ? v : 0);
-        }
-      }
-    }
-    if (!data || data.length < PAGE) break;
-  }
-
-  const out = new Map<string, ChannelAgg>();
-  for (const [id, e] of acc) {
-    const value = e.hasValue && e.weight > 0
-      ? Math.round((e.sum / e.weight) * 100) / 100
-      : null;
-    out.set(id, { value, categoryCounts: e.cats });
-  }
-  return out;
+/** Isola, de um conjunto de linhas de um indicador, as que correspondem a um canal
+ * específico (excluindo sempre segmentação geográfica). channel = null devolve a
+ * agregação normal do serviço (todos os canais, comportamento de sempre). */
+export function rowsForChannel(rows: MeasRow[], channel: string | null): MeasRow[] {
+  if (channel === null) return rows;
+  const row = rows.find((r) => r.channel === channel && r.geo_level === null);
+  return row ? [row] : [];
 }

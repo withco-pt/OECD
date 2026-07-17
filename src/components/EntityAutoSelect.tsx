@@ -10,7 +10,7 @@ export function EntityAutoSelect({ entity }: { entity: SelectedEntity }) {
 
   useEffect(() => {
     setEntity(entity);
-    router.replace("/");
+    router.replace("/dashboard");
   }, [entity, setEntity, router]);
 
   return (

@@ -72,14 +72,14 @@ function Row({
   );
 }
 
-export default function ServiceRanking({ data }: { data: DashboardData }) {
+export default function ServiceRanking({ data, selectedChannel }: { data: DashboardData; selectedChannel: string | null }) {
   const { ranked, lowSample, semDados } = useMemo(() => {
     const csatInd = data.indicators.find((i) => i.etlKey === "ux_csat");
     const all: Ranked[] = [];
     const semDados: { id: string; name: string }[] = [];
     for (const s of data.services) {
       const rows = csatInd
-        ? data.rows.filter((r) => r.service_id === s.id && r.indicator_id === csatInd.id && isAggRow(r))
+        ? data.rows.filter((r) => r.service_id === s.id && r.indicator_id === csatInd.id && isAggRow(r, selectedChannel))
         : [];
       const agg = wavg(rows);
       if (agg) all.push({ id: s.id, name: s.name, csat: agg.avg, n: agg.n });
@@ -91,7 +91,7 @@ export default function ServiceRanking({ data }: { data: DashboardData }) {
       lowSample: all.filter((s) => s.n < MIN_SAMPLE),
       semDados,
     };
-  }, [data]);
+  }, [data, selectedChannel]);
 
   const attentionFrom = ranked.length > 5 ? ranked.length - 3 : ranked.length;
 

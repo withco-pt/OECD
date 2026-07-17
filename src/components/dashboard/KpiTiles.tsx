@@ -28,10 +28,10 @@ type Kpi = {
   delta?: { text: string; good: boolean } | null;
 };
 
-function aggRowsFor(data: DashboardData, etlKey: string): MeasurementRow[] {
+function aggRowsFor(data: DashboardData, etlKey: string, channel: string | null): MeasurementRow[] {
   const ind = data.indicators.find((i) => i.etlKey === etlKey);
   if (!ind) return [];
-  return data.rows.filter((r) => r.indicator_id === ind.id && isAggRow(r));
+  return data.rows.filter((r) => r.indicator_id === ind.id && isAggRow(r, channel));
 }
 
 /** Delta entre o último mês e o anterior (média ponderada), se existirem ≥2 meses. */
@@ -53,20 +53,20 @@ function monthDelta(rows: MeasurementRow[]): { text: string; good: boolean } | n
   };
 }
 
-export default function KpiTiles({ data }: { data: DashboardData }) {
+export default function KpiTiles({ data, selectedChannel }: { data: DashboardData; selectedChannel: string | null }) {
   const kpis = useMemo<Kpi[]>(() => {
     // Satisfação global (escala 1–10)
-    const csatRows = aggRowsFor(data, "ux_csat");
+    const csatRows = aggRowsFor(data, "ux_csat", selectedChannel);
     const csat = wavg(csatRows);
 
     // NPS — recalculado a partir das contagens somadas (mais correto do que média de médias)
-    const npsRows = aggRowsFor(data, "ux_nps");
+    const npsRows = aggRowsFor(data, "ux_nps", selectedChannel);
     const npsCats = sumCategories(npsRows);
     const npsTotal = (npsCats["Promotores"] ?? 0) + (npsCats["Passivos"] ?? 0) + (npsCats["Detratores"] ?? 0);
     const nps = npsTotal > 0 ? (((npsCats["Promotores"] ?? 0) - (npsCats["Detratores"] ?? 0)) / npsTotal) * 100 : null;
 
     // Taxa de resolução ("A situação ficou resolvida?")
-    const resRows = aggRowsFor(data, "ux_resolved");
+    const resRows = aggRowsFor(data, "ux_resolved", selectedChannel);
     const resCats = sumCategories(resRows);
     const resTotal = (resCats["Sim"] ?? 0) + (resCats["Não"] ?? 0);
     const resolved = resTotal > 0 ? ((resCats["Sim"] ?? 0) / resTotal) * 100 : null;
@@ -124,7 +124,7 @@ export default function KpiTiles({ data }: { data: DashboardData }) {
         sub: compTotal > 0 ? `${compTotal} critérios avaliados` : undefined,
       },
     ];
-  }, [data]);
+  }, [data, selectedChannel]);
 
   return (
     <div className="grid grid-cols-3 xl:grid-cols-6 gap-[16px]">

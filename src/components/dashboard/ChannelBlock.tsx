@@ -25,9 +25,17 @@ type ChannelView = {
   metricLabel: string;
 };
 
-function computeChannels(data: DashboardData): ChannelView | null {
+function computeChannels(data: DashboardData, selectedChannel: string | null): ChannelView | null {
   const channelRows = (indId: string | undefined): MeasurementRow[] =>
-    indId ? data.rows.filter((r) => r.indicator_id === indId && r.channel !== null && r.geo_name === null) : [];
+    indId
+      ? data.rows.filter(
+          (r) =>
+            r.indicator_id === indId &&
+            r.channel !== null &&
+            r.geo_name === null &&
+            (selectedChannel === null || r.channel === selectedChannel)
+        )
+      : [];
 
   const csat = data.indicators.find((i) => i.etlKey === "ux_csat");
   const ease = data.indicators.find((i) => i.etlKey === "ux_channel_ease");
@@ -87,20 +95,28 @@ function Bar({ pct, order = 0, className = "bg-primary-600" }: { pct: number; or
   );
 }
 
-export default function ChannelBlock({ data }: { data: DashboardData }) {
-  const view = useMemo(() => computeChannels(data), [data]);
+export default function ChannelBlock({ data, selectedChannel }: { data: DashboardData; selectedChannel: string | null }) {
+  const view = useMemo(() => computeChannels(data, selectedChannel), [data, selectedChannel]);
 
   return (
     <DashboardCard
       title="Canais de Atendimento"
-      subtitle={view ? `Métrica de avaliação: ${view.metricLabel}` : undefined}
-      help="Compara os canais de atendimento da entidade: quantos respondentes avaliaram cada canal e qual a avaliação média que lhe deram. Diferenças grandes entre canais são um sinal clássico de oportunidade de inovação."
+      subtitle={
+        view
+          ? `Métrica de avaliação: ${view.metricLabel}${selectedChannel ? ` · canal: ${selectedChannel}` : ""}`
+          : undefined
+      }
+      help="Compara os canais de atendimento da entidade: quantos respondentes avaliaram cada canal e qual a avaliação média que lhe deram. Diferenças grandes entre canais são um sinal clássico de oportunidade de inovação. Com um canal selecionado na barra de topo, mostra apenas os números desse canal."
     >
       {!view ? (
         <div className="h-[220px] flex items-center justify-center">
           <EmptyChartState
             title="Sem dados por canal"
-            description="Ainda não há medições segmentadas por canal para esta entidade."
+            description={
+              selectedChannel
+                ? `Ainda não há medições para o canal "${selectedChannel}" nesta entidade.`
+                : "Ainda não há medições segmentadas por canal para esta entidade."
+            }
           />
         </div>
       ) : (

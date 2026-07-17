@@ -17,9 +17,11 @@ import Reveal from "@/components/dashboard/Reveal";
 import { fetchDashboardData, type DashboardData } from "@/lib/dashboardData";
 import { entityLogo } from "@/lib/entityLogos";
 import { useSelectedEntity } from "@/context/SelectedEntityContext";
+import { useSelectedChannel } from "@/context/SelectedChannelContext";
 
 export default function DashboardPage() {
   const { entity } = useSelectedEntity();
+  const { selectedChannel } = useSelectedChannel();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -117,7 +119,7 @@ export default function DashboardPage() {
       ) : (
         <div className="flex flex-col gap-[24px]">
           {/* Bloco 1 — KPIs */}
-          <KpiTiles data={data} />
+          <KpiTiles data={data} selectedChannel={selectedChannel} />
 
           {/* Bloco — Qualidade dos dados */}
           <Reveal>
@@ -126,15 +128,15 @@ export default function DashboardPage() {
 
           {/* Blocos 2 + 3 — Perfil por dimensão e ranking de serviços */}
           <div className="flex gap-[24px] items-stretch flex-col xl:flex-row">
-            <DimensionProfile data={data} />
-            <ServiceRanking data={data} />
+            <DimensionProfile data={data} selectedChannel={selectedChannel} />
+            <ServiceRanking data={data} selectedChannel={selectedChannel} />
           </div>
 
           {/* Bloco 4 — Canais */}
-          <ChannelBlock data={data} />
+          <ChannelBlock data={data} selectedChannel={selectedChannel} />
 
           {/* Bloco 5 — Evolução temporal */}
-          <TrendBlock data={data} />
+          <TrendBlock data={data} selectedChannel={selectedChannel} />
 
           {/* Blocos 6 + 7 — Mapa e conformidade */}
           <div className="flex gap-[24px] items-start flex-col xl:flex-row">

@@ -466,7 +466,7 @@ export default function IndicatorDetailPage() {
   const id = params.id as string;
   const [activeTab, setActiveTab] = useState<string>(tabs[0]);
   const { selectedService, openIndicatorSwap } = useSelectedService();
-  const { viewMode, selectedChannel: globalChannel } = useSelectedChannel();
+  const { selectedChannel: globalChannel } = useSelectedChannel();
   // Ao mudar de indicador/serviço volta sempre à Visualização Simples — evita ficar
   // "preso" numa aba que deixou de ter dados (ex: Distrito/Canais deste novo indicador).
   useEffect(() => { setActiveTab(tabs[0]); }, [id, selectedService]);
@@ -638,10 +638,10 @@ export default function IndicatorDetailPage() {
         districtData,
       });
 
-      // Modo Canal (lente global): o dropdown de canal desta página arranca no canal
-      // global escolhido, desde que o indicador tenha dados reais desse canal; senão "Todos".
+      // O dropdown de canal desta página arranca no canal escolhido na dropdown global do
+      // header, desde que o indicador tenha dados reais desse canal; senão "Todos".
       const initialChannel =
-        viewMode === "channel" && globalChannel && channelData.some((c) => c.channel === globalChannel)
+        globalChannel && channelData.some((c) => c.channel === globalChannel)
           ? globalChannel
           : "Todos";
       setSelectedChannel(initialChannel);
@@ -662,7 +662,7 @@ export default function IndicatorDetailPage() {
       setLoading(false);
     })();
     return () => { active = false; };
-  }, [id, selectedService, viewMode, globalChannel]);
+  }, [id, selectedService, globalChannel]);
 
   if (loading) {
     return (
