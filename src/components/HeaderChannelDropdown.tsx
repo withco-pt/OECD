@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AgoraIcon } from "@/components/icons/AgoraIcon";
+import HelpTooltip from "@/components/HelpTooltip";
 import { useSelectedChannel, CANONICAL_ORDER } from "@/context/SelectedChannelContext";
 
 // Filtro global de canal, sempre visível na barra de topo. Filtra os indicadores
@@ -31,8 +32,14 @@ export default function HeaderChannelDropdown() {
         aria-expanded={open}
         className="flex items-center w-full h-[42px] bg-primary-700 rounded-[12px] overflow-hidden hover:bg-primary-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        <span className="h-full flex items-center bg-primary-800 px-[16px] text-[14px] font-bold text-white whitespace-nowrap shrink-0">
+        <span className="h-full flex items-center gap-[6px] bg-primary-800 px-[16px] text-[14px] font-bold text-white whitespace-nowrap shrink-0">
           Canal selecionado
+          <span onClick={(e) => e.stopPropagation()} className="flex items-center">
+            <HelpTooltip
+              size={16}
+              label="Filtra os indicadores e métricas pelo canal de atendimento escolhido, em conjunto com o serviço selecionado (ex.: Serviço X no canal Presencial). Aplica-se às páginas de Indicadores, Dimensões, Dashboard e Catálogo de Serviços. Escolha 'Todos os canais' para remover o filtro."
+            />
+          </span>
         </span>
         <span className="flex-1 min-w-0 px-[16px] text-left text-[15px] font-normal text-white truncate">
           {selectedChannel ?? "Todos os canais"}

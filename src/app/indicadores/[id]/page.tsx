@@ -6,7 +6,6 @@ import { useParams } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
 import Breadcrumb from "@/components/Breadcrumb";
 import EmptyChartState from "@/components/EmptyChartState";
-import HelpTooltip from "@/components/HelpTooltip";
 import IndicatorViz from "@/components/IndicatorViz";
 import Tooltip from "@/components/Tooltip";
 import {
@@ -715,7 +714,6 @@ export default function IndicatorDetailPage() {
             <h1 className="text-[40px] font-bold text-primary-900 leading-tight">
               {indicator.name}
             </h1>
-            <div className="mt-[8px]"><HelpTooltip size={24} /></div>
           </div>
           {indicator.description && (
             <p className="text-[15px] text-primary-800">

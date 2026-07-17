@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AgoraIcon } from "@/components/icons/AgoraIcon";
-import HelpTooltip from "@/components/HelpTooltip";
 
 /* ── Conteúdo partilhado entre o detalhe de indicador e o detalhe de serviço no
    catálogo, para as secções "Ferramentas para a Inovação" e "Obtenha Ajuda para
@@ -107,7 +106,6 @@ export function ContactCard({
           {showIcons && (
             <div className="flex gap-[8px] items-center shrink-0">
               <AgoraIcon name="like" className="size-[16px] text-neutral-400 cursor-not-allowed" />
-              <HelpTooltip size={16} />
             </div>
           )}
         </div>
