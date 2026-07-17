@@ -281,6 +281,13 @@ export default function PriorityDetailPage() {
           orderValue={sortOrder}
           onOrderChange={setSortOrder}
           onSearch={(v) => setSearch(v)}
+          onClearFilters={() => {
+            setSelectedMetric("");
+            setSelectedType("");
+            setFilterMandatory(false);
+            setFilterNonCompliance(false);
+            setFilterMissingData(false);
+          }}
         />
 
         <p className="text-[14px] text-primary-600 mt-[24px] mb-[16px]">
