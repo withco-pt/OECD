@@ -647,7 +647,11 @@ export default function IndicatorDetailPage() {
 
       // Ficha técnica — apenas campos com valor
       const inq = totalsRow?.total_inquiridos ?? null;
-      const per = totalsRow?.year ? `${MESES[(totalsRow.month ?? 1) - 1] ?? ""} ${totalsRow.year}`.trim() : null;
+      const per = totalsRow?.year
+        ? totalsRow.month
+          ? `${MESES[(totalsRow.month ?? 1) - 1] ?? ""} ${totalsRow.year}`.trim()
+          : String(totalsRow.year)
+        : null;
       const tf: TechField[] = [];
       if (ind.instrumento_recolha) tf.push({ label: "Instrumento de Recolha", value: ind.instrumento_recolha as string });
       if (ind.channel_scope) tf.push({ label: "Canal / Âmbito", value: ind.channel_scope as string });

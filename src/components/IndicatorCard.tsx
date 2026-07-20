@@ -53,6 +53,14 @@ interface IndicatorCardProps {
   missingData?: boolean;
   nonCompliance?: boolean;
   mandatory?: boolean;
+  /** Descrição do indicador "pai", quando este indicador é uma pergunta de
+   * seguimento condicional (ex.: "Se sim, ..."). */
+  followUpTo?: string | null;
+  /** Descrições de outros indicadores que avaliam separadamente critérios já
+   * mencionados nesta pergunta combinada (ex.: pergunta pede uma avaliação
+   * única sobre "clareza, conhecimento, encaminhamento", mas cada critério
+   * também é medido individualmente noutro indicador). */
+  relatedMeasures?: string[] | null;
 }
 
 const DEFAULT_SCALE_MAX: Record<string, number> = { likert_1_5: 5, scale_1_10: 10 };
@@ -87,6 +95,8 @@ export default function IndicatorCard({
   missingData,
   nonCompliance,
   mandatory,
+  followUpTo,
+  relatedMeasures,
 }: IndicatorCardProps) {
   const pill = metricPill(valueType, metric);
 
@@ -158,6 +168,22 @@ export default function IndicatorCard({
               <img src="/icons/icon-heart.svg" alt="Favorito" className="size-[22px] opacity-40 cursor-not-allowed" />
             </div>
           </div>
+          {followUpTo && (
+            <Tooltip label={followUpTo}>
+              <div className="flex gap-[4px] items-center text-[11px] font-medium text-primary-600 italic truncate">
+                <span aria-hidden="true">↳</span>
+                <span className="truncate">Seguimento a: {followUpTo}</span>
+              </div>
+            </Tooltip>
+          )}
+          {relatedMeasures && relatedMeasures.length > 0 && (
+            <Tooltip label={`Esta pergunta pede uma avaliação combinada. Cada critério também é medido em separado: ${relatedMeasures.join(", ")}.`}>
+              <div className="flex gap-[4px] items-center text-[11px] font-medium text-primary-600 italic truncate">
+                <span aria-hidden="true">ⓘ</span>
+                <span className="truncate">Avaliação combinada — ver também: {relatedMeasures.join(", ")}</span>
+              </div>
+            </Tooltip>
+          )}
           <h3 className="text-[16px] font-bold text-primary-900 leading-[23px]">
             {name}
           </h3>

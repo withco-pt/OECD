@@ -87,7 +87,10 @@ function getPriorityCounts(p: PriorityResult): DimensionCounts {
 function aggregateValue(rows: { channel: string | null; geo_level: string | null; value: number | string | null }[]): number | null {
   const nullRow = rows.find((r) => r.channel === null && r.geo_level === null);
   const source = nullRow ? [nullRow] : rows;
-  const nums = source.map((r) => Number(r.value)).filter((v) => !Number.isNaN(v));
+  const nums = source
+    .filter((r) => r.value !== null && r.value !== undefined)
+    .map((r) => Number(r.value))
+    .filter((v) => !Number.isNaN(v));
   if (nums.length === 0) return null;
   return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100;
 }

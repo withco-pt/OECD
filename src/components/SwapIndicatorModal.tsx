@@ -4,6 +4,7 @@ import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import { useSelectedService } from "@/context/SelectedServiceContext";
 import { supabase } from "@/lib/supabase";
 import { metricPill, indicatorTypeLabel, INDICATOR_TYPE_OPTIONS } from "@/lib/metricPill";
+import { isNonCompliant } from "@/lib/measurements";
 import SearchAndFilters from "@/components/SearchAndFilters";
 import Pagination from "@/components/Pagination";
 import Tooltip from "@/components/Tooltip";
@@ -36,7 +37,10 @@ function aggregateValue(rows: MeasRow[]): number | null {
   // o total — mesmo critério da página de detalhe do indicador).
   const nullRow = rows.find((r) => r.channel === null && r.geo_level === null);
   const source = nullRow ? [nullRow] : rows;
-  const nums = source.map((r) => Number(r.value)).filter((v) => !Number.isNaN(v));
+  const nums = source
+    .filter((r) => r.value !== null && r.value !== undefined)
+    .map((r) => Number(r.value))
+    .filter((v) => !Number.isNaN(v));
   if (nums.length === 0) return null;
   return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100;
 }
@@ -226,7 +230,7 @@ export default function SwapIndicatorModal() {
 
       const { data: inds, error: indErr } = await supabase
         .from("indicators")
-        .select("id, description, is_mandatory, value_type, type_of_indicator, value_scale_max, escala_descricao, thematic_priorities(name_pt, display_order)")
+        .select("id, description, is_mandatory, value_type, type_of_indicator, value_scale_max, escala_descricao, target_value, target_direction, thematic_priorities(name_pt, display_order)")
         .in("id", ids);
       if (!active) return;
       if (indErr) { console.error("[alterar indicador] erro:", indErr.message); setItems([]); setLoading(false); return; }
@@ -259,7 +263,12 @@ export default function SwapIndicatorModal() {
           scaleMax: (i.value_scale_max as number | null) ?? null,
           categoryCounts: pickCategoryCounts(rows),
           missingData: false,
-          nonCompliance: typeOfIndicator === "compliance" && value !== null && value < 50,
+          nonCompliance: isNonCompliant(
+            typeOfIndicator,
+            value,
+            i.target_value as number | null,
+            i.target_direction as "above" | "below" | null,
+          ),
           mandatory: Boolean(i.is_mandatory),
           typeLabel: indicatorTypeLabel(typeOfIndicator),
         };

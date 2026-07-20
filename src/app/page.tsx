@@ -6,7 +6,7 @@ import ThematicPriorityCard, { type DimensionCounts } from "@/components/Themati
 import HelpTooltip from "@/components/HelpTooltip";
 import { supabase } from "@/lib/supabase";
 import { useSelectedService } from "@/context/SelectedServiceContext";
-import { aggregateValue, pickCategoryCounts, type MeasRow } from "@/lib/measurements";
+import { aggregateValue, pickCategoryCounts, isNonCompliant, type MeasRow } from "@/lib/measurements";
 
 type PriorityRow = {
   id: string;
@@ -126,12 +126,13 @@ export default function PrioridadesTematicas() {
           continue;
         }
 
-        if (type === "compliance" && value !== null && value < 50) {
+        const targetValue = i.target_value as number | null;
+        const targetDirection = i.target_direction as "above" | "below" | null;
+
+        if (isNonCompliant(type, value, targetValue, targetDirection)) {
           counts.nonCompliance += 1;
         }
 
-        const targetValue = i.target_value as number | null;
-        const targetDirection = i.target_direction as "above" | "below" | null;
         if (value !== null && targetValue !== null && targetDirection) {
           const underperforming =
             targetDirection === "above" ? value < targetValue : value > targetValue;

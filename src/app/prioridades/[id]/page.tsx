@@ -10,7 +10,7 @@ import IndicatorCard from "@/components/IndicatorCard";
 import { supabase } from "@/lib/supabase";
 import { useSelectedService } from "@/context/SelectedServiceContext";
 import { useSelectedChannel } from "@/context/SelectedChannelContext";
-import { aggregateValue, pickCategoryCounts, hasCategoryData, rowsForChannel, type MeasRow } from "@/lib/measurements";
+import { aggregateValue, pickCategoryCounts, hasCategoryData, rowsForChannel, isNonCompliant, type MeasRow } from "@/lib/measurements";
 import { indicatorTypeLabel, INDICATOR_TYPE_OPTIONS } from "@/lib/metricPill";
 
 type PriorityMeta = { id: string; title: string; description: string; icon: string | null };
@@ -27,7 +27,14 @@ type IndicatorItem = {
   nonCompliance: boolean;
   mandatory: boolean;
   typeLabel: string | null;
+  followUpTo: string | null;
+  relatedMeasures: string[] | null;
 };
+
+// Deteta perguntas de seguimento condicional ("Se sim, ...") — distintas de
+// indicadores-irmão que avaliam separadamente critérios já mencionados numa
+// pergunta combinada (ex.: "clareza, conhecimento, encaminhamento").
+const CONDITIONAL_RE = /^\s*(se\s+(sim|n[ãa]o|afirmativo|negativo)\b|caso\s+(sim|n[ãa]o)\b)/i;
 
 export default function PriorityDetailPage() {
   const params = useParams();
@@ -72,7 +79,7 @@ export default function PriorityDetailPage() {
       // Todos os indicadores desta dimensão (catálogo)
       const { data: inds, error: indErr } = await supabase
         .from("indicators")
-        .select("id, description, is_mandatory, value_type, type_of_indicator, value_scale_max, escala_descricao")
+        .select("id, description, is_mandatory, value_type, type_of_indicator, value_scale_max, escala_descricao, target_value, target_direction, parent_indicator_id")
         .eq("thematic_priority_id", id)
         .order("description");
       if (!active) return;
@@ -102,6 +109,19 @@ export default function PriorityDetailPage() {
         }
       }
 
+      const descriptionById = new Map((inds ?? []).map((i) => [i.id as string, i.description as string]));
+
+      // Indicadores-irmão (não seguimento condicional) agrupados pelo pai comum,
+      // para explicar perguntas combinadas que já existem também medidas em separado.
+      const siblingsByParent = new Map<string, string[]>();
+      for (const i of inds ?? []) {
+        const parentId = i.parent_indicator_id as string | null;
+        const desc = i.description as string;
+        if (!parentId || CONDITIONAL_RE.test(desc)) continue;
+        if (!siblingsByParent.has(parentId)) siblingsByParent.set(parentId, []);
+        siblingsByParent.get(parentId)!.push(desc);
+      }
+
       const list: IndicatorItem[] = (inds ?? []).map((i) => {
         const rows = rowsForChannel(byIndicator.get(i.id as string) ?? [], selectedChannel);
         const value = aggregateValue(rows);
@@ -117,9 +137,21 @@ export default function PriorityDetailPage() {
           scaleMax: (i.value_scale_max as number | null) ?? null,
           categoryCounts,
           missingData: value === null && !hasCategoryData(categoryCounts), // sem dados para o serviço/canal ativo
-          nonCompliance: typeOfIndicator === "compliance" && value !== null && value < 50,
+          nonCompliance: isNonCompliant(
+            typeOfIndicator,
+            value,
+            i.target_value as number | null,
+            i.target_direction as "above" | "below" | null,
+          ),
           mandatory: Boolean(i.is_mandatory),
           typeLabel: indicatorTypeLabel(typeOfIndicator),
+          // "Seguimento a" só se aplica a perguntas de seguimento condicional
+          // ("Se sim, ..."); indicadores-irmão de uma pergunta combinada usam
+          // antes a nota "Avaliação combinada" (relatedMeasures, no pai).
+          followUpTo: CONDITIONAL_RE.test(i.description as string)
+            ? (descriptionById.get(i.parent_indicator_id as string) ?? null)
+            : null,
+          relatedMeasures: siblingsByParent.get(i.id as string) ?? null,
         };
       });
       // Indicadores não-obrigatórios só fazem sentido com dados reais para o serviço/canal
@@ -315,6 +347,8 @@ export default function PriorityDetailPage() {
               missingData={indicator.missingData}
               nonCompliance={indicator.nonCompliance}
               mandatory={indicator.mandatory}
+              followUpTo={indicator.followUpTo}
+              relatedMeasures={indicator.relatedMeasures}
             />
           ))}
         </div>

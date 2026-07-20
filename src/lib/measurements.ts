@@ -17,9 +17,26 @@ export function aggregateValue(rows: MeasRow[]): number | null {
   // o total — mesmo critério da página de detalhe do indicador).
   const nullRow = rows.find((r) => r.channel === null && r.geo_level === null);
   const source = nullRow ? [nullRow] : rows;
-  const nums = source.map((r) => Number(r.value)).filter((v) => !Number.isNaN(v));
+  const nums = source
+    .filter((r) => r.value !== null && r.value !== undefined)
+    .map((r) => Number(r.value))
+    .filter((v) => !Number.isNaN(v));
   if (nums.length === 0) return null;
   return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100;
+}
+
+/** Indicadores de compliance: por defeito "Sim" (value=100) é a resposta desejada e
+ * "Não" (value=0) é incumprimento. target_direction='below' inverte esta polaridade
+ * para indicadores cuja resposta desejada é "Não" — ver migration 042. */
+export function isNonCompliant(
+  typeOfIndicator: string | null,
+  value: number | null,
+  targetValue: number | null,
+  targetDirection: "above" | "below" | null,
+): boolean {
+  if (typeOfIndicator !== "compliance" || value === null) return false;
+  const threshold = targetValue ?? 50;
+  return targetDirection === "below" ? value > threshold : value < threshold;
 }
 
 export function pickCategoryCounts(rows: MeasRow[]): Record<string, number> | null {

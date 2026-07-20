@@ -11,6 +11,7 @@ import Tooltip from "@/components/Tooltip";
 import { supabase } from "@/lib/supabase";
 import { useSelectedService } from "@/context/SelectedServiceContext";
 import { ToolsForInnovationSection, GetHelpSection, type CaseStudy, type InnovationSuggestion } from "@/components/InnovationHelp";
+import { isNonCompliant } from "@/lib/measurements";
 
 const ITEMS_PER_PAGE = 9;
 
@@ -38,7 +39,14 @@ type IndicatorItem = {
   missingData: boolean;
   nonCompliance: boolean;
   mandatory: boolean;
+  followUpTo: string | null;
+  relatedMeasures: string[] | null;
 };
+
+// Deteta perguntas de seguimento condicional ("Se sim, ...") — distintas de
+// indicadores-irmão que avaliam separadamente critérios já mencionados numa
+// pergunta combinada (ex.: "clareza, conhecimento, encaminhamento").
+const CONDITIONAL_RE = /^\s*(se\s+(sim|n[ãa]o|afirmativo|negativo)\b|caso\s+(sim|n[ãa]o)\b)/i;
 
 // Agrega as medições de um indicador num único valor:
 // prefere a linha "todos os canais" (channel = null); senão, média dos canais.
@@ -48,7 +56,10 @@ function aggregateValue(rows: MeasRow[]): number | null {
   // o total — mesmo critério da página de detalhe do indicador).
   const nullRow = rows.find((r) => r.channel === null && r.geo_level === null);
   const source = nullRow ? [nullRow] : rows;
-  const nums = source.map((r) => Number(r.value)).filter((v) => !Number.isNaN(v));
+  const nums = source
+    .filter((r) => r.value !== null && r.value !== undefined)
+    .map((r) => Number(r.value))
+    .filter((v) => !Number.isNaN(v));
   if (nums.length === 0) return null;
   const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
   return Math.round(avg * 100) / 100;
@@ -120,7 +131,7 @@ export default function ServiceDetailPage() {
       // 3. Catálogo de indicadores (dimensão via embed)
       const { data: inds, error: indErr } = await supabase
         .from("indicators")
-        .select("id, description, is_mandatory, value_type, type_of_indicator, value_scale_max, escala_descricao, thematic_priority_id, thematic_priorities(name_pt, display_order)")
+        .select("id, description, is_mandatory, value_type, type_of_indicator, value_scale_max, escala_descricao, target_value, target_direction, parent_indicator_id, thematic_priority_id, thematic_priorities(name_pt, display_order)")
         .in("id", ids);
 
       if (!active) return;
@@ -155,6 +166,19 @@ export default function ServiceDetailPage() {
       const nResp = csatNullRow ? ((csatNullRow.total_inquiridos as number | null) ?? null) : null;
       setService((prev) => (prev ? { ...prev, csat: csatVal, nResponses: nResp } : prev));
 
+      const descriptionById = new Map((inds ?? []).map((i) => [i.id as string, i.description as string]));
+
+      // Indicadores-irmão (não seguimento condicional) agrupados pelo pai comum,
+      // para explicar perguntas combinadas que já existem também medidas em separado.
+      const siblingsByParent = new Map<string, string[]>();
+      for (const i of inds ?? []) {
+        const parentId = i.parent_indicator_id as string | null;
+        const desc = i.description as string;
+        if (!parentId || CONDITIONAL_RE.test(desc)) continue;
+        if (!siblingsByParent.has(parentId)) siblingsByParent.set(parentId, []);
+        siblingsByParent.get(parentId)!.push(desc);
+      }
+
       const items: IndicatorItem[] = (inds ?? []).map((i) => {
         const tp = (i.thematic_priorities ?? {}) as { name_pt?: string; display_order?: number };
         const rows = byIndicator.get(i.id as string) ?? [];
@@ -170,8 +194,20 @@ export default function ServiceDetailPage() {
           scaleMax: (i.value_scale_max as number | null) ?? null,
           categoryCounts: pickCategoryCounts(rows),
           missingData: false,
-          nonCompliance: (i.type_of_indicator as string | null) === "compliance" && value !== null && value < 50,
+          nonCompliance: isNonCompliant(
+            i.type_of_indicator as string | null,
+            value,
+            i.target_value as number | null,
+            i.target_direction as "above" | "below" | null,
+          ),
           mandatory: Boolean(i.is_mandatory),
+          // "Seguimento a" só se aplica a perguntas de seguimento condicional
+          // ("Se sim, ..."); indicadores-irmão de uma pergunta combinada usam
+          // antes a nota "Avaliação combinada" (relatedMeasures, no pai).
+          followUpTo: CONDITIONAL_RE.test(i.description as string)
+            ? (descriptionById.get(i.parent_indicator_id as string) ?? null)
+            : null,
+          relatedMeasures: siblingsByParent.get(i.id as string) ?? null,
         };
       });
 
@@ -428,6 +464,8 @@ export default function ServiceDetailPage() {
               missingData={indicator.missingData}
               nonCompliance={indicator.nonCompliance}
               mandatory={indicator.mandatory}
+              followUpTo={indicator.followUpTo}
+              relatedMeasures={indicator.relatedMeasures}
             />
           ))}
           {visibleIndicators.length === 0 && (
