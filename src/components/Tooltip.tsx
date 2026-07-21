@@ -14,7 +14,7 @@ const MIN_SPACE_ABOVE = 60;
  * Posiciona-se acima do elemento (ou abaixo, se não houver espaço), com seta,
  * via portal (não é cortado pelo card).
  */
-export default function Tooltip({ label, children }: { label?: string | null; children: React.ReactNode }) {
+export default function Tooltip({ label, children }: { label?: React.ReactNode; children: React.ReactNode }) {
   const [show, setShow] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0, placement: "above" as "above" | "below" });
   const ref = useRef<HTMLDivElement>(null);

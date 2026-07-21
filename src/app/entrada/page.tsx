@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { EntitySelector, type Entity } from "@/components/EntitySelector";
 import { supabase } from "@/lib/supabase";
 import { LOCAL_ENTITY_LOGOS } from "@/lib/entityLogos";
@@ -106,6 +107,15 @@ export default async function EntradaPage() {
 
           {/* Entity cards (dados reais do Supabase) */}
           <EntitySelector entities={entities} error={error} />
+
+          {/* Acesso ao painel comparativo cross-entidade (nível estratégico) */}
+          <Link
+            href="/panorama"
+            className="flex items-center justify-center gap-[8px] rounded-[10px] border border-dashed border-[rgb(3,74,216)]/40 px-[16px] py-[12px] text-[14px] font-semibold text-[rgb(3,74,216)] hover:bg-[rgb(3,74,216)]/6 transition-colors"
+          >
+            Ver Panorama Estratégico
+            <span aria-hidden>→</span>
+          </Link>
         </div>
 
         {/* Footer note */}
