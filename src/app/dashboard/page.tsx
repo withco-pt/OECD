@@ -141,10 +141,8 @@ export default function DashboardPage() {
               cima do bloco seguinte, que de outra forma pintaria por cima dele
               (o Reveal cria o seu próprio contexto de empilhamento via transform). */}
           <Reveal className="relative z-20">
-            <div className="flex gap-[24px] items-stretch flex-col lg:flex-row">
-              <div className="flex-1 min-w-0">
-                <DataQualityBlock data={filteredData!} />
-              </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-[24px] items-stretch">
+              <DataQualityBlock data={filteredData!} />
               <ServicesFilterBlock
                 data={data}
                 selectedServiceId={selectedServiceId}

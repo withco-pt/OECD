@@ -53,6 +53,9 @@ interface IndicatorCardProps {
   missingData?: boolean;
   nonCompliance?: boolean;
   mandatory?: boolean;
+  /** Indicador de tipo "Cumprimento Legal": resposta Sim/Não única por serviço,
+   * nunca uma contagem de respostas — muda a forma como categoryCounts é mostrado. */
+  isCompliance?: boolean;
   /** Descrição do indicador "pai", quando este indicador é uma pergunta de
    * seguimento condicional (ex.: "Se sim, ..."). */
   followUpTo?: string | null;
@@ -83,6 +86,35 @@ function CategoryPill({ label, value }: { label: string; value?: number | null }
   );
 }
 
+// Indicadores de compliance são uma resposta Sim/Não única por serviço, nunca uma
+// contagem de respostas — mostrar números (ex. "25 Sim / 18 Não") sugere erradamente
+// um inquérito com várias respostas. Quando há só 1 serviço, mostra só o rótulo; ao
+// agregar vários serviços (ex. "Todos os Serviços"), mostra a % em conformidade em
+// vez de forçar um único Sim/Não que esconderia a divergência real entre serviços.
+function CompliancePill({ categoryCounts }: { categoryCounts?: Record<string, number> | null }) {
+  const sim = categoryCounts?.["Sim"] ?? 0;
+  const nao = categoryCounts?.["Não"] ?? 0;
+  const total = sim + nao;
+  if (total === 0) return null;
+  if (total === 1) {
+    return (
+      <Tooltip label="Resposta de conformidade (Sim/Não)">
+        <div className="bg-primary-100 flex items-center h-[30px] px-[12px] rounded-full">
+          <span className="text-[16px] font-bold text-primary-800">{sim === 1 ? "Sim" : "Não"}</span>
+        </div>
+      </Tooltip>
+    );
+  }
+  const pct = Math.round((sim / total) * 100);
+  return (
+    <Tooltip label={`${sim} de ${total} serviços em conformidade`}>
+      <div className="bg-primary-100 flex items-center h-[30px] px-[12px] rounded-full">
+        <span className="text-[16px] font-bold text-primary-800">{pct}% Conforme</span>
+      </div>
+    </Tooltip>
+  );
+}
+
 export default function IndicatorCard({
   id,
   name,
@@ -95,6 +127,7 @@ export default function IndicatorCard({
   missingData,
   nonCompliance,
   mandatory,
+  isCompliance,
   followUpTo,
   relatedMeasures,
 }: IndicatorCardProps) {
@@ -114,7 +147,9 @@ export default function IndicatorCard({
   );
 
   let bottomMetric: React.ReactNode = null;
-  if (isSimNao) {
+  if (isSimNao && isCompliance) {
+    bottomMetric = <CompliancePill categoryCounts={categoryCounts} />;
+  } else if (isSimNao) {
     bottomMetric = (
       <>
         <Tooltip label="Nº de respostas «Sim»"><CategoryPill label="Sim" value={categoryCounts?.["Sim"]} /></Tooltip>

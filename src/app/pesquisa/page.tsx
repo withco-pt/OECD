@@ -40,6 +40,7 @@ type IndicatorResult = {
   scaleMax: number | null;
   categoryCounts: Record<string, number> | null;
   missingData: boolean;
+  typeOfIndicator: string | null;
 };
 
 type PriorityResult = {
@@ -182,7 +183,7 @@ function PesquisaContent() {
       // Indicadores (catálogo completo) + valor para o serviço atualmente selecionado.
       const { data: inds } = await supabase
         .from("indicators")
-        .select("id, description, is_mandatory, value_type, value_scale_max, escala_descricao, thematic_priorities(name_pt, display_order)")
+        .select("id, description, is_mandatory, value_type, type_of_indicator, value_scale_max, escala_descricao, thematic_priorities(name_pt, display_order)")
         .or(entity ? `entity_specific.is.null,entity_specific.eq.${entity.id}` : "entity_specific.is.null");
       if (!active) return;
 
@@ -220,6 +221,7 @@ function PesquisaContent() {
             scaleMax: (i.value_scale_max as number | null) ?? null,
             categoryCounts,
             missingData: value === null && categoryCounts === null,
+            typeOfIndicator: (i.type_of_indicator as string | null) ?? null,
           };
         })
       );
@@ -453,6 +455,7 @@ function PesquisaContent() {
                     scaleMax={i.scaleMax}
                     categoryCounts={i.categoryCounts}
                     missingData={i.missingData}
+                    isCompliance={i.typeOfIndicator === "compliance"}
                   />
                 ))}
               </div>

@@ -28,6 +28,7 @@ type IndicatorItem = {
   nonCompliance: boolean;
   mandatory: boolean;
   typeLabel: string | null;
+  typeOfIndicator: string | null;
   followUpTo: string | null;
   relatedMeasures: string[] | null;
 };
@@ -149,6 +150,7 @@ export default function PriorityDetailPage() {
           ),
           mandatory: Boolean(i.is_mandatory),
           typeLabel: indicatorTypeLabel(typeOfIndicator),
+          typeOfIndicator,
           // "Seguimento a" só se aplica a perguntas de seguimento condicional
           // ("Se sim, ..."); indicadores-irmão de uma pergunta combinada usam
           // antes a nota "Avaliação combinada" (relatedMeasures, no pai).
@@ -351,6 +353,7 @@ export default function PriorityDetailPage() {
               missingData={indicator.missingData}
               nonCompliance={indicator.nonCompliance}
               mandatory={indicator.mandatory}
+              isCompliance={indicator.typeOfIndicator === "compliance"}
               followUpTo={indicator.followUpTo}
               relatedMeasures={indicator.relatedMeasures}
             />

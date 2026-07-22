@@ -29,6 +29,7 @@ type IndicatorItem = {
   nonCompliance: boolean;
   mandatory: boolean;
   typeLabel: string | null;
+  typeOfIndicator: string | null;
 };
 
 function aggregateValue(rows: MeasRow[]): number | null {
@@ -61,8 +62,36 @@ interface PopupIndicatorCardProps {
   categoryCounts?: Record<string, number> | null;
   missingData?: boolean;
   nonCompliance?: boolean;
+  isCompliance?: boolean;
   onSelect: () => void;
   onDetail: () => void;
+}
+
+// Indicadores de compliance são uma resposta Sim/Não única por serviço — mostrar
+// números (ex. "25 Sim / 18 Não") sugere erradamente um inquérito com várias
+// respostas. Ver mesma lógica em IndicatorCard.tsx.
+function CompliancePill({ categoryCounts }: { categoryCounts?: Record<string, number> | null }) {
+  const sim = categoryCounts?.["Sim"] ?? 0;
+  const nao = categoryCounts?.["Não"] ?? 0;
+  const total = sim + nao;
+  if (total === 0) return null;
+  if (total === 1) {
+    return (
+      <Tooltip label="Resposta de conformidade (Sim/Não)">
+        <div className="bg-primary-100 flex items-center h-[30px] px-[12px] rounded-full">
+          <span className="text-[16px] font-bold text-primary-800">{sim === 1 ? "Sim" : "Não"}</span>
+        </div>
+      </Tooltip>
+    );
+  }
+  const pct = Math.round((sim / total) * 100);
+  return (
+    <Tooltip label={`${sim} de ${total} serviços em conformidade`}>
+      <div className="bg-primary-100 flex items-center h-[30px] px-[12px] rounded-full">
+        <span className="text-[16px] font-bold text-primary-800">{pct}% Conforme</span>
+      </div>
+    </Tooltip>
+  );
 }
 
 const DEFAULT_SCALE_MAX: Record<string, number> = { likert_1_5: 5, scale_1_10: 10 };
@@ -77,6 +106,7 @@ function PopupIndicatorCard({
   categoryCounts,
   missingData,
   nonCompliance,
+  isCompliance,
   onSelect,
   onDetail,
 }: PopupIndicatorCardProps) {
@@ -104,7 +134,9 @@ function PopupIndicatorCard({
         </div>
         {/* Pills junto ao texto — sempre visíveis, sem serem tapados pelos botões no hover */}
         <div className="flex gap-[6px] items-center flex-wrap">
-          {isSimNao ? (
+          {isSimNao && isCompliance ? (
+            <CompliancePill categoryCounts={categoryCounts} />
+          ) : isSimNao ? (
             <>
               <Tooltip label="Nº de respostas «Sim»">
                 <div className="bg-primary-100 flex gap-[6px] items-center h-[30px] px-[12px] rounded-full">
@@ -271,6 +303,7 @@ export default function SwapIndicatorModal() {
           ),
           mandatory: Boolean(i.is_mandatory),
           typeLabel: indicatorTypeLabel(typeOfIndicator),
+          typeOfIndicator,
         };
       });
       list.sort((a, b) => a.priorityOrder - b.priorityOrder || a.name.localeCompare(b.name));
@@ -431,6 +464,7 @@ export default function SwapIndicatorModal() {
                 categoryCounts={indicator.categoryCounts}
                 missingData={indicator.missingData}
                 nonCompliance={indicator.nonCompliance}
+                isCompliance={indicator.typeOfIndicator === "compliance"}
                 onSelect={() => handleSelect(indicator.id)}
                 onDetail={() => handleSelect(indicator.id)}
               />

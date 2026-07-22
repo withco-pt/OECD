@@ -39,6 +39,7 @@ type IndicatorItem = {
   missingData: boolean;
   nonCompliance: boolean;
   mandatory: boolean;
+  typeOfIndicator: string | null;
   followUpTo: string | null;
   relatedMeasures: string[] | null;
 };
@@ -201,6 +202,7 @@ export default function ServiceDetailPage() {
             i.target_direction as "above" | "below" | null,
           ),
           mandatory: Boolean(i.is_mandatory),
+          typeOfIndicator: (i.type_of_indicator as string | null) ?? null,
           // "Seguimento a" só se aplica a perguntas de seguimento condicional
           // ("Se sim, ..."); indicadores-irmão de uma pergunta combinada usam
           // antes a nota "Avaliação combinada" (relatedMeasures, no pai).
@@ -464,6 +466,7 @@ export default function ServiceDetailPage() {
               missingData={indicator.missingData}
               nonCompliance={indicator.nonCompliance}
               mandatory={indicator.mandatory}
+              isCompliance={indicator.typeOfIndicator === "compliance"}
               followUpTo={indicator.followUpTo}
               relatedMeasures={indicator.relatedMeasures}
             />
