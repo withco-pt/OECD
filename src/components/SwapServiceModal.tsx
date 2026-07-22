@@ -4,7 +4,7 @@ import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import { useSelectedService } from "@/context/SelectedServiceContext";
 import Pagination from "@/components/Pagination";
 import Tooltip from "@/components/Tooltip";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -112,6 +112,7 @@ function PopupServiceCard({
 export default function SwapServiceModal() {
   const { isSwapOpen, closeSwap, setSelectedServiceId, services } = useSelectedService();
   const router = useRouter();
+  const pathname = usePathname();
 
   const [tab, setTab] = useState<Tab>("todos");
   const [currentPage, setCurrentPage] = useState(1);
@@ -164,6 +165,11 @@ export default function SwapServiceModal() {
   const handleSelect = (id: string) => {
     setSelectedServiceId(id);
     closeSwap();
+    // Na página de detalhe de serviço, o serviço vem do URL, não do contexto —
+    // sem isto a seleção não teria efeito visível nessa página.
+    if (pathname?.startsWith("/catalogo/")) {
+      router.push(`/catalogo/${id}`);
+    }
   };
 
   const handleDetail = (id: string) => {
