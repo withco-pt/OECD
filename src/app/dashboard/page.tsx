@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import AppLayout from "@/components/AppLayout";
 import HelpTooltip from "@/components/HelpTooltip";
@@ -13,6 +13,7 @@ import TrendBlock from "@/components/dashboard/TrendBlock";
 import DistrictMapBlock from "@/components/dashboard/DistrictMapBlock";
 import ComplianceGrid from "@/components/dashboard/ComplianceGrid";
 import DataQualityBlock from "@/components/dashboard/DataQualityBlock";
+import ServicesFilterBlock from "@/components/dashboard/ServicesFilterBlock";
 import Reveal from "@/components/dashboard/Reveal";
 import { fetchDashboardData, type DashboardData } from "@/lib/dashboardData";
 import { entityLogo } from "@/lib/entityLogos";
@@ -25,6 +26,19 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+
+  // Filtro local de serviço (independente do "serviço selecionado" global) —
+  // reflete-se em todos os blocos do dashboard, exceto no card de contagem
+  // de "Serviços com Medições", que continua a refletir a entidade inteira.
+  const filteredData = useMemo(() => {
+    if (!data || !selectedServiceId) return data;
+    return {
+      ...data,
+      rows: data.rows.filter((r) => r.service_id === selectedServiceId),
+      services: data.services.filter((s) => s.id === selectedServiceId),
+    };
+  }, [data, selectedServiceId]);
 
   useEffect(() => {
     if (!entity) return;
@@ -32,6 +46,7 @@ export default function DashboardPage() {
     (async () => {
       setLoading(true);
       setLoadError(false);
+      setSelectedServiceId(null);
       try {
         const d = await fetchDashboardData(entity.id);
         if (!active) return;
@@ -119,29 +134,41 @@ export default function DashboardPage() {
       ) : (
         <div className="flex flex-col gap-[24px]">
           {/* Bloco 1 — KPIs */}
-          <KpiTiles data={data} selectedChannel={selectedChannel} />
+          <KpiTiles data={filteredData!} selectedChannel={selectedChannel} />
 
-          {/* Bloco — Qualidade dos dados */}
-          <Reveal>
-            <DataQualityBlock data={data} />
+          {/* Bloco — Qualidade dos dados + filtro por serviço */}
+          {/* z-index elevado: o dropdown do ServicesFilterBlock tem de ficar por
+              cima do bloco seguinte, que de outra forma pintaria por cima dele
+              (o Reveal cria o seu próprio contexto de empilhamento via transform). */}
+          <Reveal className="relative z-20">
+            <div className="flex gap-[24px] items-stretch flex-col lg:flex-row">
+              <div className="flex-1 min-w-0">
+                <DataQualityBlock data={filteredData!} />
+              </div>
+              <ServicesFilterBlock
+                data={data}
+                selectedServiceId={selectedServiceId}
+                onSelectService={setSelectedServiceId}
+              />
+            </div>
           </Reveal>
 
           {/* Blocos 2 + 3 — Perfil por dimensão e ranking de serviços */}
           <div className="flex gap-[24px] items-stretch flex-col xl:flex-row">
-            <DimensionProfile data={data} selectedChannel={selectedChannel} />
-            <ServiceRanking data={data} selectedChannel={selectedChannel} />
+            <DimensionProfile data={filteredData!} selectedChannel={selectedChannel} />
+            <ServiceRanking data={filteredData!} selectedChannel={selectedChannel} />
           </div>
 
           {/* Bloco 4 — Canais */}
-          <ChannelBlock data={data} selectedChannel={selectedChannel} />
+          <ChannelBlock data={filteredData!} selectedChannel={selectedChannel} />
 
           {/* Bloco 5 — Evolução temporal */}
-          <TrendBlock data={data} selectedChannel={selectedChannel} />
+          <TrendBlock data={filteredData!} selectedChannel={selectedChannel} />
 
           {/* Blocos 6 + 7 — Mapa e conformidade */}
           <div className="flex gap-[24px] items-start flex-col xl:flex-row">
-            <DistrictMapBlock data={data} />
-            <ComplianceGrid data={data} />
+            <DistrictMapBlock data={filteredData!} />
+            <ComplianceGrid data={filteredData!} />
           </div>
         </div>
       )}

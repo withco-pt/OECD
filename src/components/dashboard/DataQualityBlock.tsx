@@ -47,8 +47,8 @@ export default function DataQualityBlock({ data }: { data: DashboardData }) {
 
   return (
     <section className="bg-primary-100 rounded-[10px] drop-shadow-[0px_4px_2px_rgba(0,0,0,0.1)] px-[16px] py-[12px]">
-      <div className="flex flex-wrap items-center gap-x-[40px] gap-y-[8px]">
-        <h2 className="text-[14px] font-bold text-primary-900">Cobertura de Dados</h2>
+      <h2 className="text-[14px] font-bold text-primary-900">Cobertura de Dados</h2>
+      <div className="grid grid-cols-2 gap-x-[24px] gap-y-[8px] mt-[8px]">
         {items.map((it) => (
           <div key={it.label} className="flex items-center gap-[8px]">
             <AgoraIcon name={it.icon} className="size-[16px] text-primary-600 shrink-0" />

@@ -152,7 +152,7 @@ function BarsCanais({
 }) {
   if (!data.length) {
     return (
-      <div className="w-full max-w-[460px] h-[300px] flex items-center justify-center">
+      <div className="w-full max-w-[620px] h-[300px] flex items-center justify-center">
         <EmptyChartState
           title="Sem dados disponíveis"
           description="Ainda não há medições registadas por canal para este indicador."
@@ -172,7 +172,7 @@ function BarsCanais({
     : Array.from({ length: 6 }, (_, i) => Math.round((max - (i * span) / 5) * 10) / 10);
 
   return (
-    <div className="flex gap-[8px] w-full max-w-[460px]">
+    <div className="flex gap-[8px] w-full max-w-[620px]">
       {/* Eixo Y */}
       <div className="flex flex-col justify-between text-[12px] text-primary-800 h-[300px] py-[2px] shrink-0">
         {ticks.map((n) => (
@@ -191,7 +191,7 @@ function BarsCanais({
             {data.map((c) => {
               const pct = Math.min(100, Math.max(0, ((c.value - min) / span) * 100));
               return (
-                <div key={c.channel} className="flex-1 flex flex-col items-center justify-end h-full">
+                <div key={c.channel} className="flex-1 min-w-0 flex flex-col items-center justify-end h-full">
                   <span className="text-[13px] font-bold text-primary-800 mb-[4px]">{c.value}</span>
                   <div className="w-full max-w-[52px] bg-primary-800 rounded-t-[2px]" style={{ height: `${pct}%` }} />
                 </div>
@@ -202,7 +202,7 @@ function BarsCanais({
         {/* Eixo X */}
         <div className="flex justify-around px-[8px] gap-[8px] pt-[6px]">
           {data.map((c) => (
-            <span key={c.channel} className="flex-1 text-[12px] text-primary-900 text-center leading-[15px]">
+            <span key={c.channel} className="flex-1 min-w-0 text-[12px] text-primary-900 text-center leading-[15px] break-words">
               {c.channel}
             </span>
           ))}
@@ -389,7 +389,7 @@ export default function IndicatorViz({
           {tab === "tempo" && <ServiceLegend service={service} />}
         </div>
 
-        <div className="w-[205px] shrink-0 flex flex-col gap-[16px]">
+        <div className="w-[150px] shrink-0 flex flex-col gap-[16px]">
           {tab === "tempo" ? (
             <>
               <div className="flex flex-col gap-[2px]">

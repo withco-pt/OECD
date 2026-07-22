@@ -134,7 +134,16 @@ function FigmaGauge({ value, min = 1, max = 10 }: { value: number | null; min?: 
 
 /* ── Gauge Likert 1-5 (5 setores/cores próprios, replicado do Figma "Gráfico/Likert 1-5") ─ */
 
-function LikertGauge({ value, min = 1, max = 5 }: { value: number | null; min?: number; max?: number }) {
+// Extrai os rótulos 1=... / 5=... da descrição da escala (ex: "Likert 1-5
+// (1=Muito insatisfatório → 5=Muito satisfatório)") — nunca hardcoded, para a
+// legenda do gauge corresponder sempre à métrica real do indicador.
+function parseLikertLabels(metric: string): { low: string; high: string } | null {
+  const m = metric.match(/\(\s*\d+\s*=\s*(.+?)\s*→\s*\d+\s*=\s*(.+?)\s*\)/);
+  return m ? { low: m[1], high: m[2] } : null;
+}
+
+function LikertGauge({ value, min = 1, max = 5, metric }: { value: number | null; min?: number; max?: number; metric?: string }) {
+  const labels = metric ? parseLikertLabels(metric) : null;
   if (value == null) {
     return (
       <div className="w-full max-w-[481px] aspect-[481/262] flex items-center justify-center">
@@ -241,8 +250,8 @@ function LikertGauge({ value, min = 1, max = 5 }: { value: number | null; min?: 
         <polygon points={`${tip} ${b1} ${b2}`} fill="#021c51" />
       </svg>
       <div className="flex items-center justify-between w-full max-w-[441px] px-[4px]">
-        <span className="text-[24px] leading-[32px] font-medium text-neutral-900">Muito difícil</span>
-        <span className="text-[24px] leading-[32px] font-medium text-neutral-900">Muito fácil</span>
+        <span className="text-[24px] leading-[32px] font-medium text-neutral-900">{labels?.low ?? ""}</span>
+        <span className="text-[24px] leading-[32px] font-medium text-neutral-900">{labels?.high ?? ""}</span>
       </div>
     </div>
   );
@@ -844,7 +853,7 @@ export default function IndicatorDetailPage() {
               {/* Gráfico — depende do tipo de valor do indicador */}
               <div className="flex-1 min-w-0">
                 {indicator.valueType === "likert_1_5" ? (
-                  <LikertGauge value={displayValue} min={indicator.scaleMin ?? 1} max={indicator.scaleMax ?? 5} />
+                  <LikertGauge value={displayValue} min={indicator.scaleMin ?? 1} max={indicator.scaleMax ?? 5} metric={indicator.metric} />
                 ) : indicator.valueType.startsWith("categorical") ? (
                   <CategoricalDonut counts={displayCategoryCounts} />
                 ) : indicator.valueType === "text" ? (

@@ -9,6 +9,7 @@ import IndicatorCard from "@/components/IndicatorCard";
 import Pagination from "@/components/Pagination";
 import { supabase } from "@/lib/supabase";
 import { useSelectedService } from "@/context/SelectedServiceContext";
+import { useSelectedEntity } from "@/context/SelectedEntityContext";
 import { useSelectedChannel } from "@/context/SelectedChannelContext";
 import { hasCategoryData, rowsForChannel, isNonCompliant } from "@/lib/measurements";
 import { indicatorTypeLabel, INDICATOR_TYPE_OPTIONS } from "@/lib/metricPill";
@@ -64,6 +65,7 @@ function pickCategoryCounts(rows: MeasRow[]): Record<string, number> | null {
 export default function IndicadoresPage() {
   const { selectedService } = useSelectedService();
   const { selectedChannel } = useSelectedChannel();
+  const { entity, hydrated } = useSelectedEntity();
 
   const [items, setItems] = useState<IndicatorItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,12 +83,14 @@ export default function IndicadoresPage() {
 
   // Catálogo completo de indicadores + valores para o serviço ativo.
   useEffect(() => {
+    if (!hydrated) return;
     let active = true;
     (async () => {
       setLoading(true); setLoadError(false);
       const { data: inds, error: indErr } = await supabase
         .from("indicators")
-        .select("id, description, is_mandatory, value_type, type_of_indicator, value_scale_max, escala_descricao, target_value, target_direction, parent_indicator_id, thematic_priorities(name_pt, display_order)");
+        .select("id, description, is_mandatory, value_type, type_of_indicator, value_scale_max, escala_descricao, target_value, target_direction, parent_indicator_id, entity_specific, thematic_priorities(name_pt, display_order)")
+        .or(entity ? `entity_specific.is.null,entity_specific.eq.${entity.id}` : "entity_specific.is.null");
       if (!active) return;
       if (indErr) { console.error("[indicadores] erro:", indErr.message); setLoadError(true); setItems([]); setLoading(false); return; }
 
@@ -176,7 +180,7 @@ export default function IndicadoresPage() {
       setLoading(false);
     })();
     return () => { active = false; };
-  }, [selectedService, selectedChannel]);
+  }, [selectedService, selectedChannel, entity, hydrated]);
 
   const PRIORITIES = useMemo(() => [...new Set(items.map((i) => i.priority))].sort(), [items]);
   const METRICS = useMemo(() => [...new Set(items.map((i) => i.metric))].sort(), [items]);

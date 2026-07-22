@@ -10,6 +10,7 @@ import IndicatorCard from "@/components/IndicatorCard";
 import { supabase } from "@/lib/supabase";
 import { useSelectedService } from "@/context/SelectedServiceContext";
 import { useSelectedChannel } from "@/context/SelectedChannelContext";
+import { useSelectedEntity } from "@/context/SelectedEntityContext";
 import { aggregateValue, pickCategoryCounts, hasCategoryData, rowsForChannel, isNonCompliant, type MeasRow } from "@/lib/measurements";
 import { indicatorTypeLabel, INDICATOR_TYPE_OPTIONS } from "@/lib/metricPill";
 
@@ -41,6 +42,7 @@ export default function PriorityDetailPage() {
   const id = params.id as string;
   const { selectedService } = useSelectedService();
   const { selectedChannel } = useSelectedChannel();
+  const { entity, hydrated } = useSelectedEntity();
 
   const [priority, setPriority] = useState<PriorityMeta | null>(null);
   const [items, setItems] = useState<IndicatorItem[]>([]);
@@ -57,6 +59,7 @@ export default function PriorityDetailPage() {
   const [sortOrder, setSortOrder] = useState("Alfabeticamente");
 
   useEffect(() => {
+    if (!hydrated) return;
     let active = true;
     (async () => {
       setLoading(true); setNotFound(false); setLoadError(false);
@@ -79,8 +82,9 @@ export default function PriorityDetailPage() {
       // Todos os indicadores desta dimensão (catálogo)
       const { data: inds, error: indErr } = await supabase
         .from("indicators")
-        .select("id, description, is_mandatory, value_type, type_of_indicator, value_scale_max, escala_descricao, target_value, target_direction, parent_indicator_id")
+        .select("id, description, is_mandatory, value_type, type_of_indicator, value_scale_max, escala_descricao, target_value, target_direction, parent_indicator_id, entity_specific")
         .eq("thematic_priority_id", id)
+        .or(entity ? `entity_specific.is.null,entity_specific.eq.${entity.id}` : "entity_specific.is.null")
         .order("description");
       if (!active) return;
       if (indErr) { console.error("[prioridade] erro:", indErr.message); setLoadError(true); setLoading(false); return; }
@@ -164,7 +168,7 @@ export default function PriorityDetailPage() {
       setLoading(false);
     })();
     return () => { active = false; };
-  }, [id, selectedService, selectedChannel]);
+  }, [id, selectedService, selectedChannel, entity, hydrated]);
 
   const METRICS = useMemo(() => [...new Set(items.map((i) => i.metric))].sort(), [items]);
 

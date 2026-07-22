@@ -10,6 +10,7 @@ import IndicatorCard from "@/components/IndicatorCard";
 import ThematicPriorityCard, { type DimensionCounts } from "@/components/ThematicPriorityCard";
 import { supabase } from "@/lib/supabase";
 import { useSelectedService } from "@/context/SelectedServiceContext";
+import { useSelectedEntity } from "@/context/SelectedEntityContext";
 
 type ResultType = "servicos" | "indicadores" | "prioridades";
 
@@ -106,6 +107,7 @@ function PesquisaContent() {
   const router = useRouter();
   const queryParam = searchParams.get("q") ?? "";
   const { selectedService } = useSelectedService();
+  const { entity, hydrated } = useSelectedEntity();
 
   const [input, setInput] = useState(queryParam);
   const [activeTypes, setActiveTypes] = useState<ResultType[]>([]);
@@ -123,6 +125,7 @@ function PesquisaContent() {
   // os valores de indicador mostrados refletem o serviço atualmente selecionado,
   // tal como na lista de Indicadores.
   useEffect(() => {
+    if (!hydrated) return;
     let active = true;
     (async () => {
       // Serviços + CSAT (ux_csat) — mesmo critério de agregação usado no catálogo.
@@ -179,7 +182,8 @@ function PesquisaContent() {
       // Indicadores (catálogo completo) + valor para o serviço atualmente selecionado.
       const { data: inds } = await supabase
         .from("indicators")
-        .select("id, description, is_mandatory, value_type, value_scale_max, escala_descricao, thematic_priorities(name_pt, display_order)");
+        .select("id, description, is_mandatory, value_type, value_scale_max, escala_descricao, thematic_priorities(name_pt, display_order)")
+        .or(entity ? `entity_specific.is.null,entity_specific.eq.${entity.id}` : "entity_specific.is.null");
       if (!active) return;
 
       const byIndicator = new Map<string, { channel: string | null; geo_level: string | null; value: number | string | null; category_counts: Record<string, number> | null }[]>();
@@ -239,7 +243,7 @@ function PesquisaContent() {
       );
     })();
     return () => { active = false; };
-  }, [selectedService]);
+  }, [selectedService, entity, hydrated]);
 
   const query = normalize(queryParam.trim());
   const hasQuery = query.length > 0;

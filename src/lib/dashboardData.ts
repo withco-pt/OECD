@@ -56,7 +56,8 @@ export async function fetchDashboardData(entityShort: string): Promise<Dashboard
   const [indRes, priRes, svcRes] = await Promise.all([
     supabase
       .from("indicators")
-      .select("id, description, etl_column_key, value_type, type_of_indicator, thematic_priority_id, value_scale_min, value_scale_max"),
+      .select("id, description, etl_column_key, value_type, type_of_indicator, thematic_priority_id, value_scale_min, value_scale_max")
+      .or(`entity_specific.is.null,entity_specific.eq.${entityShort}`),
     supabase.from("thematic_priorities").select("id, name_pt, display_order").order("display_order"),
     supabase
       .from("services_catalog")

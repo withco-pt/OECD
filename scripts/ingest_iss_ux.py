@@ -108,6 +108,37 @@ COMPLETION_COL = 3
 
 SIM = "Sim"; NAO = "Não"; NA = "Não aplicável"; NMT = "Não, mas tentei"
 
+# ── Ligação canal↔indicadores (2026-07-22, a pedido da cliente) ─────────────
+# Ver nota equivalente em scripts/ingest_cml_ux.py. Coluna 8 = "Que canais utilizou
+# para realizar o seu serviço?" (checklist multi-select, nunca ingerida). Quando o
+# inquirido usou UM SÓ canal, as restantes respostas (hoje só agregadas) passam a
+# também contar para esse canal. Só rótulos EXATAMENTE observados no ficheiro são
+# mapeados; qualquer outro fica UNMAPPED e é reportado, sem abortar a ingestão.
+CHECKLIST_COL = 8
+CHECKLIST_CHANNEL_MAP = {
+    "atendimento presencial": "Presencial",
+    "app": "App",
+    "videochamada": "Videochamada",
+    "seguranca social direta (ssd)/website": "Digital/Online",
+    "canal e-clic": "E-clic",
+}
+
+
+def respondent_channel(raw_checklist, channel_map, unmapped_counter):
+    if raw_checklist in (None, ""):
+        return None
+    parts = [p.strip() for p in str(raw_checklist).split(";") if p.strip()]
+    if not parts:
+        return None
+    canon = set()
+    for p in parts:
+        c = channel_map.get(norm(p))
+        if c is None:
+            unmapped_counter[p] += 1
+            return None
+        canon.add(c)
+    return canon.pop() if len(canon) == 1 else None
+
 ORG_ID_ISS = "dca9b165-c7d9-44b7-afd8-38ebc13e604c"
 SCHEMA_ISS = "org_iss"
 
@@ -141,6 +172,8 @@ def load():
     unmapped_service = Counter()
     unmapped = defaultdict(Counter)
     skipped = Counter()
+    unmapped_channel = Counter()
+    channel_link_stats = Counter()
 
     for r in range(2, ws.max_row + 1):
         row = [ws.cell(r, c).value for c in range(1, ws.max_column + 1)]
@@ -171,12 +204,25 @@ def load():
         else:
             skipped["distrito_em_branco"] += 1
 
+        raw_checklist = row[CHECKLIST_COL - 1]
+        before = sum(unmapped_channel.values())
+        resp_channel = respondent_channel(raw_checklist, CHECKLIST_CHANNEL_MAP, unmapped_channel)
+        if resp_channel is not None:
+            channel_link_stats["ligado"] += 1
+        elif raw_checklist in (None, ""):
+            channel_link_stats["vazio"] += 1
+        elif sum(unmapped_channel.values()) > before:
+            channel_link_stats["rotulo_desconhecido"] += 1
+        else:
+            channel_link_stats["multicanal"] += 1
+
         for col, etl, kind, scale, chan in COLMAP:
             raw = row[col - 1]
             if raw in (None, ""):
                 continue
             key = (sn, y, m, chan, etl, kind)
             geo_key = (sn, y, m, geo_name, etl, kind) if geo_name else None
+            link_key = (sn, y, m, resp_channel, etl, kind) if (chan is None and resp_channel is not None) else None
 
             if kind in ("sim_nao", "agendamento"):
                 nv = norm(raw)
@@ -195,6 +241,8 @@ def load():
                     agg[key]["cats"][cat] += 1
                     if geo_key:
                         agg_geo[geo_key]["cats"][cat] += 1
+                    if link_key:
+                        agg[link_key]["cats"][cat] += 1
             elif kind == "likert":
                 nv = norm(raw)
                 if nv in EXCLUDE:
@@ -206,6 +254,8 @@ def load():
                     agg[key]["codes"].append(code)
                     if geo_key:
                         agg_geo[geo_key]["codes"].append(code)
+                    if link_key:
+                        agg[link_key]["codes"].append(code)
             elif kind in ("scale10", "nps"):
                 try:
                     fv = float(raw)
@@ -215,8 +265,10 @@ def load():
                     agg[key]["codes"].append(fv)
                     if geo_key:
                         agg_geo[geo_key]["codes"].append(fv)
+                    if link_key:
+                        agg[link_key]["codes"].append(fv)
 
-    return dict(agg), dict(agg_geo), pop, geo_pop, display, unmapped, unmapped_service, skipped
+    return dict(agg), dict(agg_geo), pop, geo_pop, display, unmapped, unmapped_service, skipped, unmapped_channel, channel_link_stats
 
 
 def compute(kind, d):
@@ -252,7 +304,7 @@ def q(s):
 
 
 def report():
-    agg, agg_geo, pop, geo_pop, display, unmapped, unmapped_service, skipped = load()
+    agg, agg_geo, pop, geo_pop, display, unmapped, unmapped_service, skipped, unmapped_channel, channel_link_stats = load()
     print("=" * 78)
     print("DRY-RUN — Ingestão UX multi-canal da ISS")
     print("=" * 78)
@@ -285,6 +337,10 @@ def report():
     print("\n── RÓTULOS NÃO MAPEADOS (respostas com texto inesperado) ──")
     print("  (nenhum)" if not unmapped else "  " + str({k: dict(v) for k, v in unmapped.items()}))
 
+    print("\n── Ligação canal↔indicadores ──")
+    print(f"  {dict(channel_link_stats)}")
+    print(f"  canais não reconhecidos na checklist: {dict(unmapped_channel) or '(nenhum)'}")
+
     print("\n── Distrito de Residência (2ª agregação, sem canal) ──")
     print(f"  respostas com distrito: {sum(geo_pop.values())} | sem distrito: {skipped.get('distrito_em_branco', 0)}")
     for distrito, n in geo_pop.most_common():
@@ -295,7 +351,7 @@ def report():
 
 
 def emit_sql(out):
-    agg, agg_geo, pop, geo_pop, display, unmapped, unmapped_service, skipped = load()
+    agg, agg_geo, pop, geo_pop, display, unmapped, unmapped_service, skipped, unmapped_channel, channel_link_stats = load()
     assert not unmapped, f"Há rótulos não mapeados, abortar: {dict(unmapped)}"
     assert not unmapped_service, f"Há serviços não reconhecidos, abortar: {dict(unmapped_service)}"
 
@@ -312,23 +368,26 @@ def emit_sql(out):
         vstr = "NULL" if value is None else repr(float(value))
         cstr = "NULL" if cc is None else q(json.dumps(cc, ensure_ascii=False))
         chstr = "NULL" if chan is None else q(chan)
-        rows.append(f"({q(service_id)}::uuid,{q(etl)},{y},{m},{chstr},NULL,NULL,{vstr},{cstr},{resp},{inq})")
+        # Linhas geradas pela ligação canal↔indicadores (canal atribuído a partir de "que
+        # canais utilizou", não de uma pergunta nativa por canal) ficam is_provisional=TRUE.
+        is_linked_channel = chan is not None and etl != "ux_channel_ease"
+        rows.append(f"({q(service_id)}::uuid,{q(etl)},{y},{m},{chstr},NULL,NULL,{vstr},{cstr},{resp},{inq},{str(is_linked_channel).upper()})")
     for (sn, y, m, geo_name, etl, kind), d in sorted(agg_geo.items(), key=lambda kv: tuple(str(x) for x in kv[0])):
         value, cc, resp = compute(kind, d)
         service_id, _ = SERVICE_OVERRIDE[sn]
         inq = pop[(sn, y, m)]
         vstr = "NULL" if value is None else repr(float(value))
         cstr = "NULL" if cc is None else q(json.dumps(cc, ensure_ascii=False))
-        rows.append(f"({q(service_id)}::uuid,{q(etl)},{y},{m},NULL,{q('distrito')},{q(geo_name)},{vstr},{cstr},{resp},{inq})")
+        rows.append(f"({q(service_id)}::uuid,{q(etl)},{y},{m},NULL,{q('distrito')},{q(geo_name)},{vstr},{cstr},{resp},{inq},FALSE)")
 
     if rows:
         L.append(
             "INSERT INTO org_iss.measurements "
             "(service_id, indicator_id, year, month, channel, geo_level, geo_name, value, category_counts, "
-            "total_respondentes, total_inquiridos, source_file)\nSELECT v.service_id, i.id, v.year, v.month, "
-            "v.channel, v.geo_level, v.geo_name, v.value::numeric, v.cc::jsonb, v.resp, v.inq, 'iss_ux_multicanal_2026'\n"
+            "total_respondentes, total_inquiridos, is_provisional, source_file)\nSELECT v.service_id, i.id, v.year, v.month, "
+            "v.channel, v.geo_level, v.geo_name, v.value::numeric, v.cc::jsonb, v.resp, v.inq, v.provisional, 'iss_ux_multicanal_2026'\n"
             "FROM (VALUES\n  " + ",\n  ".join(rows) +
-            "\n) AS v(service_id, etl, year, month, channel, geo_level, geo_name, value, cc, resp, inq)\n"
+            "\n) AS v(service_id, etl, year, month, channel, geo_level, geo_name, value, cc, resp, inq, provisional)\n"
             "JOIN public.indicators i ON i.etl_column_key = v.etl\n"
             "ON CONFLICT (service_id, indicator_id, year, month, channel, geo_level, geo_name) DO NOTHING;"
         )

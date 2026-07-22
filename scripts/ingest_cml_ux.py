@@ -55,7 +55,7 @@ from datetime import datetime
 
 import openpyxl
 
-BASE = "docs/new/Questionários UX CML"
+BASE = "docs/CML/Questionários UX CML"
 
 SERVICE_ID = {
     "certidao": ("160b52e3-02ab-45d9-8564-24892cd71124", "Certidão de Licença de Utilização"),
@@ -140,6 +140,39 @@ def channel_of(header_label):
     return CHANNEL_MAP.get(norm(header_label), header_label)
 
 
+# ── Ligação canal↔indicadores (2026-07-22, a pedido da cliente) ─────────────
+# A pergunta "Que canais utilizou para realizar este serviço?" (checklist multi-select,
+# nunca ingerida) permite atribuir as restantes ~20 perguntas (satisfação, resolução,
+# etc. — hoje só agregadas, sem canal) ao canal do inquirido, quando ele usou UM SÓ
+# canal. Para quem usou vários canais, não sabemos qual gerou a resposta — não se
+# atribui (fica só na agregação, como já acontecia antes). Só se mapeiam rótulos
+# EXATAMENTE observados nos ficheiros (nunca adivinhados); qualquer rótulo novo fica
+# UNMAPPED e é reportado, sem abortar a ingestão.
+CHECKLIST_CHANNEL_MAP = {
+    "atendimento presencial": "Presencial",
+    "online - lisboa․pt": "Online - Lisboa.pt",  # rótulo usa "․" (dot leader), não "."
+    "telefone": "Telefone",
+    "online - na minha rua lx": "Online - Na Minha Rua Lx",
+}
+
+
+def respondent_channel(raw_checklist, channel_map, unmapped_counter):
+    """Devolve o canal único do inquirido, ou None (vazio, multicanal, ou rótulo desconhecido)."""
+    if raw_checklist in (None, ""):
+        return None
+    parts = [p.strip() for p in str(raw_checklist).split(";") if p.strip()]
+    if not parts:
+        return None
+    canon = set()
+    for p in parts:
+        c = channel_map.get(norm(p))
+        if c is None:
+            unmapped_counter[p] += 1
+            return None
+        canon.add(c)
+    return canon.pop() if len(canon) == 1 else None
+
+
 # kind: likert | scale10 | nps | sim_nao | agendamento
 # Cada entrada: (col 1-indexed, etl_column_key, kind, dicionário, canal|None)
 
@@ -170,6 +203,9 @@ COLMAP_A = [  # Questionário Presencial — 39 colunas, serviço na coluna 6
     (38, "ux_nps", "nps", None, None),
 ]
 SERVICE_COL_A = 6
+CHECKLIST_COL_A = 9
+CHECKLIST_COL_B = 8
+CHECKLIST_COL_C = 9
 
 COLMAP_B = [  # Questionário UX Online Certidão — 39 colunas, sem coluna de serviço
     (9, "ux_resolved", "sim_nao", None, None),
@@ -233,7 +269,7 @@ COLMAP_C = [  # Questionário Recolha de Monstros — 40 colunas, cabeçalhos pa
 #   "realizou atendimento" (ficheiro B), assistente digital (ficheiro C).
 
 
-def load_file(path, colmap, service_col=None, default_service=None):
+def load_file(path, colmap, service_col=None, default_service=None, checklist_col=None):
     wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
     ws = wb[wb.sheetnames[0]]
     rows = list(ws.iter_rows(min_row=2, values_only=True))
@@ -243,6 +279,8 @@ def load_file(path, colmap, service_col=None, default_service=None):
     unmapped = defaultdict(Counter)
     unmapped_service = Counter()
     n_by_service = Counter()
+    unmapped_channel = Counter()
+    channel_link_stats = Counter()  # ligado | vazio | multicanal | rotulo_desconhecido
 
     for row in rows:
         if all(v is None for v in row):
@@ -258,6 +296,20 @@ def load_file(path, colmap, service_col=None, default_service=None):
             service_key = default_service
         n_by_service[service_key] += 1
 
+        resp_channel = None
+        if checklist_col:
+            raw_checklist = row[checklist_col - 1]
+            before = sum(unmapped_channel.values())
+            resp_channel = respondent_channel(raw_checklist, CHECKLIST_CHANNEL_MAP, unmapped_channel)
+            if resp_channel is not None:
+                channel_link_stats["ligado"] += 1
+            elif raw_checklist in (None, ""):
+                channel_link_stats["vazio"] += 1
+            elif sum(unmapped_channel.values()) > before:
+                channel_link_stats["rotulo_desconhecido"] += 1
+            else:
+                channel_link_stats["multicanal"] += 1
+
         for col, etl, kind, scale, chan in colmap:
             raw = row[col - 1]
             if raw in (None, ""):
@@ -270,6 +322,8 @@ def load_file(path, colmap, service_col=None, default_service=None):
                     unmapped[etl][str(raw).strip()] += 1
                 else:
                     agg[key]["cats"][cat] += 1
+                    if chan is None and resp_channel is not None:
+                        agg[(service_key, resp_channel, etl, kind)]["cats"][cat] += 1
             elif kind == "agendamento":
                 nv = norm(raw)
                 cat = SIM if nv == "sim" else NAO if nv == "nao" else NMT if nv in ("nao mas tentei",) else None
@@ -277,6 +331,8 @@ def load_file(path, colmap, service_col=None, default_service=None):
                     unmapped[etl][str(raw).strip()] += 1
                 else:
                     agg[key]["cats"][cat] += 1
+                    if chan is None and resp_channel is not None:
+                        agg[(service_key, resp_channel, etl, kind)]["cats"][cat] += 1
             elif kind == "likert":
                 nv = norm(raw)
                 if nv in EXCLUDE:
@@ -290,6 +346,10 @@ def load_file(path, colmap, service_col=None, default_service=None):
                         # A UI escolhe o valor "atual" do card pela linha channel IS NULL —
                         # sem isto, ux_channel_ease só teria linhas por canal e nunca apareceria.
                         agg[(service_key, None, etl, kind)]["codes"].append(code)
+                    elif resp_channel is not None:
+                        # Ligação canal↔indicador: o inquirido só usou 1 canal, por isso esta
+                        # resposta (hoje só agregada) também conta para esse canal específico.
+                        agg[(service_key, resp_channel, etl, kind)]["codes"].append(code)
             elif kind in ("scale10", "nps"):
                 try:
                     fv = float(raw)
@@ -297,8 +357,10 @@ def load_file(path, colmap, service_col=None, default_service=None):
                     unmapped[etl][str(raw).strip()] += 1
                 else:
                     agg[key]["codes"].append(fv)
+                    if chan is None and resp_channel is not None:
+                        agg[(service_key, resp_channel, etl, kind)]["codes"].append(fv)
 
-    return dict(agg), unmapped, unmapped_service, n_by_service
+    return dict(agg), unmapped, unmapped_service, n_by_service, unmapped_channel, channel_link_stats
 
 
 def compute(kind, d):
@@ -330,9 +392,9 @@ def compute(kind, d):
 
 
 def load_all():
-    a = load_file(f"{BASE}/Questionário Presencial - Avaliação da experiência de utilização dos serviços.xlsx", COLMAP_A, service_col=SERVICE_COL_A)
-    b = load_file(f"{BASE}/Questionário UX Online -Certidão de Licença de Utilização - Avaliação da experiência de utilização do serviço.xlsx", COLMAP_B, default_service="certidao")
-    c = load_file(f"{BASE}/Questuinário UX Recolha de Monstros - Experiência de utilização do Serviço.xlsx", COLMAP_C, default_service="__monstros__")
+    a = load_file(f"{BASE}/Questionário Presencial - Avaliação da experiência de utilização dos serviços.xlsx", COLMAP_A, service_col=SERVICE_COL_A, checklist_col=CHECKLIST_COL_A)
+    b = load_file(f"{BASE}/Questionário UX Online -Certidão de Licença de Utilização - Avaliação da experiência de utilização do serviço.xlsx", COLMAP_B, default_service="certidao", checklist_col=CHECKLIST_COL_B)
+    c = load_file(f"{BASE}/Questuinário UX Recolha de Monstros - Experiência de utilização do Serviço.xlsx", COLMAP_C, default_service="__monstros__", checklist_col=CHECKLIST_COL_C)
     return a, b, c
 
 
@@ -344,13 +406,15 @@ def report():
     print("=" * 78)
     print("DRY-RUN — Ingestão dos 3 questionários UX novos da CML")
     print("=" * 78)
-    for label, (agg, unmapped, unmapped_service, n_by_service) in zip(
+    for label, (agg, unmapped, unmapped_service, n_by_service, unmapped_channel, channel_link_stats) in zip(
         ["A: Presencial", "B: Online Certidão", "C: Recolha de Monstros"], load_all()
     ):
         print(f"\n── {label} ──")
         print(f"  respostas por serviço: {dict(n_by_service)}")
         print(f"  serviços não reconhecidos: {dict(unmapped_service) or '(nenhum)'}")
         print(f"  rótulos não mapeados: {({k: dict(v) for k, v in unmapped.items()}) or '(nenhum)'}")
+        print(f"  ligação canal↔indicadores: {dict(channel_link_stats) or '(nenhum)'}")
+        print(f"  canais não reconhecidos na checklist: {dict(unmapped_channel) or '(nenhum)'}")
         print(f"  grupos indicador×canal×serviço com dados: {len(agg)}")
         for (service_key, chan, etl, kind), d in sorted(agg.items(), key=lambda kv: str(kv[0])):
             value, cc, n = compute(kind, d)
@@ -359,7 +423,7 @@ def report():
 
 def emit_sql(out):
     results = load_all()
-    for agg, unmapped, unmapped_service, _ in results:
+    for agg, unmapped, unmapped_service, _, _, _ in results:
         assert not unmapped, f"Há rótulos não mapeados, abortar: {dict(unmapped)}"
         assert not unmapped_service, f"Há serviços não reconhecidos, abortar: {dict(unmapped_service)}"
 
@@ -370,7 +434,7 @@ def emit_sql(out):
     # A e B; sem esta fusão, cada ficheiro gerava a sua própria linha para a MESMA chave
     # (service_id, indicator_id, year=2026, month=NULL, channel), duplicando dados na BD.
     merged = defaultdict(lambda: {"codes": [], "cats": Counter()})
-    for agg, _, _, _ in results:
+    for agg, _, _, _, _, _ in results:
         for key, d in agg.items():
             merged[key]["codes"].extend(d["codes"])
             merged[key]["cats"].update(d["cats"])
@@ -384,7 +448,12 @@ def emit_sql(out):
             targets = [("monstros_pedido", True), ("monstros_servico", True)]
         else:
             targets = [(service_key, False)]
-        for sk, provisional in targets:
+        # Linhas geradas pela ligação canal↔indicadores (chan definido mas o indicador não
+        # é ux_channel_ease, i.e. o canal não vem de uma pergunta nativa por canal, é
+        # atribuído a partir de "que canais utilizou") ficam marcadas is_provisional=TRUE.
+        is_linked_channel = chan is not None and etl != "ux_channel_ease"
+        for sk, provisional_target in targets:
+            provisional = provisional_target or is_linked_channel
             service_id, _ = SERVICE_ID[sk]
             vstr = "NULL" if value is None else repr(float(value))
             cstr = "NULL" if cc is None else q(json.dumps(cc, ensure_ascii=False))

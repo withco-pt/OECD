@@ -6,6 +6,7 @@ import ThematicPriorityCard, { type DimensionCounts } from "@/components/Themati
 import HelpTooltip from "@/components/HelpTooltip";
 import { supabase } from "@/lib/supabase";
 import { useSelectedService } from "@/context/SelectedServiceContext";
+import { useSelectedEntity } from "@/context/SelectedEntityContext";
 import { aggregateValue, pickCategoryCounts, isNonCompliant, type MeasRow } from "@/lib/measurements";
 
 type PriorityRow = {
@@ -34,11 +35,13 @@ function PriorityIcon({ src, alt, size = 50 }: { src: string | null; alt: string
 
 export default function PrioridadesTematicas() {
   const { selectedService } = useSelectedService();
+  const { entity, hydrated } = useSelectedEntity();
   const [priorityData, setPriorityData] = useState<PriorityRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
+    if (!hydrated) return;
     let active = true;
     (async () => {
       setLoading(true);
@@ -58,7 +61,8 @@ export default function PrioridadesTematicas() {
 
       const { data: indicators, error: indErr } = await supabase
         .from("indicators")
-        .select("id, thematic_priority_id, type_of_indicator, target_value, target_direction, is_mandatory");
+        .select("id, thematic_priority_id, type_of_indicator, target_value, target_direction, is_mandatory")
+        .or(entity ? `entity_specific.is.null,entity_specific.eq.${entity.id}` : "entity_specific.is.null");
       if (!active) return;
       if (indErr || !indicators) {
         console.error("[prioridades] erro ao carregar indicadores:", indErr?.message);
@@ -163,7 +167,7 @@ export default function PrioridadesTematicas() {
     return () => {
       active = false;
     };
-  }, [selectedService]);
+  }, [selectedService, entity, hydrated]);
 
   const featured = priorityData[0];
   const rest = priorityData.slice(1);
