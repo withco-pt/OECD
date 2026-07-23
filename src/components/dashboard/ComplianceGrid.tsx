@@ -5,6 +5,7 @@ import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import DashboardCard from "./DashboardCard";
 import EmptyChartState from "@/components/EmptyChartState";
 import { type DashboardData } from "@/lib/dashboardData";
+import { isNonCompliant } from "@/lib/measurements";
 
 /* ─────────────────────────────────────────────────────────────
    Bloco 7 — Scorecard de conformidade.
@@ -41,7 +42,9 @@ export default function ComplianceGrid({ data }: { data: DashboardData }) {
     const services = data.services.map((s) => {
       const cells: Cell[] = criteria.map((c) => {
         const e = latest.get(`${s.id}|${c.id}`);
-        return e ? e.value >= 50 : null;
+        if (!e) return null;
+        // Polaridade por indicador (target_direction='below' inverte Sim/Não) — ver migration 042.
+        return !isNonCompliant("compliance", e.value, c.targetValue, c.targetDirection);
       });
       const answered = cells.filter((c) => c != null);
       const pct = answered.length ? Math.round((cells.filter((c) => c === true).length / answered.length) * 100) : null;

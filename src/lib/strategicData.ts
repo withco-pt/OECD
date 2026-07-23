@@ -25,6 +25,9 @@ export type StrategicIndicator = {
   valueType: string;
   typeOfIndicator: "operational" | "user_experience" | "compliance";
   priorityId: string | null;
+  /** Para indicadores de compliance: 'below' inverte a polaridade Sim/Não
+   * (a resposta desejada é "Não") — ver migration 042 e lib/measurements.ts. */
+  targetDirection: "above" | "below" | null;
 };
 export type StrategicRow = {
   entity_short: string;
@@ -55,7 +58,7 @@ export async function fetchStrategicData(): Promise<StrategicData> {
     supabase.from("thematic_priorities").select("id, name_pt, display_order").order("display_order"),
     supabase
       .from("indicators")
-      .select("id, description, value_type, type_of_indicator, thematic_priority_id"),
+      .select("id, description, value_type, type_of_indicator, thematic_priority_id, target_direction"),
   ]);
   if (orgRes.error) throw orgRes.error;
   if (priRes.error) throw priRes.error;
@@ -103,6 +106,7 @@ export async function fetchStrategicData(): Promise<StrategicData> {
       valueType: i.value_type as string,
       typeOfIndicator: i.type_of_indicator as StrategicIndicator["typeOfIndicator"],
       priorityId: (i.thematic_priority_id as string | null) ?? null,
+      targetDirection: (i.target_direction as "above" | "below" | null) ?? null,
     })),
     rows,
   };
@@ -166,7 +170,11 @@ export function dimensionScoreMatrix(data: StrategicData): Map<string, DimScoreC
         const rows = byEntInd.get(`${e.short}::${ind.id}`) ?? [];
         const agg = wavgLite(rows);
         if (!agg) continue;
-        const score = normalizeScore(ind.valueType, agg.avg);
+        // Polaridade (target_direction='below' inverte Sim/Não — ver migration 042).
+        // A inversão só se aplica a categorical_sim_nao, onde agg.avg já é % de "Sim".
+        const avg =
+          ind.targetDirection === "below" && ind.valueType === "categorical_sim_nao" ? 100 - agg.avg : agg.avg;
+        const score = normalizeScore(ind.valueType, avg);
         if (score == null) continue;
         weighted += score * agg.n;
         totalW += agg.n;
@@ -297,7 +305,11 @@ export function indicatorAcrossEntities(
     const rows = data.rows.filter((r) => r.indicator_id === indicatorId && r.entity_short === e.short);
     const agg = wavgLite(rows);
     if (!agg) return { entityShort: e.short, value: null, n: 0 };
-    const v = scorable && ind ? normalizeScore(ind.valueType, agg.avg) : agg.avg;
+    // Polaridade (target_direction='below' inverte Sim/Não — ver migration 042).
+    // A inversão só se aplica a categorical_sim_nao, onde agg.avg já é % de "Sim".
+    const avg =
+      ind && ind.targetDirection === "below" && ind.valueType === "categorical_sim_nao" ? 100 - agg.avg : agg.avg;
+    const v = scorable && ind ? normalizeScore(ind.valueType, avg) : agg.avg;
     return { entityShort: e.short, value: v, n: agg.n };
   });
   return { scorable, values };

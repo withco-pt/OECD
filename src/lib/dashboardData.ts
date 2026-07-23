@@ -19,6 +19,10 @@ export type IndicatorMeta = {
   priorityId: string | null;
   scaleMin: number | null;
   scaleMax: number | null;
+  /** Para indicadores de compliance: 'below' inverte a polaridade Sim/Não
+   * (a resposta desejada é "Não") — ver migration 042 e lib/measurements.ts. */
+  targetDirection: "above" | "below" | null;
+  targetValue: number | null;
 };
 
 export type MeasurementRow = {
@@ -56,7 +60,7 @@ export async function fetchDashboardData(entityShort: string): Promise<Dashboard
   const [indRes, priRes, svcRes] = await Promise.all([
     supabase
       .from("indicators")
-      .select("id, description, etl_column_key, value_type, type_of_indicator, thematic_priority_id, value_scale_min, value_scale_max")
+      .select("id, description, etl_column_key, value_type, type_of_indicator, thematic_priority_id, value_scale_min, value_scale_max, target_direction, target_value")
       .or(`entity_specific.is.null,entity_specific.eq.${entityShort}`),
     supabase.from("thematic_priorities").select("id, name_pt, display_order").order("display_order"),
     supabase
@@ -111,6 +115,8 @@ export async function fetchDashboardData(entityShort: string): Promise<Dashboard
       priorityId: (i.thematic_priority_id as string | null) ?? null,
       scaleMin: (i.value_scale_min as number | null) ?? null,
       scaleMax: (i.value_scale_max as number | null) ?? null,
+      targetDirection: (i.target_direction as "above" | "below" | null) ?? null,
+      targetValue: i.target_value != null ? Number(i.target_value) : null,
     })),
     priorities: (priRes.data ?? []).map((p) => ({
       id: p.id as string,

@@ -41,7 +41,11 @@ function computeScores(data: DashboardData, channel: string | null): DimScore[] 
       const rows = data.rows.filter((r) => r.indicator_id === ind.id && isAggRow(r, channel));
       const agg = wavg(rows);
       if (!agg) continue;
-      const score = normalizeScore(ind.valueType, agg.avg);
+      // Polaridade (target_direction='below' inverte Sim/Não — ver migration 042).
+      // A inversão só se aplica a categorical_sim_nao, onde agg.avg já é % de "Sim".
+      const avg =
+        ind.targetDirection === "below" && ind.valueType === "categorical_sim_nao" ? 100 - agg.avg : agg.avg;
+      const score = normalizeScore(ind.valueType, avg);
       if (score == null) continue;
       weighted += score * agg.n;
       totalW += agg.n;

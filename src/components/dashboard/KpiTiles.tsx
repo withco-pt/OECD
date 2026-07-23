@@ -71,12 +71,20 @@ export default function KpiTiles({ data, selectedChannel }: { data: DashboardDat
     const resTotal = (resCats["Sim"] ?? 0) + (resCats["Não"] ?? 0);
     const resolved = resTotal > 0 ? ((resCats["Sim"] ?? 0) / resTotal) * 100 : null;
 
-    // Conformidade — % de "Sim" em todos os critérios de compliance
-    const compIds = new Set(data.indicators.filter((i) => i.typeOfIndicator === "compliance").map((i) => i.id));
-    const compRows = data.rows.filter((r) => compIds.has(r.indicator_id));
-    const compCats = sumCategories(compRows);
-    const compTotal = (compCats["Sim"] ?? 0) + (compCats["Não"] ?? 0);
-    const compliance = compTotal > 0 ? ((compCats["Sim"] ?? 0) / compTotal) * 100 : null;
+    // Conformidade — % de respostas "conformes" em todos os critérios de compliance.
+    // Por defeito "Sim" é a resposta conforme, mas target_direction='below' inverte
+    // a polaridade para indicadores cuja resposta desejada é "Não" (ver migration 042).
+    const compInds = data.indicators.filter((i) => i.typeOfIndicator === "compliance");
+    let compliant = 0;
+    let compTotal = 0;
+    for (const ind of compInds) {
+      const cats = sumCategories(data.rows.filter((r) => r.indicator_id === ind.id));
+      const sim = cats["Sim"] ?? 0;
+      const nao = cats["Não"] ?? 0;
+      compliant += ind.targetDirection === "below" ? nao : sim;
+      compTotal += sim + nao;
+    }
+    const compliance = compTotal > 0 ? (compliant / compTotal) * 100 : null;
 
     // "Matriz adotada" ainda não é preenchido em nenhuma entidade; até lá,
     // o sinal com significado real é quantos serviços já têm medições.
