@@ -217,7 +217,7 @@ function LikertGauge({ value, min = 1, max = 5, metric }: { value: number | null
 
   return (
     <div className="flex flex-col items-center gap-[8px] w-full">
-      <svg width="481" height="262" viewBox="-20 -20 481 262" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[481px]">
+      <svg width="481" height="242" viewBox="-20 -20 481 242" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[481px]">
         {bands.map((b) => (
           <path key={b.n} d={sectorPath(b.from, b.to)} fill={b.fill} />
         ))}
@@ -249,9 +249,9 @@ function LikertGauge({ value, min = 1, max = 5, metric }: { value: number | null
         {/* Seta indicadora */}
         <polygon points={`${tip} ${b1} ${b2}`} fill="#021c51" />
       </svg>
-      <div className="flex items-center justify-between w-full max-w-[441px] px-[4px]">
-        <span className="text-[24px] leading-[32px] font-medium text-neutral-900">{labels?.low ?? ""}</span>
-        <span className="text-[24px] leading-[32px] font-medium text-neutral-900">{labels?.high ?? ""}</span>
+      <div className="flex items-center justify-between w-full max-w-[441px] px-[4px] gap-[8px]">
+        <span className="text-[13px] leading-[18px] font-medium text-neutral-900">{labels?.low ?? ""}</span>
+        <span className="text-[13px] leading-[18px] font-medium text-neutral-900 text-right">{labels?.high ?? ""}</span>
       </div>
     </div>
   );
