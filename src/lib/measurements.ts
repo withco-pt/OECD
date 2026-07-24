@@ -7,22 +7,37 @@ import { supabase } from "@/lib/supabase";
 export type MeasRow = {
   channel: string | null;
   geo_level: string | null;
+  month: number | null;
   value: number | string | null;
   category_counts: Record<string, number> | null;
 };
 
-export function aggregateValue(rows: MeasRow[]): number | null {
+/** Indicadores "Número de…"/"Nº…" somam entre geografias/serviços; os restantes
+ * (tempos, rácios, scores) fazem média — mesmo critério usado em TrendBlock. */
+export function isSumIndicator(description: string): boolean {
+  return /^(número|nº|n\.?º)/i.test(description.trim());
+}
+
+export function aggregateValue(rows: MeasRow[], isSum = false): number | null {
   // Linha "agregada" real: sem canal E sem segmentação geográfica (as linhas por distrito
   // também têm channel=null, por isso é preciso excluir geo_level para não as confundir com
   // o total — mesmo critério da página de detalhe do indicador).
   const nullRow = rows.find((r) => r.channel === null && r.geo_level === null);
-  const source = nullRow ? [nullRow] : rows;
+  let source = nullRow ? [nullRow] : rows;
+  if (!nullRow) {
+    // Indicadores só com quebra geográfica (ex.: Lojas de Cidadão, migration 058) nunca
+    // têm linha sem geo_level — usar a linha-snapshot (month=null) de cada geografia,
+    // mesma convenção já usada para os indicadores sem geo, agregando entre geografias.
+    const snapshot = rows.filter((r) => r.geo_level !== null && (r.month ?? null) === null);
+    if (snapshot.length) source = snapshot;
+  }
   const nums = source
     .filter((r) => r.value !== null && r.value !== undefined)
     .map((r) => Number(r.value))
     .filter((v) => !Number.isNaN(v));
   if (nums.length === 0) return null;
-  return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100;
+  const total = nums.reduce((a, b) => a + b, 0);
+  return Math.round((isSum ? total : total / nums.length) * 100) / 100;
 }
 
 /** Indicadores de compliance: por defeito "Sim" (value=100) é a resposta desejada e
@@ -57,5 +72,9 @@ export function hasCategoryData(counts: Record<string, number> | null | undefine
 export function rowsForChannel(rows: MeasRow[], channel: string | null): MeasRow[] {
   if (channel === null) return rows;
   const row = rows.find((r) => r.channel === channel && r.geo_level === null);
-  return row ? [row] : [];
+  if (row) return [row];
+  // Indicador sem quebra por canal (só por geografia, ex.: Lojas de Cidadão) — o filtro de
+  // canal não se aplica; devolve as linhas todas para aggregateValue tratar (fallback geo).
+  const hasChannelBreakdown = rows.some((r) => r.channel !== null);
+  return hasChannelBreakdown ? [] : rows;
 }

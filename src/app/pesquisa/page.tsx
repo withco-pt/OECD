@@ -11,6 +11,7 @@ import ThematicPriorityCard, { type DimensionCounts } from "@/components/Themati
 import { supabase } from "@/lib/supabase";
 import { useSelectedService } from "@/context/SelectedServiceContext";
 import { useSelectedEntity } from "@/context/SelectedEntityContext";
+import { isSumIndicator } from "@/lib/measurements";
 
 type ResultType = "servicos" | "indicadores" | "prioridades";
 
@@ -86,15 +87,25 @@ function getPriorityCounts(p: PriorityResult): DimensionCounts {
 // Agrega as medições de um indicador num único valor: prefere a linha "agregada"
 // real (sem canal e sem segmentação geográfica); senão, média das restantes.
 // Mesmo critério usado em src/app/indicadores/page.tsx e no detalhe do indicador.
-function aggregateValue(rows: { channel: string | null; geo_level: string | null; value: number | string | null }[]): number | null {
+function aggregateValue(
+  rows: { channel: string | null; geo_level: string | null; month?: number | null; value: number | string | null }[],
+  isSum = false,
+): number | null {
   const nullRow = rows.find((r) => r.channel === null && r.geo_level === null);
-  const source = nullRow ? [nullRow] : rows;
+  let source = nullRow ? [nullRow] : rows;
+  if (!nullRow) {
+    // Indicadores só com quebra geográfica (ex.: Lojas de Cidadão) nunca têm linha sem
+    // geo_level — usar a linha-snapshot (month=null) de cada geografia, agregando entre elas.
+    const snapshot = rows.filter((r) => r.geo_level !== null && (r.month ?? null) === null);
+    if (snapshot.length) source = snapshot;
+  }
   const nums = source
     .filter((r) => r.value !== null && r.value !== undefined)
     .map((r) => Number(r.value))
     .filter((v) => !Number.isNaN(v));
   if (nums.length === 0) return null;
-  return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100;
+  const total = nums.reduce((a, b) => a + b, 0);
+  return Math.round((isSum ? total : total / nums.length) * 100) / 100;
 }
 
 function pickCategoryCounts(rows: { channel: string | null; geo_level: string | null; category_counts: Record<string, number> | null }[]): Record<string, number> | null {
@@ -187,11 +198,11 @@ function PesquisaContent() {
         .or(entity ? `entity_specific.is.null,entity_specific.eq.${entity.id}` : "entity_specific.is.null");
       if (!active) return;
 
-      const byIndicator = new Map<string, { channel: string | null; geo_level: string | null; value: number | string | null; category_counts: Record<string, number> | null }[]>();
+      const byIndicator = new Map<string, { channel: string | null; geo_level: string | null; month: number | null; value: number | string | null; category_counts: Record<string, number> | null }[]>();
       if (selectedService) {
         const { data: meas } = await supabase
           .from("measurements_catalog")
-          .select("indicator_id, channel, geo_level, value, category_counts")
+          .select("indicator_id, channel, geo_level, month, value, category_counts")
           .eq("service_id", selectedService.id);
         if (!active) return;
         for (const m of meas ?? []) {
@@ -200,6 +211,7 @@ function PesquisaContent() {
           byIndicator.get(key)!.push({
             channel: (m.channel as string | null) ?? null,
             geo_level: (m.geo_level as string | null) ?? null,
+            month: (m.month as number | null) ?? null,
             value: m.value as number | string | null,
             category_counts: (m.category_counts as Record<string, number> | null) ?? null,
           });
@@ -209,7 +221,7 @@ function PesquisaContent() {
         (inds ?? []).map((i) => {
           const tp = (i.thematic_priorities ?? {}) as { name_pt?: string };
           const rows = byIndicator.get(i.id as string) ?? [];
-          const value = aggregateValue(rows);
+          const value = aggregateValue(rows, isSumIndicator(i.description as string));
           const categoryCounts = pickCategoryCounts(rows);
           return {
             id: i.id as string,

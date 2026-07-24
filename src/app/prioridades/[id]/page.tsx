@@ -11,7 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { useSelectedService } from "@/context/SelectedServiceContext";
 import { useSelectedChannel } from "@/context/SelectedChannelContext";
 import { useSelectedEntity } from "@/context/SelectedEntityContext";
-import { aggregateValue, pickCategoryCounts, hasCategoryData, rowsForChannel, isNonCompliant, type MeasRow } from "@/lib/measurements";
+import { aggregateValue, pickCategoryCounts, hasCategoryData, rowsForChannel, isNonCompliant, isSumIndicator, type MeasRow } from "@/lib/measurements";
 import { indicatorTypeLabel, INDICATOR_TYPE_OPTIONS } from "@/lib/metricPill";
 
 type PriorityMeta = { id: string; title: string; description: string; icon: string | null };
@@ -98,7 +98,7 @@ export default function PriorityDetailPage() {
       if (selectedService && ids.length) {
         const { data: meas } = await supabase
           .from("measurements_catalog")
-          .select("indicator_id, channel, geo_level, value, category_counts")
+          .select("indicator_id, channel, geo_level, month, value, category_counts")
           .eq("service_id", selectedService.id)
           .in("indicator_id", ids);
         if (!active) return;
@@ -108,6 +108,7 @@ export default function PriorityDetailPage() {
           byIndicator.get(key)!.push({
             channel: (m.channel as string | null) ?? null,
             geo_level: (m.geo_level as string | null) ?? null,
+            month: (m.month as number | null) ?? null,
             value: m.value as number | string | null,
             category_counts: (m.category_counts as Record<string, number> | null) ?? null,
           });
@@ -129,7 +130,7 @@ export default function PriorityDetailPage() {
 
       const list: IndicatorItem[] = (inds ?? []).map((i) => {
         const rows = rowsForChannel(byIndicator.get(i.id as string) ?? [], selectedChannel);
-        const value = aggregateValue(rows);
+        const value = aggregateValue(rows, isSumIndicator(i.description as string));
         const categoryCounts = pickCategoryCounts(rows);
         const typeOfIndicator = (i.type_of_indicator as string | null) ?? null;
         return {

@@ -13,6 +13,10 @@ import { LOCAL_ENTITY_LOGOS } from "@/lib/entityLogos";
    serviço+indicador é a que não tem canal nem segmentação geográfica.
    Aqui trabalhamos só ao nível agregado (channel null, geo null),
    somando/ponderando sobre todos os serviços de cada entidade.
+
+   Indicadores só com quebra geográfica (ex.: Lojas de Cidadão, migration 058)
+   nunca têm linha agregada — sem fallback ficavam invisíveis no Panorama para
+   ARTE/AT/ISS (0 linhas agregadas, todas geo-segmentadas). Ver fetchStrategicData.
    ───────────────────────────────────────────────────────────── */
 
 export const SCORABLE_TYPES = ["likert_1_5", "scale_1_10", "nps", "categorical_sim_nao"];
@@ -64,9 +68,19 @@ export async function fetchStrategicData(): Promise<StrategicData> {
   if (priRes.error) throw priRes.error;
   if (indRes.error) throw indRes.error;
 
+  const mapRow = (r: Record<string, unknown>): StrategicRow => ({
+    entity_short: r.entity_short as string,
+    indicator_id: r.indicator_id as string,
+    year: r.year as number,
+    month: (r.month as number | null) ?? null,
+    value: r.value != null ? Number(r.value) : null,
+    total_respondentes: (r.total_respondentes as number | null) ?? null,
+    category_counts: (r.category_counts as Record<string, number> | null) ?? null,
+  });
+
   // Linhas agregadas de TODAS as entidades — só nível agregado (sem canal nem
   // geografia). Paginado porque o PostgREST limita a 1000 linhas por pedido.
-  const rows: StrategicRow[] = [];
+  const aggRows: StrategicRow[] = [];
   for (let page = 0; ; page++) {
     const { data, error } = await supabase
       .from("measurements_catalog")
@@ -75,19 +89,31 @@ export async function fetchStrategicData(): Promise<StrategicData> {
       .is("geo_name", null)
       .range(page * PAGE, (page + 1) * PAGE - 1);
     if (error) throw error;
+    for (const r of data ?? []) aggRows.push(mapRow(r));
+    if (!data || data.length < PAGE) break;
+  }
+
+  // Fallback: indicadores só com quebra geográfica (sem linha agregada) — inclui as
+  // linhas por geografia apenas para os pares entidade+indicador que não têm nenhuma
+  // linha agregada, para não duplicar dados nas entidades que já reportam ao nível certo.
+  const aggPairs = new Set(aggRows.map((r) => `${r.entity_short}::${r.indicator_id}`));
+  const geoRows: StrategicRow[] = [];
+  for (let page = 0; ; page++) {
+    const { data, error } = await supabase
+      .from("measurements_catalog")
+      .select("entity_short, indicator_id, year, month, value, total_respondentes, category_counts")
+      .is("channel", null)
+      .not("geo_name", "is", null)
+      .range(page * PAGE, (page + 1) * PAGE - 1);
+    if (error) throw error;
     for (const r of data ?? []) {
-      rows.push({
-        entity_short: r.entity_short as string,
-        indicator_id: r.indicator_id as string,
-        year: r.year as number,
-        month: (r.month as number | null) ?? null,
-        value: r.value != null ? Number(r.value) : null,
-        total_respondentes: (r.total_respondentes as number | null) ?? null,
-        category_counts: (r.category_counts as Record<string, number> | null) ?? null,
-      });
+      const row = mapRow(r);
+      if (!aggPairs.has(`${row.entity_short}::${row.indicator_id}`)) geoRows.push(row);
     }
     if (!data || data.length < PAGE) break;
   }
+
+  const rows = [...aggRows, ...geoRows];
 
   return {
     entities: (orgRes.data ?? []).map((o) => ({

@@ -11,12 +11,12 @@ import { supabase } from "@/lib/supabase";
 import { useSelectedService } from "@/context/SelectedServiceContext";
 import { useSelectedEntity } from "@/context/SelectedEntityContext";
 import { useSelectedChannel } from "@/context/SelectedChannelContext";
-import { hasCategoryData, rowsForChannel, isNonCompliant } from "@/lib/measurements";
+import { hasCategoryData, rowsForChannel, isNonCompliant, isSumIndicator } from "@/lib/measurements";
 import { indicatorTypeLabel, INDICATOR_TYPE_OPTIONS } from "@/lib/metricPill";
 
 const ITEMS_PER_PAGE = 9;
 
-type MeasRow = { channel: string | null; geo_level: string | null; value: number | string | null; category_counts: Record<string, number> | null };
+type MeasRow = { channel: string | null; geo_level: string | null; month: number | null; value: number | string | null; category_counts: Record<string, number> | null };
 
 type IndicatorItem = {
   id: string;
@@ -42,18 +42,25 @@ type IndicatorItem = {
 // pergunta combinada (ex.: "clareza, conhecimento, encaminhamento").
 const CONDITIONAL_RE = /^\s*(se\s+(sim|n[ãa]o|afirmativo|negativo)\b|caso\s+(sim|n[ãa]o)\b)/i;
 
-function aggregateValue(rows: MeasRow[]): number | null {
+function aggregateValue(rows: MeasRow[], isSum = false): number | null {
   // Linha "agregada" real: sem canal E sem segmentação geográfica (as linhas por distrito
   // também têm channel=null, por isso é preciso excluir geo_level para não as confundir com
   // o total — mesmo critério da página de detalhe do indicador).
   const nullRow = rows.find((r) => r.channel === null && r.geo_level === null);
-  const source = nullRow ? [nullRow] : rows;
+  let source = nullRow ? [nullRow] : rows;
+  if (!nullRow) {
+    // Indicadores só com quebra geográfica (ex.: Lojas de Cidadão) nunca têm linha sem
+    // geo_level — usar a linha-snapshot (month=null) de cada geografia, agregando entre elas.
+    const snapshot = rows.filter((r) => r.geo_level !== null && r.month === null);
+    if (snapshot.length) source = snapshot;
+  }
   const nums = source
     .filter((r) => r.value !== null && r.value !== undefined)
     .map((r) => Number(r.value))
     .filter((v) => !Number.isNaN(v));
   if (nums.length === 0) return null;
-  return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100;
+  const total = nums.reduce((a, b) => a + b, 0);
+  return Math.round((isSum ? total : total / nums.length) * 100) / 100;
 }
 
 // Contagens categóricas: preferir a linha sem canal nem geografia (agregado do serviço).
@@ -101,7 +108,7 @@ export default function IndicadoresPage() {
       if (selectedService) {
         const { data: meas } = await supabase
           .from("measurements_catalog")
-          .select("indicator_id, channel, geo_level, value, category_counts")
+          .select("indicator_id, channel, geo_level, month, value, category_counts")
           .eq("service_id", selectedService.id);
         if (!active) return;
         for (const m of meas ?? []) {
@@ -110,6 +117,7 @@ export default function IndicadoresPage() {
           byIndicator.get(key)!.push({
             channel: (m.channel as string | null) ?? null,
             geo_level: (m.geo_level as string | null) ?? null,
+            month: (m.month as number | null) ?? null,
             value: m.value as number | string | null,
             category_counts: (m.category_counts as Record<string, number> | null) ?? null,
           });
@@ -132,7 +140,7 @@ export default function IndicadoresPage() {
       const list: IndicatorItem[] = (inds ?? []).map((i) => {
         const tp = (i.thematic_priorities ?? {}) as { name_pt?: string; display_order?: number };
         const rows = rowsForChannel(byIndicator.get(i.id as string) ?? [], selectedChannel);
-        const value = aggregateValue(rows);
+        const value = aggregateValue(rows, isSumIndicator(i.description as string));
         const categoryCounts = pickCategoryCounts(rows);
         const hasData = value !== null || hasCategoryData(categoryCounts);
         const typeOfIndicator = (i.type_of_indicator as string | null) ?? null;

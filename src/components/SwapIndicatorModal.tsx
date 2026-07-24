@@ -4,7 +4,7 @@ import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import { useSelectedService } from "@/context/SelectedServiceContext";
 import { supabase } from "@/lib/supabase";
 import { metricPill, indicatorTypeLabel, INDICATOR_TYPE_OPTIONS } from "@/lib/metricPill";
-import { isNonCompliant } from "@/lib/measurements";
+import { isNonCompliant, isSumIndicator } from "@/lib/measurements";
 import SearchAndFilters from "@/components/SearchAndFilters";
 import Pagination from "@/components/Pagination";
 import Tooltip from "@/components/Tooltip";
@@ -14,7 +14,7 @@ import { createPortal } from "react-dom";
 
 const ITEMS_PER_PAGE = 9;
 
-type MeasRow = { channel: string | null; geo_level: string | null; value: number | string | null; category_counts: Record<string, number> | null };
+type MeasRow = { channel: string | null; geo_level: string | null; month: number | null; value: number | string | null; category_counts: Record<string, number> | null };
 type IndicatorItem = {
   id: string;
   name: string;
@@ -32,18 +32,25 @@ type IndicatorItem = {
   typeOfIndicator: string | null;
 };
 
-function aggregateValue(rows: MeasRow[]): number | null {
+function aggregateValue(rows: MeasRow[], isSum = false): number | null {
   // Linha "agregada" real: sem canal E sem segmentação geográfica (as linhas por distrito
   // também têm channel=null, por isso é preciso excluir geo_level para não as confundir com
   // o total — mesmo critério da página de detalhe do indicador).
   const nullRow = rows.find((r) => r.channel === null && r.geo_level === null);
-  const source = nullRow ? [nullRow] : rows;
+  let source = nullRow ? [nullRow] : rows;
+  if (!nullRow) {
+    // Indicadores só com quebra geográfica (ex.: Lojas de Cidadão) nunca têm linha sem
+    // geo_level — usar a linha-snapshot (month=null) de cada geografia, agregando entre elas.
+    const snapshot = rows.filter((r) => r.geo_level !== null && r.month === null);
+    if (snapshot.length) source = snapshot;
+  }
   const nums = source
     .filter((r) => r.value !== null && r.value !== undefined)
     .map((r) => Number(r.value))
     .filter((v) => !Number.isNaN(v));
   if (nums.length === 0) return null;
-  return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100;
+  const total = nums.reduce((a, b) => a + b, 0);
+  return Math.round((isSum ? total : total / nums.length) * 100) / 100;
 }
 
 function pickCategoryCounts(rows: MeasRow[]): Record<string, number> | null {
@@ -252,7 +259,7 @@ export default function SwapIndicatorModal() {
       setLoading(true);
       const { data: meas, error: measErr } = await supabase
         .from("measurements_catalog")
-        .select("indicator_id, channel, geo_level, value, category_counts")
+        .select("indicator_id, channel, geo_level, month, value, category_counts")
         .eq("service_id", selectedService.id);
       if (!active) return;
       if (measErr) { console.error("[alterar indicador] erro:", measErr.message); setItems([]); setLoading(false); return; }
@@ -274,6 +281,7 @@ export default function SwapIndicatorModal() {
         byIndicator.get(key)!.push({
           channel: (m.channel as string | null) ?? null,
           geo_level: (m.geo_level as string | null) ?? null,
+          month: (m.month as number | null) ?? null,
           value: m.value as number | string | null,
           category_counts: (m.category_counts as Record<string, number> | null) ?? null,
         });
@@ -282,7 +290,7 @@ export default function SwapIndicatorModal() {
       const list: IndicatorItem[] = (inds ?? []).map((i) => {
         const tp = (i.thematic_priorities ?? {}) as { name_pt?: string; display_order?: number };
         const rows = byIndicator.get(i.id as string) ?? [];
-        const value = aggregateValue(rows);
+        const value = aggregateValue(rows, isSumIndicator(i.description as string));
         const typeOfIndicator = (i.type_of_indicator as string | null) ?? null;
         return {
           id: i.id as string,

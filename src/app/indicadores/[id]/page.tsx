@@ -18,7 +18,7 @@ import {
 import { useSelectedService } from "@/context/SelectedServiceContext";
 import { useSelectedChannel } from "@/context/SelectedChannelContext";
 import { supabase } from "@/lib/supabase";
-import { hasCategoryData } from "@/lib/measurements";
+import { hasCategoryData, isSumIndicator } from "@/lib/measurements";
 
 // Abaixo deste nº de respondentes, um NPS calculado (só pode dar ±100 com n=1)
 // é estatisticamente pouco fiável — mostra-se um aviso junto ao valor em vez
@@ -553,16 +553,53 @@ export default function IndicatorDetailPage() {
       // Linha "agregada" real: sem canal E sem segmentação geográfica (as linhas por distrito
       // também têm channel=null, por isso é preciso excluir geo_level para não as confundir com o total).
       const nullRow = rows.find((r) => r.channel === null && r.geo_level === null);
-      const src = nullRow ? [nullRow] : rows;
+      const isSum = isSumIndicator(ind.description as string);
+
+      // Indicadores só com quebra geográfica (ex.: Lojas de Cidadão, migration 058) nunca
+      // têm linha sem geo_level — agrega-se entre geografias por período (soma para
+      // "Número de…", média para o resto), mesmo critério do TrendBlock do dashboard.
+      // Duas passagens: primeiro tenta períodos mensais reais (month != null); só recorre
+      // às linhas anuais/snapshot (month = null) se não houver nenhum mês real — algumas
+      // destas indicadores (ex.: Avaliação do atendimento em loja) só têm dados anuais,
+      // enquanto outros (Procura, TMA…) têm mensal + 1 linha-snapshot (month=null) que
+      // duplicaria o último mês se fosse somada às restantes.
+      const groupByPeriod = (onlyMonthNull: boolean) => {
+        const byPeriod = new Map<string, { year: number; month: number | null; sum: number; count: number }>();
+        for (const r of rows) {
+          if (r.geo_level == null || r.channel !== null || r.year == null) continue;
+          if (onlyMonthNull ? r.month != null : r.month == null) continue;
+          const v = Number(r.value);
+          if (Number.isNaN(v)) continue;
+          const key = `${r.year}-${r.month ?? "null"}`;
+          if (!byPeriod.has(key)) byPeriod.set(key, { year: r.year, month: r.month, sum: 0, count: 0 });
+          const e = byPeriod.get(key)!;
+          e.sum += v;
+          e.count += 1;
+        }
+        return [...byPeriod.values()]
+          .map((e) => ({ year: e.year, month: e.month, value: isSum ? e.sum : e.sum / e.count }))
+          .sort((a, b) => a.year - b.year || (a.month ?? 0) - (b.month ?? 0));
+      };
+      let geoMonthly: { year: number; month: number | null; value: number }[] = [];
+      if (!nullRow) {
+        geoMonthly = groupByPeriod(false);
+        if (!geoMonthly.length) geoMonthly = groupByPeriod(true);
+      }
+
+      const src = nullRow ? [nullRow] : [];
       const nums = src.map((r) => Number(r.value)).filter((v) => !Number.isNaN(v));
-      const value = nums.length ? Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100 : null;
+      const value = nullRow
+        ? (nums.length ? Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100 : null)
+        : (geoMonthly.length ? Math.round(geoMonthly[geoMonthly.length - 1].value * 100) / 100 : null);
       const categoryCounts = (nullRow ?? rows.find((r) => r.category_counts && r.geo_level === null))?.category_counts ?? null;
       const valueText = (nullRow ?? rows.find((r) => r.value_text && r.geo_level === null))?.value_text ?? null;
 
       // Variação vs período anterior — só quando há pelo menos 2 períodos reais (nunca inventada).
-      const periodRows = (nullRow ? rows.filter((r) => r.channel === null && r.geo_level === null) : rows)
-        .filter((r) => r.year != null && !Number.isNaN(Number(r.value)))
-        .sort((a, b) => (a.year! - b.year!) || ((a.month ?? 0) - (b.month ?? 0)));
+      const periodRows = nullRow
+        ? rows
+            .filter((r) => r.channel === null && r.geo_level === null && r.year != null && !Number.isNaN(Number(r.value)))
+            .sort((a, b) => (a.year! - b.year!) || ((a.month ?? 0) - (b.month ?? 0)))
+        : geoMonthly.map((e) => ({ year: e.year as number | null, month: e.month as number | null, value: e.value }));
       const previousValue = periodRows.length > 1 ? Number(periodRows[periodRows.length - 2].value) : null;
       // Rótulo do período efetivamente comparado (mês/ano reais, nunca "trimestre" ou "ano"
       // assumidos) — explicita a que período se refere o "vs. período anterior".
@@ -622,7 +659,16 @@ export default function IndicatorDetailPage() {
         scaleMax = (ind.value_scale_max as number | null) ?? (isCategorical ? 3 : null);
       }
       const tp = (ind.thematic_priorities ?? {}) as { name_pt?: string };
-      const totalsRow = nullRow ?? rows.find((r) => r.geo_level === null) ?? rows[0];
+      const latestGeoRow = geoMonthly.length
+        ? rows.find(
+            (r) =>
+              r.channel === null &&
+              r.geo_level != null &&
+              r.year === geoMonthly[geoMonthly.length - 1].year &&
+              r.month === geoMonthly[geoMonthly.length - 1].month,
+          )
+        : undefined;
+      const totalsRow = nullRow ?? latestGeoRow ?? rows.find((r) => r.geo_level === null) ?? rows[0];
       const resp = totalsRow?.total_respondentes ?? null;
 
       setIndicator({

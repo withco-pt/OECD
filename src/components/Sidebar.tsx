@@ -43,7 +43,7 @@ export default function Sidebar() {
       const ids = indicators.map((i) => i.id as string);
       const { data: meas } = await supabase
         .from("measurements_catalog")
-        .select("indicator_id, channel, geo_level, value, category_counts")
+        .select("indicator_id, channel, geo_level, month, value, category_counts")
         .eq("service_id", selectedService.id)
         .in("indicator_id", ids);
       if (!active) return;
@@ -54,6 +54,7 @@ export default function Sidebar() {
         byIndicator.get(key)!.push({
           channel: (m.channel as string | null) ?? null,
           geo_level: (m.geo_level as string | null) ?? null,
+          month: (m.month as number | null) ?? null,
           value: m.value as number | string | null,
           category_counts: (m.category_counts as Record<string, number> | null) ?? null,
         });

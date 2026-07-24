@@ -7,7 +7,7 @@ import HelpTooltip from "@/components/HelpTooltip";
 import { supabase } from "@/lib/supabase";
 import { useSelectedService } from "@/context/SelectedServiceContext";
 import { useSelectedEntity } from "@/context/SelectedEntityContext";
-import { aggregateValue, pickCategoryCounts, isNonCompliant, type MeasRow } from "@/lib/measurements";
+import { aggregateValue, pickCategoryCounts, isNonCompliant, isSumIndicator, type MeasRow } from "@/lib/measurements";
 
 type PriorityRow = {
   id: string;
@@ -61,7 +61,7 @@ export default function PrioridadesTematicas() {
 
       const { data: indicators, error: indErr } = await supabase
         .from("indicators")
-        .select("id, thematic_priority_id, type_of_indicator, target_value, target_direction, is_mandatory")
+        .select("id, description, thematic_priority_id, type_of_indicator, target_value, target_direction, is_mandatory")
         .or(entity ? `entity_specific.is.null,entity_specific.eq.${entity.id}` : "entity_specific.is.null");
       if (!active) return;
       if (indErr || !indicators) {
@@ -76,7 +76,7 @@ export default function PrioridadesTematicas() {
       if (selectedService && indicatorIds.length) {
         const { data: meas } = await supabase
           .from("measurements_catalog")
-          .select("indicator_id, channel, geo_level, value, category_counts")
+          .select("indicator_id, channel, geo_level, month, value, category_counts")
           .eq("service_id", selectedService.id)
           .in("indicator_id", indicatorIds);
         if (!active) return;
@@ -86,6 +86,7 @@ export default function PrioridadesTematicas() {
           byIndicator.get(key)!.push({
             channel: (m.channel as string | null) ?? null,
             geo_level: (m.geo_level as string | null) ?? null,
+            month: (m.month as number | null) ?? null,
             value: m.value as number | string | null,
             category_counts: (m.category_counts as Record<string, number> | null) ?? null,
           });
@@ -113,7 +114,7 @@ export default function PrioridadesTematicas() {
         const counts = countsByPriority.get(priorityId)!;
 
         const rows = byIndicator.get(i.id as string) ?? [];
-        const value = aggregateValue(rows);
+        const value = aggregateValue(rows, isSumIndicator(i.description as string));
         const categoryCounts = pickCategoryCounts(rows);
         const type = i.type_of_indicator as string | null;
         const hasData = value !== null || categoryCounts !== null;
