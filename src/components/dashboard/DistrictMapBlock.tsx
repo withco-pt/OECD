@@ -242,8 +242,8 @@ export default function DistrictMapBlock({ data }: { data: DashboardData }) {
                 <p className="text-[13px] font-semibold text-primary-900">
                   {metric === "respostas" ? "Respostas" : "Satisfação média"}
                 </p>
-                {view.legend.map((l) => (
-                  <div key={l.label} className="flex items-center gap-[8px]">
+                {view.legend.map((l, i) => (
+                  <div key={i} className="flex items-center gap-[8px]">
                     <span className="size-[14px] rounded-[3px] shrink-0 border border-primary-300/50" style={{ background: l.color }} />
                     <span className="text-[12px] text-primary-900">{l.label}</span>
                   </div>

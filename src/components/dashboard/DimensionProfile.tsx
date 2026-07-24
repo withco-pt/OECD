@@ -38,7 +38,15 @@ function computeScores(data: DashboardData, channel: string | null): DimScore[] 
     let weighted = 0;
     let totalW = 0;
     for (const ind of inds) {
-      const rows = data.rows.filter((r) => r.indicator_id === ind.id && isAggRow(r, channel));
+      let rows = data.rows.filter((r) => r.indicator_id === ind.id && isAggRow(r, channel));
+      if (!rows.length) {
+        // Fallback: indicadores só com quebra geográfica (ex.: Lojas de Cidadão,
+        // migration 058) nunca têm linha totalizadora sem geo_name — agregamos entre
+        // lojas tal como já se agrega entre serviços.
+        rows = data.rows.filter(
+          (r) => r.indicator_id === ind.id && (channel === null ? r.channel === null : r.channel === channel) && r.geo_name != null
+        );
+      }
       const agg = wavg(rows);
       if (!agg) continue;
       // Polaridade (target_direction='below' inverte Sim/Não — ver migration 042).

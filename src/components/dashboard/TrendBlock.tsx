@@ -19,7 +19,20 @@ type Series = { indicatorId: string; label: string; isSum: boolean; points: Seri
 function computeSeries(data: DashboardData, channel: string | null): Series[] {
   const out: Series[] = [];
   for (const ind of data.indicators.filter((i) => i.typeOfIndicator === "operational")) {
-    const rows = data.rows.filter((r) => r.indicator_id === ind.id && isAggRow(r, channel) && r.month != null && r.value != null);
+    let rows = data.rows.filter((r) => r.indicator_id === ind.id && isAggRow(r, channel) && r.month != null && r.value != null);
+    if (!rows.length) {
+      // Fallback: indicadores só com quebra geográfica (ex.: Lojas de Cidadão, migration
+      // 058) nunca têm linha totalizadora sem geo_name — agregamos entre lojas tal como
+      // já se agrega entre serviços.
+      rows = data.rows.filter(
+        (r) =>
+          r.indicator_id === ind.id &&
+          (channel === null ? r.channel === null : r.channel === channel) &&
+          r.geo_name != null &&
+          r.month != null &&
+          r.value != null
+      );
+    }
     if (!rows.length) continue;
     const isSum = /^(número|nº|n\.?º)/i.test(ind.description.trim());
     const byMonth = new Map<string, { year: number; month: number; sum: number; count: number }>();
