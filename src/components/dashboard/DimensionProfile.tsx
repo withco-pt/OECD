@@ -16,7 +16,15 @@ import { channelMatches } from "@/lib/measurements";
    volumes (não é um score) e fica de fora do radar.
    ───────────────────────────────────────────────────────────── */
 
-type DimScore = { id: string; name: string; score: number | null; n: number };
+type DimScore = {
+  id: string;
+  name: string;
+  score: number | null;
+  n: number;
+  /** false = a dimensão não tem indicadores pontuáveis (mede volumes), logo nunca
+   * terá score. Diferente de score=null com scorable=true, que é falta de dados. */
+  scorable: boolean;
+};
 
 function computeScores(data: DashboardData, channel: string | null): DimScore[] {
   const scorable = data.indicators.filter(
@@ -66,6 +74,11 @@ function computeScores(data: DashboardData, channel: string | null): DimScore[] 
       name: p.namePt,
       score: totalW > 0 ? weighted / totalW : null,
       n: totalW,
+      // Uma dimensão sem qualquer indicador pontuável nunca pode ter score, para
+      // nenhuma entidade: é o caso da Procura, cujos 15 indicadores são contagens
+      // (20 674 atendimentos não é "bom" nem "mau"). Distinguir isto de "sem dados"
+      // evita dizer que não há dados quando há — só não são pontuáveis.
+      scorable: inds.length > 0,
     };
   });
 }
@@ -143,7 +156,11 @@ function Radar({ dims }: { dims: DimScore[] }) {
                     {lines.map((ln, li) => (
                       <tspan key={li} x={lab.x} dy={li === 0 ? 0 : 12}>{ln}</tspan>
                     ))}
-                    {missing && <tspan x={lab.x} dy={12} fontWeight="400" fill="#9ca6b8">(sem dados)</tspan>}
+                    {missing && (
+                      <tspan x={lab.x} dy={12} fontWeight="400" fill="#9ca6b8">
+                        {d.scorable ? "(sem dados)" : "(mede volumes)"}
+                      </tspan>
+                    )}
                   </text>
                 </g>
               );
@@ -232,7 +249,9 @@ export default function DimensionProfile({ data, selectedChannel }: { data: Dash
               parecer uma ligação normal para uma página sem indicadores relevantes. */}
           <div className="grid grid-cols-2 gap-x-[16px] gap-y-[6px]">
             {dims.map((d) =>
-              d.score == null ? (
+              d.score == null && d.scorable ? (
+                // Sem dados de experiência/conformidade para esta entidade: fica inativa,
+                // porque a página da dimensão não teria nada de relevante a mostrar.
                 <span
                   key={d.id}
                   title={`${d.name}: sem dados`}
@@ -241,6 +260,19 @@ export default function DimensionProfile({ data, selectedChannel }: { data: Dash
                   <span className="text-[13px] text-neutral-400 truncate">{d.name}</span>
                   <span className="text-[13px] font-bold shrink-0 text-neutral-400">—</span>
                 </span>
+              ) : d.score == null ? (
+                // Dimensão que mede volumes (Procura): não tem score, mas tem indicadores
+                // com dados. Tem de continuar clicável, senão bloqueia o acesso a eles a
+                // partir do dashboard.
+                <Link
+                  key={d.id}
+                  href={`/prioridades/${d.id}`}
+                  title={`${d.name}: mede volumes, não tem score. Ver indicadores.`}
+                  className="flex items-center justify-between gap-[8px] rounded-[6px] px-[8px] py-[4px] hover:bg-primary-200/60 transition-colors"
+                >
+                  <span className="text-[13px] text-primary-900 truncate">{d.name}</span>
+                  <span className="text-[13px] font-bold shrink-0 text-primary-800">—</span>
+                </Link>
               ) : (
                 <Link
                   key={d.id}
