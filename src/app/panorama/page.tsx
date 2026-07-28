@@ -5,7 +5,6 @@ import Link from "next/link";
 import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import StrategicKpis from "@/components/strategic/StrategicKpis";
 import DimensionHeatmap from "@/components/strategic/DimensionHeatmap";
-import CoverageByDimension from "@/components/strategic/CoverageByDimension";
 import SharedIndicatorCompare from "@/components/strategic/SharedIndicatorCompare";
 import CollectionMaturity from "@/components/strategic/CollectionMaturity";
 import { fetchStrategicData, type StrategicData } from "@/lib/strategicData";
@@ -80,10 +79,7 @@ export default function PanoramaPage() {
           <div className="flex flex-col gap-[24px]">
             <StrategicKpis data={data} />
             <DimensionHeatmap data={data} />
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-[24px] items-start">
-              <CoverageByDimension data={data} />
-              <SharedIndicatorCompare data={data} />
-            </div>
+            <SharedIndicatorCompare data={data} />
             <CollectionMaturity data={data} />
 
             <p className="text-[12px] text-primary-400 text-center pt-[8px]">

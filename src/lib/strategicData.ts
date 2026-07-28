@@ -225,64 +225,6 @@ export function coverageMatrix(data: StrategicData): Map<string, boolean> {
   return out;
 }
 
-export type DimensionCompleteness = {
-  id: string;
-  name: string;
-  /** Nº de indicadores definidos na Matriz para esta dimensão. */
-  totalIndicators: number;
-  /** Média, entre entidades, de indicadores da dimensão efetivamente reportados. */
-  avgFilled: number;
-  /** Completude 0–100 (avgFilled / totalIndicators). `null` quando não há indicadores. */
-  pct: number | null;
-  /** Entidades (short) com ≥1 indicador reportado nesta dimensão. */
-  entitiesReporting: number;
-};
-
-/**
- * Completude da recolha por dimensão: que proporção dos indicadores definidos
- * para a dimensão é, em média, reportada pelas entidades. Revela sub-recolha
- * (denominador = todos os indicadores da dimensão). Dimensões sem indicadores
- * definidos na Matriz ficam com `pct = null`.
- */
-export function dimensionCompleteness(data: StrategicData): DimensionCompleteness[] {
-  // indicadores por dimensão
-  const indsByPriority = new Map<string, string[]>();
-  for (const i of data.indicators) {
-    if (!i.priorityId) continue;
-    if (!indsByPriority.has(i.priorityId)) indsByPriority.set(i.priorityId, []);
-    indsByPriority.get(i.priorityId)!.push(i.id);
-  }
-  // indicadores com dados por entidade
-  const filledByEntity = new Map<string, Set<string>>();
-  for (const r of data.rows) {
-    if (!rowHasData(r)) continue;
-    if (!filledByEntity.has(r.entity_short)) filledByEntity.set(r.entity_short, new Set());
-    filledByEntity.get(r.entity_short)!.add(r.indicator_id);
-  }
-
-  return data.priorities.map((p) => {
-    const inds = indsByPriority.get(p.id) ?? [];
-    const total = inds.length;
-    let sumFilled = 0;
-    let entitiesReporting = 0;
-    for (const e of data.entities) {
-      const filledSet = filledByEntity.get(e.short);
-      const filled = filledSet ? inds.filter((id) => filledSet.has(id)).length : 0;
-      sumFilled += filled;
-      if (filled > 0) entitiesReporting += 1;
-    }
-    const avgFilled = data.entities.length ? sumFilled / data.entities.length : 0;
-    return {
-      id: p.id,
-      name: p.namePt,
-      totalIndicators: total,
-      avgFilled,
-      pct: total > 0 ? (avgFilled / total) * 100 : null,
-      entitiesReporting,
-    };
-  });
-}
-
 export type SharedIndicator = {
   id: string;
   description: string;
