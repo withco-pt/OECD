@@ -14,7 +14,10 @@ import { type DashboardData, formatPeriod } from "@/lib/dashboardData";
 export default function DataQualityBlock({ data }: { data: DashboardData }) {
   const stats = useMemo(() => {
     const indicatorsWithData = new Set(data.rows.map((r) => r.indicator_id)).size;
-    const servicesWithData = new Set(data.rows.map((r) => r.service_id)).size;
+    // Só serviços reais: medições ao nível da entidade (service_id NULL, ex.: Lojas de
+    // Cidadão, migration 062) não são um serviço — se contassem, inflacionavam este
+    // total e escondiam serviços genuinamente sem medições.
+    const servicesWithData = new Set(data.rows.filter((r) => r.service_id !== null).map((r) => r.service_id)).size;
     const servicesWithout = data.services.length - servicesWithData;
     let latest: { y: number; m: number } | null = null;
     for (const r of data.rows) {

@@ -2,6 +2,7 @@
 
 import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import { useSelectedService } from "@/context/SelectedServiceContext";
+import { useSelectedEntity } from "@/context/SelectedEntityContext";
 import { supabase } from "@/lib/supabase";
 import { metricPill, indicatorTypeLabel, INDICATOR_TYPE_OPTIONS } from "@/lib/metricPill";
 import { isNonCompliant, isSumIndicator } from "@/lib/measurements";
@@ -223,6 +224,7 @@ function PopupIndicatorCard({
 
 export default function SwapIndicatorModal() {
   const { isIndicatorSwapOpen, closeIndicatorSwap, selectedService } = useSelectedService();
+  const { entity } = useSelectedEntity();
   const router = useRouter();
 
   const [items, setItems] = useState<IndicatorItem[]>([]);
@@ -257,14 +259,20 @@ export default function SwapIndicatorModal() {
     let active = true;
     (async () => {
       setLoading(true);
-      const { data: meas, error: measErr } = await supabase
-        .from("measurements_catalog")
-        .select("indicator_id, channel, geo_level, month, value, category_counts")
-        .eq("service_id", selectedService.id);
+      const MEAS_COLS = "indicator_id, channel, geo_level, month, value, category_counts";
+      const measQueries = [supabase.from("measurements_catalog").select(MEAS_COLS).eq("service_id", selectedService.id)];
+      // Mais os indicadores sem serviço (ex.: Lojas de Cidadão, migration 062 — channel=
+      // 'Loja de Cidadão'), que existem ao nível da entidade e não dependem do serviço ativo.
+      if (entity) {
+        measQueries.push(supabase.from("measurements_catalog").select(MEAS_COLS).is("service_id", null).eq("entity_short", entity.id));
+      }
+      const measResults = await Promise.all(measQueries);
       if (!active) return;
+      const measErr = measResults.find((r) => r.error)?.error;
       if (measErr) { console.error("[alterar indicador] erro:", measErr.message); setItems([]); setLoading(false); return; }
+      const meas = measResults.flatMap((r) => r.data ?? []);
 
-      const ids = [...new Set((meas ?? []).map((m) => m.indicator_id as string))];
+      const ids = [...new Set(meas.map((m) => m.indicator_id as string))];
       if (ids.length === 0) { setItems([]); setLoading(false); return; }
 
       const { data: inds, error: indErr } = await supabase
@@ -319,7 +327,7 @@ export default function SwapIndicatorModal() {
       setLoading(false);
     })();
     return () => { active = false; };
-  }, [isIndicatorSwapOpen, selectedService]);
+  }, [isIndicatorSwapOpen, selectedService, entity]);
 
   const PRIORITIES = useMemo(() => [...new Set(items.map((i) => i.priority))].sort(), [items]);
   const METRICS = useMemo(() => [...new Set(items.map((i) => i.metric))].sort(), [items]);

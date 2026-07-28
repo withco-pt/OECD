@@ -17,6 +17,7 @@ import {
 } from "@/components/InnovationHelp";
 import { useSelectedService } from "@/context/SelectedServiceContext";
 import { useSelectedChannel } from "@/context/SelectedChannelContext";
+import { useSelectedEntity } from "@/context/SelectedEntityContext";
 import { supabase } from "@/lib/supabase";
 import { hasCategoryData, isSumIndicator } from "@/lib/measurements";
 
@@ -475,6 +476,7 @@ export default function IndicatorDetailPage() {
   const [activeTab, setActiveTab] = useState<string>(tabs[0]);
   const { selectedService, openIndicatorSwap } = useSelectedService();
   const { selectedChannel: globalChannel } = useSelectedChannel();
+  const { entity, hydrated } = useSelectedEntity();
   // Ao mudar de indicador/serviço volta sempre à Visualização Simples — evita ficar
   // "preso" numa aba que deixou de ter dados (ex: Distrito/Canais deste novo indicador).
   useEffect(() => { setActiveTab(tabs[0]); }, [id, selectedService]);
@@ -489,6 +491,7 @@ export default function IndicatorDetailPage() {
   const [caseStudies, setCaseStudies] = useState<CaseStudy[]>([]);
 
   useEffect(() => {
+    if (!hydrated) return;
     let active = true;
     (async () => {
       setLoading(true); setNotFound(false); setLoadError(false); setSelectedChannel("Todos");
@@ -537,17 +540,27 @@ export default function IndicatorDetailPage() {
         }))
       );
 
-      // Medição do indicador para o serviço selecionado
+      // Medição do indicador para o serviço selecionado, mais as linhas sem serviço
+      // (ex.: Lojas de Cidadão, migration 062 — channel='Loja de Cidadão') que existem
+      // ao nível da entidade, cruzando todos os serviços, e por isso não dependem de
+      // haver um serviço selecionado.
       type MRow = { channel: string | null; geo_level: string | null; geo_name: string | null; value: number | string | null; value_text: string | null; category_counts: Record<string, number> | null; total_respondentes: number | null; total_inquiridos: number | null; year: number | null; month: number | null };
-      let rows: MRow[] = [];
+      const MEAS_COLS = "channel, geo_level, geo_name, value, value_text, category_counts, total_respondentes, total_inquiridos, year, month";
+      const queries = [];
       if (selectedService) {
-        const { data: meas } = await supabase
-          .from("measurements_catalog")
-          .select("channel, geo_level, geo_name, value, value_text, category_counts, total_respondentes, total_inquiridos, year, month")
-          .eq("service_id", selectedService.id)
-          .eq("indicator_id", id);
-        rows = (meas ?? []) as MRow[];
+        queries.push(
+          supabase.from("measurements_catalog").select(MEAS_COLS)
+            .eq("service_id", selectedService.id).eq("indicator_id", id)
+        );
       }
+      if (entity) {
+        queries.push(
+          supabase.from("measurements_catalog").select(MEAS_COLS)
+            .is("service_id", null).eq("entity_short", entity.id).eq("indicator_id", id)
+        );
+      }
+      const results = await Promise.all(queries);
+      const rows: MRow[] = results.flatMap((r) => (r.data ?? []) as MRow[]);
       if (!active) return;
 
       // Linha "agregada" real: sem canal E sem segmentação geográfica (as linhas por distrito
@@ -555,7 +568,7 @@ export default function IndicatorDetailPage() {
       const nullRow = rows.find((r) => r.channel === null && r.geo_level === null);
       const isSum = isSumIndicator(ind.description as string);
 
-      // Indicadores só com quebra geográfica (ex.: Lojas de Cidadão, migration 058) nunca
+      // Indicadores só com quebra geográfica (ex.: Lojas de Cidadão, migration 062) nunca
       // têm linha sem geo_level — agrega-se entre geografias por período (soma para
       // "Número de…", média para o resto), mesmo critério do TrendBlock do dashboard.
       // Duas passagens: primeiro tenta períodos mensais reais (month != null); só recorre
@@ -563,10 +576,18 @@ export default function IndicatorDetailPage() {
       // destas indicadores (ex.: Avaliação do atendimento em loja) só têm dados anuais,
       // enquanto outros (Procura, TMA…) têm mensal + 1 linha-snapshot (month=null) que
       // duplicaria o último mês se fosse somada às restantes.
+      // As linhas geográficas destes indicadores têm um channel-etiqueta único
+      // ('Loja de Cidadão'), não uma quebra por vários canais reais — nesse caso podem
+      // ser agregadas. Só se houver mais do que um canal entre elas é que se restringe a
+      // channel=null, para não somar canais diferentes e duplicar valores.
+      const geoChannels = new Set(rows.filter((r) => r.geo_level != null).map((r) => r.channel));
+      const geoHasSingleChannel = geoChannels.size <= 1;
+
       const groupByPeriod = (onlyMonthNull: boolean) => {
         const byPeriod = new Map<string, { year: number; month: number | null; sum: number; count: number }>();
         for (const r of rows) {
-          if (r.geo_level == null || r.channel !== null || r.year == null) continue;
+          if (r.geo_level == null || r.year == null) continue;
+          if (!geoHasSingleChannel && r.channel !== null) continue;
           if (onlyMonthNull ? r.month != null : r.month == null) continue;
           const v = Number(r.value);
           if (Number.isNaN(v)) continue;
@@ -662,7 +683,7 @@ export default function IndicatorDetailPage() {
       const latestGeoRow = geoMonthly.length
         ? rows.find(
             (r) =>
-              r.channel === null &&
+              (geoHasSingleChannel || r.channel === null) &&
               r.geo_level != null &&
               r.year === geoMonthly[geoMonthly.length - 1].year &&
               r.month === geoMonthly[geoMonthly.length - 1].month,
@@ -720,7 +741,7 @@ export default function IndicatorDetailPage() {
       setLoading(false);
     })();
     return () => { active = false; };
-  }, [id, selectedService, globalChannel]);
+  }, [id, selectedService, globalChannel, entity, hydrated]);
 
   if (loading) {
     return (

@@ -14,9 +14,10 @@ import { LOCAL_ENTITY_LOGOS } from "@/lib/entityLogos";
    Aqui trabalhamos só ao nível agregado (channel null, geo null),
    somando/ponderando sobre todos os serviços de cada entidade.
 
-   Indicadores só com quebra geográfica (ex.: Lojas de Cidadão, migration 058)
-   nunca têm linha agregada — sem fallback ficavam invisíveis no Panorama para
-   ARTE/AT/ISS (0 linhas agregadas, todas geo-segmentadas). Ver fetchStrategicData.
+   Indicadores só com quebra geográfica (ex.: Lojas de Cidadão, migration 062 —
+   channel='Loja de Cidadão', service_id=NULL) nunca têm linha agregada — sem
+   fallback ficavam invisíveis no Panorama para ARTE/AT/ISS (0 linhas agregadas,
+   todas geo-segmentadas). Ver fetchStrategicData.
    ───────────────────────────────────────────────────────────── */
 
 export const SCORABLE_TYPES = ["likert_1_5", "scale_1_10", "nps", "categorical_sim_nao"];
@@ -102,7 +103,7 @@ export async function fetchStrategicData(): Promise<StrategicData> {
     const { data, error } = await supabase
       .from("measurements_catalog")
       .select("entity_short, indicator_id, year, month, value, total_respondentes, category_counts")
-      .is("channel", null)
+      .or('channel.is.null,channel.eq."Loja de Cidadão"')
       .not("geo_name", "is", null)
       .range(page * PAGE, (page + 1) * PAGE - 1);
     if (error) throw error;

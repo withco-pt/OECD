@@ -94,24 +94,32 @@ export default function PriorityDetailPage() {
 
       // Medições do serviço ativo, fatiadas pelo canal escolhido na dropdown global
       // (interseção serviço + canal; canal null = todos os canais, comportamento de sempre).
+      // Mais as linhas sem serviço (ex.: Lojas de Cidadão, migration 062 — channel='Loja
+      // de Cidadão'), que existem ao nível da entidade e não dependem do serviço selecionado.
+      const MEAS_COLS = "indicator_id, channel, geo_level, month, value, category_counts";
       const byIndicator = new Map<string, MeasRow[]>();
-      if (selectedService && ids.length) {
-        const { data: meas } = await supabase
-          .from("measurements_catalog")
-          .select("indicator_id, channel, geo_level, month, value, category_counts")
-          .eq("service_id", selectedService.id)
-          .in("indicator_id", ids);
+      if (ids.length) {
+        const measQueries = [];
+        if (selectedService) {
+          measQueries.push(supabase.from("measurements_catalog").select(MEAS_COLS).eq("service_id", selectedService.id).in("indicator_id", ids));
+        }
+        if (entity) {
+          measQueries.push(supabase.from("measurements_catalog").select(MEAS_COLS).is("service_id", null).eq("entity_short", entity.id).in("indicator_id", ids));
+        }
+        const measResults = await Promise.all(measQueries);
         if (!active) return;
-        for (const m of meas ?? []) {
-          const key = m.indicator_id as string;
-          if (!byIndicator.has(key)) byIndicator.set(key, []);
-          byIndicator.get(key)!.push({
-            channel: (m.channel as string | null) ?? null,
-            geo_level: (m.geo_level as string | null) ?? null,
-            month: (m.month as number | null) ?? null,
-            value: m.value as number | string | null,
-            category_counts: (m.category_counts as Record<string, number> | null) ?? null,
-          });
+        for (const { data: meas } of measResults) {
+          for (const m of meas ?? []) {
+            const key = m.indicator_id as string;
+            if (!byIndicator.has(key)) byIndicator.set(key, []);
+            byIndicator.get(key)!.push({
+              channel: (m.channel as string | null) ?? null,
+              geo_level: (m.geo_level as string | null) ?? null,
+              month: (m.month as number | null) ?? null,
+              value: m.value as number | string | null,
+              category_counts: (m.category_counts as Record<string, number> | null) ?? null,
+            });
+          }
         }
       }
 

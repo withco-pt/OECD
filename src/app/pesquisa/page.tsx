@@ -198,13 +198,20 @@ function PesquisaContent() {
         .or(entity ? `entity_specific.is.null,entity_specific.eq.${entity.id}` : "entity_specific.is.null");
       if (!active) return;
 
+      // Mais as linhas sem serviço (ex.: Lojas de Cidadão, migration 062 — channel='Loja
+      // de Cidadão'), que existem ao nível da entidade e não dependem do serviço selecionado.
+      const MEAS_COLS = "indicator_id, channel, geo_level, month, value, category_counts";
       const byIndicator = new Map<string, { channel: string | null; geo_level: string | null; month: number | null; value: number | string | null; category_counts: Record<string, number> | null }[]>();
+      const measQueries = [];
       if (selectedService) {
-        const { data: meas } = await supabase
-          .from("measurements_catalog")
-          .select("indicator_id, channel, geo_level, month, value, category_counts")
-          .eq("service_id", selectedService.id);
-        if (!active) return;
+        measQueries.push(supabase.from("measurements_catalog").select(MEAS_COLS).eq("service_id", selectedService.id));
+      }
+      if (entity) {
+        measQueries.push(supabase.from("measurements_catalog").select(MEAS_COLS).is("service_id", null).eq("entity_short", entity.id));
+      }
+      const measResults = await Promise.all(measQueries);
+      if (!active) return;
+      for (const { data: meas } of measResults) {
         for (const m of meas ?? []) {
           const key = m.indicator_id as string;
           if (!byIndicator.has(key)) byIndicator.set(key, []);

@@ -6,11 +6,13 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useSelectedService } from "@/context/SelectedServiceContext";
+import { useSelectedEntity } from "@/context/SelectedEntityContext";
 import { aggregateValue, pickCategoryCounts, type MeasRow } from "@/lib/measurements";
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { selectedService } = useSelectedService();
+  const { entity } = useSelectedEntity();
 
   // Sub-itens das Dimensões — as 9 dimensões da matriz.
   const [prioritySubItems, setPrioritySubItems] = useState<{ id: string; label: string; href: string }[]>([]);
@@ -41,23 +43,30 @@ export default function Sidebar() {
         .select("id, thematic_priority_id, is_mandatory");
       if (!active || !indicators) return;
       const ids = indicators.map((i) => i.id as string);
-      const { data: meas } = await supabase
-        .from("measurements_catalog")
-        .select("indicator_id, channel, geo_level, month, value, category_counts")
-        .eq("service_id", selectedService.id)
-        .in("indicator_id", ids);
+      const MEAS_COLS = "indicator_id, channel, geo_level, month, value, category_counts";
+      const measQueries = [
+        supabase.from("measurements_catalog").select(MEAS_COLS).eq("service_id", selectedService.id).in("indicator_id", ids),
+      ];
+      // Mais as linhas sem serviço (ex.: Lojas de Cidadão, migration 062 — channel='Loja
+      // de Cidadão'), que existem ao nível da entidade e não dependem do serviço selecionado.
+      if (entity) {
+        measQueries.push(supabase.from("measurements_catalog").select(MEAS_COLS).is("service_id", null).eq("entity_short", entity.id).in("indicator_id", ids));
+      }
+      const measResults = await Promise.all(measQueries);
       if (!active) return;
       const byIndicator = new Map<string, MeasRow[]>();
-      for (const m of meas ?? []) {
-        const key = m.indicator_id as string;
-        if (!byIndicator.has(key)) byIndicator.set(key, []);
-        byIndicator.get(key)!.push({
-          channel: (m.channel as string | null) ?? null,
-          geo_level: (m.geo_level as string | null) ?? null,
-          month: (m.month as number | null) ?? null,
-          value: m.value as number | string | null,
-          category_counts: (m.category_counts as Record<string, number> | null) ?? null,
-        });
+      for (const { data: meas } of measResults) {
+        for (const m of meas ?? []) {
+          const key = m.indicator_id as string;
+          if (!byIndicator.has(key)) byIndicator.set(key, []);
+          byIndicator.get(key)!.push({
+            channel: (m.channel as string | null) ?? null,
+            geo_level: (m.geo_level as string | null) ?? null,
+            month: (m.month as number | null) ?? null,
+            value: m.value as number | string | null,
+            category_counts: (m.category_counts as Record<string, number> | null) ?? null,
+          });
+        }
       }
       const withData = new Set<string>();
       for (const i of indicators) {
@@ -68,7 +77,7 @@ export default function Sidebar() {
       setDimensionsWithData(withData);
     })();
     return () => { active = false; };
-  }, [selectedService]);
+  }, [selectedService, entity]);
   const [ptOpen, setPtOpen] = useState(pathname === "/" || pathname.startsWith("/prioridades"));
   const [catOpen, setCatOpen] = useState(pathname.startsWith("/catalogo"));
 

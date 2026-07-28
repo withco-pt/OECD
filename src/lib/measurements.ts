@@ -73,8 +73,12 @@ export function rowsForChannel(rows: MeasRow[], channel: string | null): MeasRow
   if (channel === null) return rows;
   const row = rows.find((r) => r.channel === channel && r.geo_level === null);
   if (row) return [row];
-  // Indicador sem quebra por canal (só por geografia, ex.: Lojas de Cidadão) — o filtro de
-  // canal não se aplica; devolve as linhas todas para aggregateValue tratar (fallback geo).
-  const hasChannelBreakdown = rows.some((r) => r.channel !== null);
-  return hasChannelBreakdown ? [] : rows;
+  // Indicadores só com quebra geográfica (ex.: Lojas de Cidadão, migration 062) guardam
+  // um único channel-etiqueta (ex. "Loja de Cidadão") em todas as suas linhas — isso não é
+  // uma quebra por vários canais reais, por isso não deve cair no "sem dados para este
+  // canal" que se aplica a indicadores com quebra por canal genuína.
+  const geoOnly = rows.filter((r) => r.geo_level !== null);
+  const otherRealChannels = rows.some((r) => r.geo_level === null && r.channel !== null && r.channel !== channel);
+  if (!otherRealChannels && geoOnly.length && geoOnly.every((r) => r.channel === channel)) return geoOnly;
+  return [];
 }

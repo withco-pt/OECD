@@ -31,8 +31,10 @@ export default function ServicesFilterBlock({
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
 
+  // Só serviços reais: as medições ao nível da entidade (service_id NULL, ex.: Lojas
+  // de Cidadão) não são um serviço e não podem contar para "X de Y serviços".
   const servicesWithData = useMemo(
-    () => new Set(data.rows.map((r) => r.service_id)).size,
+    () => new Set(data.rows.filter((r) => r.service_id !== null).map((r) => r.service_id)).size,
     [data.rows]
   );
   const selected = data.services.find((s) => s.id === selectedServiceId) ?? null;

@@ -26,7 +26,10 @@ export type IndicatorMeta = {
 };
 
 export type MeasurementRow = {
-  service_id: string;
+  /** NULL para medições que não pertencem a um serviço específico, mas à entidade
+   * inteira, cruzando todos os serviços (ex.: Lojas de Cidadão, migration 062 —
+   * channel='Loja de Cidadão'). Ver src/lib/measurements.ts. */
+  service_id: string | null;
   indicator_id: string;
   year: number;
   month: number | null;
@@ -84,7 +87,7 @@ export async function fetchDashboardData(entityShort: string): Promise<Dashboard
     if (error) throw error;
     for (const r of data ?? []) {
       rows.push({
-        service_id: r.service_id as string,
+        service_id: (r.service_id as string | null) ?? null,
         indicator_id: r.indicator_id as string,
         year: r.year as number,
         month: (r.month as number | null) ?? null,

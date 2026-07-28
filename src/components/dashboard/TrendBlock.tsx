@@ -22,12 +22,15 @@ function computeSeries(data: DashboardData, channel: string | null): Series[] {
     let rows = data.rows.filter((r) => r.indicator_id === ind.id && isAggRow(r, channel) && r.month != null && r.value != null);
     if (!rows.length) {
       // Fallback: indicadores só com quebra geográfica (ex.: Lojas de Cidadão, migration
-      // 058) nunca têm linha totalizadora sem geo_name — agregamos entre lojas tal como
-      // já se agrega entre serviços.
+      // 062 — channel='Loja de Cidadão', service_id=NULL) nunca têm linha totalizadora
+      // sem geo_name — agregamos entre lojas tal como já se agrega entre serviços.
+      // channel === null (seletor global em "Todos") tem de aceitar QUALQUER canal aqui,
+      // não só null, porque estas linhas têm sempre um channel-etiqueta, não uma quebra
+      // por vários canais reais.
       rows = data.rows.filter(
         (r) =>
           r.indicator_id === ind.id &&
-          (channel === null ? r.channel === null : r.channel === channel) &&
+          (channel === null || r.channel === channel) &&
           r.geo_name != null &&
           r.month != null &&
           r.value != null

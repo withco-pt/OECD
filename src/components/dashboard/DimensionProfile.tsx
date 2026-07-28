@@ -41,10 +41,12 @@ function computeScores(data: DashboardData, channel: string | null): DimScore[] 
       let rows = data.rows.filter((r) => r.indicator_id === ind.id && isAggRow(r, channel));
       if (!rows.length) {
         // Fallback: indicadores só com quebra geográfica (ex.: Lojas de Cidadão,
-        // migration 058) nunca têm linha totalizadora sem geo_name — agregamos entre
-        // lojas tal como já se agrega entre serviços.
+        // migration 062 — channel='Loja de Cidadão', service_id=NULL) nunca têm linha
+        // totalizadora sem geo_name — agregamos entre lojas tal como já se agrega entre
+        // serviços. channel === null ("Todos") aceita qualquer canal aqui, porque estas
+        // linhas têm sempre um channel-etiqueta, não uma quebra por vários canais reais.
         rows = data.rows.filter(
-          (r) => r.indicator_id === ind.id && (channel === null ? r.channel === null : r.channel === channel) && r.geo_name != null
+          (r) => r.indicator_id === ind.id && (channel === null || r.channel === channel) && r.geo_name != null
         );
       }
       const agg = wavg(rows);
