@@ -21,8 +21,6 @@ interface SelectedChannelContextValue {
 
 const SelectedChannelContext = createContext<SelectedChannelContextValue | null>(null);
 
-const channelKey = (entityId: string) => `ocde.selectedChannel.${entityId}`;
-
 // Ordem canónica dos canais mais comuns; os restantes (específicos de entidade)
 // aparecem a seguir por ordem alfabética.
 export const CANONICAL_ORDER = [
@@ -81,15 +79,11 @@ export function SelectedChannelProvider({ children }: { children: React.ReactNod
       const distinct = sortChannels([...new Set((data ?? []).map((r) => r.channel as string))]);
       setChannels(distinct);
 
-      // Canal memorizado para esta entidade (se ainda existir); senão "Todos os canais".
-      let initial: string | null = null;
-      try {
-        const saved = localStorage.getItem(channelKey(entity.id));
-        if (saved && distinct.includes(saved)) initial = saved;
-      } catch {
-        // ignora
-      }
-      setSelectedChannelState(initial);
+      // Arranca sempre em "Todos os canais", em todas as entidades. O canal escolhido
+      // mantém-se enquanto o utilizador navega na sessão (estado do contexto), mas não é
+      // memorizado entre visitas: um filtro de canal restaurado em silêncio faria a
+      // plataforma parecer estar sem dados, quando na verdade estava filtrada.
+      setSelectedChannelState(null);
       setChannelsLoading(false);
     })();
     return () => {
@@ -97,20 +91,9 @@ export function SelectedChannelProvider({ children }: { children: React.ReactNod
     };
   }, [entity]);
 
-  const setSelectedChannel = useCallback(
-    (c: string | null) => {
-      setSelectedChannelState(c);
-      if (entity) {
-        try {
-          if (c) localStorage.setItem(channelKey(entity.id), c);
-          else localStorage.removeItem(channelKey(entity.id));
-        } catch {
-          // ignora
-        }
-      }
-    },
-    [entity]
-  );
+  const setSelectedChannel = useCallback((c: string | null) => {
+    setSelectedChannelState(c);
+  }, []);
 
   const value = useMemo(
     () => ({
