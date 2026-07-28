@@ -6,6 +6,7 @@ import DashboardCard from "./DashboardCard";
 import EmptyChartState from "@/components/EmptyChartState";
 import { useRevealed } from "./Reveal";
 import { type DashboardData, isAggRow, wavg, normalizeScore } from "@/lib/dashboardData";
+import { channelMatches } from "@/lib/measurements";
 
 /* ─────────────────────────────────────────────────────────────
    Bloco 2 — Perfil da entidade por dimensão (radar).
@@ -46,7 +47,7 @@ function computeScores(data: DashboardData, channel: string | null): DimScore[] 
         // serviços. channel === null ("Todos") aceita qualquer canal aqui, porque estas
         // linhas têm sempre um channel-etiqueta, não uma quebra por vários canais reais.
         rows = data.rows.filter(
-          (r) => r.indicator_id === ind.id && (channel === null || r.channel === channel) && r.geo_name != null
+          (r) => r.indicator_id === ind.id && (channel === null || channelMatches(r.channel, channel)) && r.geo_name != null
         );
       }
       const agg = wavg(rows);

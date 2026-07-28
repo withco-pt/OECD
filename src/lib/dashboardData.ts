@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { channelMatches } from "@/lib/measurements";
 
 /* ─────────────────────────────────────────────────────────────
    Camada de dados do Dashboard: carrega tudo o que a página
@@ -19,6 +20,10 @@ export type IndicatorMeta = {
   priorityId: string | null;
   scaleMin: number | null;
   scaleMax: number | null;
+  /** Âmbito de canal declarado do indicador. Usado quando os dados não têm canal
+   * atribuído mas o âmbito nomeia um único canal — ver rowsForChannel em
+   * lib/measurements.ts. */
+  channelScope: string | null;
   /** Para indicadores de compliance: 'below' inverte a polaridade Sim/Não
    * (a resposta desejada é "Não") — ver migration 042 e lib/measurements.ts. */
   targetDirection: "above" | "below" | null;
@@ -63,7 +68,7 @@ export async function fetchDashboardData(entityShort: string): Promise<Dashboard
   const [indRes, priRes, svcRes] = await Promise.all([
     supabase
       .from("indicators")
-      .select("id, description, etl_column_key, value_type, type_of_indicator, thematic_priority_id, value_scale_min, value_scale_max, target_direction, target_value")
+      .select("id, description, etl_column_key, value_type, type_of_indicator, thematic_priority_id, value_scale_min, value_scale_max, target_direction, target_value, channel_scope")
       .or(`entity_specific.is.null,entity_specific.eq.${entityShort}`),
     supabase.from("thematic_priorities").select("id, name_pt, display_order").order("display_order"),
     supabase
@@ -118,6 +123,7 @@ export async function fetchDashboardData(entityShort: string): Promise<Dashboard
       priorityId: (i.thematic_priority_id as string | null) ?? null,
       scaleMin: (i.value_scale_min as number | null) ?? null,
       scaleMax: (i.value_scale_max as number | null) ?? null,
+      channelScope: (i.channel_scope as string | null) ?? null,
       targetDirection: (i.target_direction as "above" | "below" | null) ?? null,
       targetValue: i.target_value != null ? Number(i.target_value) : null,
     })),
@@ -137,7 +143,8 @@ export async function fetchDashboardData(entityShort: string): Promise<Dashboard
  * específico (continua a excluir segmentação geográfica). */
 export function isAggRow(r: MeasurementRow, channel: string | null = null): boolean {
   if (channel === null) return r.channel === null && r.geo_name === null;
-  return r.channel === channel && r.geo_name === null;
+  // channelMatches: filtrar por "Presencial" inclui "Loja de Cidadão" (ver measurements.ts).
+  return channelMatches(r.channel, channel) && r.geo_name === null;
 }
 
 function weight(r: MeasurementRow): number {

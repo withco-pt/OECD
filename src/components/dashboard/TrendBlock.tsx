@@ -5,6 +5,7 @@ import DashboardCard from "./DashboardCard";
 import EmptyChartState from "@/components/EmptyChartState";
 import { useRevealed } from "./Reveal";
 import { type DashboardData, isAggRow, MONTHS_PT } from "@/lib/dashboardData";
+import { channelMatches } from "@/lib/measurements";
 
 /* ─────────────────────────────────────────────────────────────
    Bloco 5 — Evolução temporal dos indicadores operacionais.
@@ -30,10 +31,19 @@ function computeSeries(data: DashboardData, channel: string | null): Series[] {
       rows = data.rows.filter(
         (r) =>
           r.indicator_id === ind.id &&
-          (channel === null || r.channel === channel) &&
+          (channel === null || channelMatches(r.channel, channel)) &&
           r.geo_name != null &&
           r.month != null &&
           r.value != null
+      );
+    }
+    if (!rows.length && channel !== null && ind.channelScope === channel) {
+      // Indicador cujos dados não têm canal atribuído mas cujo âmbito é exatamente este
+      // canal (ex.: "Número de atendimentos presenciais por serviço", âmbito "Presencial"):
+      // o agregado É o valor deste canal. Mesmo critério de rowsForChannel, para o gráfico
+      // não divergir das listagens de indicadores.
+      rows = data.rows.filter(
+        (r) => r.indicator_id === ind.id && r.channel === null && r.geo_name === null && r.month != null && r.value != null
       );
     }
     if (!rows.length) continue;

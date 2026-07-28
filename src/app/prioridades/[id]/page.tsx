@@ -83,7 +83,7 @@ export default function PriorityDetailPage() {
       // Todos os indicadores desta dimensão (catálogo)
       const { data: inds, error: indErr } = await supabase
         .from("indicators")
-        .select("id, description, is_mandatory, value_type, type_of_indicator, value_scale_max, escala_descricao, target_value, target_direction, parent_indicator_id, entity_specific")
+        .select("id, description, is_mandatory, value_type, type_of_indicator, value_scale_max, escala_descricao, target_value, target_direction, parent_indicator_id, entity_specific, channel_scope")
         .eq("thematic_priority_id", id)
         .or(entity ? `entity_specific.is.null,entity_specific.eq.${entity.id}` : "entity_specific.is.null")
         .order("description");
@@ -137,7 +137,7 @@ export default function PriorityDetailPage() {
       }
 
       const list: IndicatorItem[] = (inds ?? []).map((i) => {
-        const rows = rowsForChannel(byIndicator.get(i.id as string) ?? [], selectedChannel);
+        const rows = rowsForChannel(byIndicator.get(i.id as string) ?? [], selectedChannel, i.channel_scope as string | null);
         const value = aggregateValue(rows, isSumIndicator(i.description as string));
         const categoryCounts = pickCategoryCounts(rows);
         const typeOfIndicator = (i.type_of_indicator as string | null) ?? null;

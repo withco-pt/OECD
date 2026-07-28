@@ -97,7 +97,7 @@ export default function IndicadoresPage() {
       setLoading(true); setLoadError(false);
       const { data: inds, error: indErr } = await supabase
         .from("indicators")
-        .select("id, description, is_mandatory, value_type, type_of_indicator, value_scale_max, escala_descricao, target_value, target_direction, parent_indicator_id, entity_specific, thematic_priorities(name_pt, display_order)")
+        .select("id, description, is_mandatory, value_type, type_of_indicator, value_scale_max, escala_descricao, target_value, target_direction, parent_indicator_id, entity_specific, channel_scope, thematic_priorities(name_pt, display_order)")
         .or(entity ? `entity_specific.is.null,entity_specific.eq.${entity.id}` : "entity_specific.is.null");
       if (!active) return;
       if (indErr) { console.error("[indicadores] erro:", indErr.message); setLoadError(true); setItems([]); setLoading(false); return; }
@@ -146,7 +146,7 @@ export default function IndicadoresPage() {
 
       const list: IndicatorItem[] = (inds ?? []).map((i) => {
         const tp = (i.thematic_priorities ?? {}) as { name_pt?: string; display_order?: number };
-        const rows = rowsForChannel(byIndicator.get(i.id as string) ?? [], selectedChannel);
+        const rows = rowsForChannel(byIndicator.get(i.id as string) ?? [], selectedChannel, i.channel_scope as string | null);
         const value = aggregateValue(rows, isSumIndicator(i.description as string));
         const categoryCounts = pickCategoryCounts(rows);
         const hasData = value !== null || hasCategoryData(categoryCounts);
