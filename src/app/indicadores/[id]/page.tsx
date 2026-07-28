@@ -565,7 +565,17 @@ export default function IndicatorDetailPage() {
 
       // Linha "agregada" real: sem canal E sem segmentação geográfica (as linhas por distrito
       // também têm channel=null, por isso é preciso excluir geo_level para não as confundir com o total).
-      const nullRow = rows.find((r) => r.channel === null && r.geo_level === null);
+      // Quando o indicador tem histórico, há VÁRIAS linhas agregadas (uma por período) — tem de
+      // se escolher a do período mais recente. Um simples find() devolvia a primeira que a base
+      // de dados calhasse a retornar (a query não tem ORDER BY), o que fazia o valor e o
+      // "Período de Recolha" da ficha técnica saírem de um período arbitrário, e ainda por cima
+      // comparados com o período anterior ao mais recente (ex.: mostrava Março 2025 e "vs. Maio
+      // 2026"). Ordena-se pelo mesmo critério usado no cálculo da variação, abaixo, para que
+      // valor, período e variação venham todos do mesmo sítio.
+      const nullRow = rows
+        .filter((r) => r.channel === null && r.geo_level === null)
+        .sort((a, b) => (a.year ?? 0) - (b.year ?? 0) || (a.month ?? 0) - (b.month ?? 0))
+        .at(-1);
       const isSum = isSumIndicator(ind.description as string);
 
       // Indicadores só com quebra geográfica (ex.: Lojas de Cidadão, migration 062) nunca
@@ -736,7 +746,13 @@ export default function IndicatorDetailPage() {
       if (ind.frequencia_recolha) tf.push({ label: "Frequência", value: ind.frequencia_recolha as string });
       if (inq != null) tf.push({ label: "Nº Total de Inquiridos", value: inq.toLocaleString("pt-PT") });
       if (resp != null) tf.push({ label: "Nº de Respondentes", value: resp.toLocaleString("pt-PT") });
-      if (inq != null && resp != null) tf.push({ label: "Nº Não Responderam", value: (inq - resp).toLocaleString("pt-PT") });
+      // "Não Responderam" só faz sentido quando os inquiridos são pelo menos tantos como os
+      // respondentes. Há registos (indicador de facilidade do canal) em que o nº de
+      // respondentes é superior ao de inquiridos — provavelmente porque conta respostas e não
+      // pessoas, já que a mesma pessoa pode avaliar vários canais. Nesses casos a subtração
+      // dava um negativo absurdo na ficha (ex.: "-6"), por isso omite-se o campo em vez de
+      // mostrar um número impossível. Os dois números de origem continuam visíveis.
+      if (inq != null && resp != null && inq >= resp) tf.push({ label: "Nº Não Responderam", value: (inq - resp).toLocaleString("pt-PT") });
       setTechFields(tf);
       setLoading(false);
     })();
