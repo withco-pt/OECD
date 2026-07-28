@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { AgoraIcon, type AgoraIconName } from "@/components/icons/AgoraIcon";
+import HelpTooltip from "@/components/HelpTooltip";
 import Reveal from "@/components/dashboard/Reveal";
 import {
   type StrategicData,
@@ -12,7 +13,7 @@ import { scoreColor } from "./colors";
 
 /* KPIs de topo do Panorama — enquadramento do conjunto. */
 
-type Kpi = { label: string; icon: AgoraIconName; value: string; sub?: string };
+type Kpi = { label: string; icon: AgoraIconName; value: string; sub?: string; help: string };
 
 export default function StrategicKpis({ data }: { data: StrategicData }) {
   const kpis = useMemo<Kpi[]>(() => {
@@ -32,19 +33,33 @@ export default function StrategicKpis({ data }: { data: StrategicData }) {
     const shared = sharedIndicators(data).length;
 
     return [
-      { label: "Entidades", icon: "book-open", value: String(nEntities), sub: "participantes" },
+      {
+        label: "Entidades",
+        icon: "book-open",
+        value: String(nEntities),
+        sub: "participantes",
+        help: "Organizações públicas que participam na Matriz e estão ativas na plataforma. É entre estas que são feitas todas as comparações deste painel.",
+      },
       {
         label: "Dimensões com dados",
         icon: "layers-menu",
         value: `${dimsWithData.size}/${nDims}`,
         sub: "da Matriz",
+        help: `Quantas das ${nDims} dimensões da Matriz têm dados em pelo menos uma entidade. Basta um indicador da dimensão com dados para a dimensão contar como recolhida.`,
       },
-      { label: "Indicadores partilhados", icon: "bar-chart", value: String(shared), sub: "reportados por ≥2 entidades" },
+      {
+        label: "Indicadores partilhados",
+        icon: "bar-chart",
+        value: String(shared),
+        sub: "reportados por ≥2 entidades",
+        help: "Indicadores com dados em duas ou mais entidades — os únicos que permitem uma comparação direta. São estes que alimentam o gráfico “Comparação por Indicador Partilhado”.",
+      },
       {
         label: "Cobertura global",
         icon: "check-circle",
         value: `${coveragePct}%`,
         sub: `${filledCells} de ${totalCells} pares entidade×dimensão`,
+        help: `Cada entidade pode reportar as ${nDims} dimensões da Matriz, o que dá ${totalCells} combinações possíveis (${nEntities} entidades × ${nDims} dimensões). Esta percentagem indica quantas dessas combinações têm efetivamente dados — é uma leitura da extensão da recolha, não da qualidade do desempenho.`,
       },
     ];
   }, [data]);
@@ -60,6 +75,7 @@ export default function StrategicKpis({ data }: { data: StrategicData }) {
           <div className="flex items-center gap-[6px]">
             <AgoraIcon name={k.icon} className="size-[16px] text-primary-600 shrink-0" />
             <span className="text-[13px] font-semibold text-primary-800 leading-[16px]">{k.label}</span>
+            <HelpTooltip size={15} label={k.help} />
           </div>
           <div className="flex items-baseline gap-[2px] mt-auto">
             <span className="text-[32px] font-bold text-primary-900 leading-[36px]">{k.value}</span>
@@ -76,6 +92,10 @@ export default function StrategicKpis({ data }: { data: StrategicData }) {
         <div className="flex items-center gap-[6px]">
           <AgoraIcon name="info-mark" className="size-[16px] text-primary-600 shrink-0" />
           <span className="text-[13px] font-semibold text-primary-800 leading-[16px]">Escala de cor</span>
+          <HelpTooltip
+            size={15}
+            label="Escala usada em todos os gráficos deste painel. Os resultados são convertidos para uma escala comum de 0 a 100, para que indicadores com formatos diferentes (por exemplo, 1–5, 1–10 ou Sim/Não) possam ser comparados: 0 é o desempenho mais fraco e 100 o mais forte. O cinzento indica ausência de dados."
+          />
         </div>
         <div className="flex flex-col gap-[6px] mt-auto">
           <div
