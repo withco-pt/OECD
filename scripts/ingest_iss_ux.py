@@ -6,13 +6,16 @@ Ficheiro fonte: docs/ISS - UX experience (multi-channel).xlsx (30 respostas indi
 4 serviços). Layout de colunas DIFERENTE do questionário Matriz/LC anterior — por isso
 este script tem o seu próprio mapeamento de colunas, calibrado a este ficheiro.
 
-Diferença crítica em relação a scripts/ingest_survey.py: este script NUNCA apaga
-medições existentes da ISS — só insere as novas agregações (a ISS já tem dados reais
-de outras fontes que têm de ficar intactos).
+Tal como scripts/ingest_survey.py, apaga só as suas próprias medições antes de reinserir
+(WHERE source_file = 'iss_ux_multicanal_2026') — nunca toca nas medições da ISS vindas de
+outras fontes (ingest_survey.py, migrations manuais). Até 2026-07-29 este script confiava
+só em ON CONFLICT DO NOTHING para evitar duplicados; como a UNIQUE constraint trata NULLs
+como distintos e channel/geo_level/geo_name são NULL na maioria das linhas, reexecuções
+duplicavam essas linhas silenciosamente (auditoria encontrou e corrigiu 486 duplicados).
 
 Uso:
     python3 scripts/ingest_iss_ux.py --report        # dry-run: só valida e imprime
-    python3 scripts/ingest_iss_ux.py --sql out.sql   # gera SQL de ingestão (INSERT only)
+    python3 scripts/ingest_iss_ux.py --sql out.sql   # gera SQL de ingestão (DELETE scoped + INSERT)
 
 Qualquer rótulo de resposta não previsto é reportado como UNMAPPED — nunca adivinhado.
 """
@@ -347,7 +350,7 @@ def report():
         print(f"  {distrito:<28} n={n}")
 
     print(f"\n── Linhas de measurement a gerar: {len(agg)} por canal + {len(agg_geo)} por distrito = {len(agg) + len(agg_geo)} ──")
-    print("\n── Nenhuma medição existente da ISS é apagada por este script (só INSERT). ──")
+    print("\n── Reingestão substitui só as medições próprias (source_file='iss_ux_multicanal_2026'); resto da ISS fica intacto. ──")
 
 
 def emit_sql(out):
@@ -358,7 +361,12 @@ def emit_sql(out):
     L = []
     L.append("-- Gerado por scripts/ingest_iss_ux.py — NÃO editar à mão.")
     L.append(f"-- Fonte: {FILE_PATH}")
-    L.append("-- Só insere medições novas; não apaga nenhuma medição existente da ISS.\n")
+    # ON CONFLICT sozinho não chega: a UNIQUE constraint trata NULLs como distintos,
+    # e channel/geo_level/geo_name são NULL na maioria das linhas (agregado "Todos os
+    # canais" e todas as linhas por distrito) — reexecutar o script sem este DELETE
+    # duplicava essas linhas a cada corrida (auditoria de 2026-07-29 encontrou 486
+    # linhas duplicadas em org_iss.measurements por esta razão, já corrigidas).
+    L.append("DELETE FROM org_iss.measurements WHERE source_file = 'iss_ux_multicanal_2026';\n")
 
     rows = []
     for (sn, y, m, chan, etl, kind), d in sorted(agg.items(), key=lambda kv: tuple(str(x) for x in kv[0])):

@@ -129,12 +129,12 @@ export function hasCategoryData(counts: Record<string, number> | null | undefine
 /** Isola, de um conjunto de linhas de um indicador, as que correspondem a um canal
  * específico (excluindo sempre segmentação geográfica). channel = null devolve a
  * agregação normal do serviço (todos os canais, comportamento de sempre). */
-export function rowsForChannel(
-  rows: MeasRow[],
+export function rowsForChannel<T extends MeasRow>(
+  rows: T[],
   channel: string | null,
   /** indicators.channel_scope — o âmbito declarado do indicador (ver abaixo). */
   channelScope?: string | null,
-): MeasRow[] {
+): T[] {
   if (channel === null) return rows;
   const row = rows.find((r) => channelMatches(r.channel, channel) && r.geo_level === null);
   if (row) return [row];

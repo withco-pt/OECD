@@ -369,13 +369,14 @@ def emit_sql(out):
          "-- Fontes: docs/ADC/ (questionário UX + autoavaliação de compliance da ADC).\n"]
 
     # ── UX: linhas por canal/distrito ──
-    # DELETE de pré-limpeza só é necessário para as linhas agregadas (channel/geo NULL),
-    # que são as únicas que podem colidir com o mock antigo da migration 021 (que nunca
-    # teve granularidade por canal ou distrito). As linhas por canal/distrito são todas
-    # novas — nenhum risco de duplicação, não precisam de chave de limpeza.
+    # A suposição original aqui era que as linhas por canal/distrito eram "todas novas,
+    # sem risco de duplicação" — verdade só na primeira corrida. Reexecutar o script
+    # (ficheiro-fonte atualizado) duplicava-as porque nada as limpava por source_file
+    # antes do INSERT (auditoria de 2026-07-29 encontrou 505 linhas duplicadas em
+    # org_adc.measurements por esta razão, já corrigidas). Agora apaga-se sempre por
+    # source_file — mesmo padrão seguro do resto dos scripts de ingestão — o que também
+    # deixa intacto o mock antigo da migration 021 (esse nunca tem source_file preenchido).
     ux_rows = []
-    del_keys = []
-    seen_del = set()
     for (service_key, chan, etl, kind), d in agg.items():
         value, cc, n = compute(kind, d)
         service_id = SERVICE_ID[service_key]
@@ -386,10 +387,6 @@ def emit_sql(out):
         # canais utilizou", não de uma pergunta nativa por canal) ficam is_provisional=TRUE.
         is_linked_channel = chan is not None and etl != "ux_channel_ease"
         ux_rows.append(f"({q(service_id)}::uuid,{q(etl)},{chstr},NULL,NULL,{vstr},{cstr},{n},{str(is_linked_channel).upper()},{q('adc_ux_questionario_2026')})")
-        if chan is None:
-            dk = (service_id, etl)
-            if dk not in seen_del:
-                seen_del.add(dk); del_keys.append(dk)
     for (service_key, distrito, etl, kind), d in agg_geo.items():
         value, cc, n = compute(kind, d)
         service_id = SERVICE_ID[service_key]
@@ -397,17 +394,8 @@ def emit_sql(out):
         cstr = "NULL" if cc is None else q(json.dumps(cc, ensure_ascii=False))
         ux_rows.append(f"({q(service_id)}::uuid,{q(etl)},NULL,{q('distrito')},{q(distrito)},{vstr},{cstr},{n},FALSE,{q('adc_ux_questionario_2026')})")
 
-    if del_keys:
-        L.append(
-            "DELETE FROM org_adc.measurements m\n"
-            "USING (VALUES\n  " + ",\n  ".join(
-                f"({q(sid)}::uuid,{q(etl)})" for sid, etl in del_keys
-            ) + "\n) AS v(service_id, etl)\n"
-            "JOIN public.indicators i ON i.etl_column_key = v.etl\n"
-            "WHERE m.service_id = v.service_id AND m.indicator_id = i.id AND m.year = 2026\n"
-            "  AND m.month IS NULL AND m.channel IS NULL AND m.geo_level IS NULL AND m.geo_name IS NULL;\n"
-        )
     if ux_rows:
+        L.append("DELETE FROM org_adc.measurements WHERE source_file = 'adc_ux_questionario_2026';\n")
         L.append(
             "INSERT INTO org_adc.measurements "
             "(service_id, indicator_id, year, month, channel, geo_level, geo_name, value, category_counts, "

@@ -10,6 +10,7 @@ import Pagination from "@/components/Pagination";
 import { supabase } from "@/lib/supabase";
 import { useSelectedEntity } from "@/context/SelectedEntityContext";
 import { useSelectedChannel } from "@/context/SelectedChannelContext";
+import { rowsForChannel } from "@/lib/measurements";
 
 const ITEMS_PER_PAGE = 9;
 
@@ -68,8 +69,9 @@ export default function CatalogoPage() {
       const byService = new Map<string, { csat: number | null; n: number | null }>();
       if (ids.length) {
         const { data: csatInd } = await supabase
-          .from("indicators").select("id").eq("etl_column_key", "ux_csat").maybeSingle();
+          .from("indicators").select("id, channel_scope").eq("etl_column_key", "ux_csat").maybeSingle();
         const csatId = csatInd?.id as string | undefined;
+        const csatScope = (csatInd?.channel_scope as string | null) ?? null;
         if (csatId) {
           const { data: meas } = await supabase
             .from("measurements_catalog")
@@ -77,9 +79,7 @@ export default function CatalogoPage() {
             .eq("indicator_id", csatId)
             .in("service_id", ids);
           if (!active) return;
-          // Linha "agregada" real: sem canal E sem segmentação geográfica (as linhas por
-          // distrito também têm channel=null — mesmo critério da página de detalhe).
-          const bySvcRows = new Map<string, { value: number | string | null; total_inquiridos: number | null; channel: string | null; geo_level: string | null }[]>();
+          const bySvcRows = new Map<string, { value: number | string | null; total_inquiridos: number | null; channel: string | null; geo_level: string | null; month: null; category_counts: null }[]>();
           for (const m of meas ?? []) {
             const key = m.service_id as string;
             if (!bySvcRows.has(key)) bySvcRows.set(key, []);
@@ -88,16 +88,17 @@ export default function CatalogoPage() {
               total_inquiridos: (m.total_inquiridos as number | null) ?? null,
               channel: (m.channel as string | null) ?? null,
               geo_level: (m.geo_level as string | null) ?? null,
+              month: null,
+              category_counts: null,
             });
           }
+          // Mesmo critério de canal do resto da plataforma (rowsForChannel): reconhece "Loja
+          // de Cidadão" como Presencial e cai no âmbito declarado do indicador quando os
+          // dados não têm canal atribuído — antes, uma comparação exata de canal escondia o
+          // CSAT de serviços cujos dados só existem sob "Loja de Cidadão".
           for (const [serviceId, rows] of bySvcRows) {
-            // Sem canal selecionado: linha agregada (sem canal nem geografia), com fallback
-            // à primeira linha. Com um canal ativo: só a linha desse canal específico (sem
-            // fallback — se não houver dados desse canal, o serviço fica sem CSAT).
-            const row =
-              selectedChannel === null
-                ? rows.find((r) => r.channel === null && r.geo_level === null) ?? rows[0]
-                : rows.find((r) => r.channel === selectedChannel && r.geo_level === null);
+            const filtered = rowsForChannel(rows, selectedChannel, csatScope);
+            const row = filtered.find((r) => r.channel === null && r.geo_level === null) ?? filtered[0];
             if (!row) continue;
             byService.set(serviceId, {
               csat: row.value != null ? Number(row.value) : null,

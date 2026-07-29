@@ -10,8 +10,9 @@ import IndicatorCard from "@/components/IndicatorCard";
 import Tooltip from "@/components/Tooltip";
 import { supabase } from "@/lib/supabase";
 import { useSelectedService } from "@/context/SelectedServiceContext";
+import { useSelectedChannel } from "@/context/SelectedChannelContext";
 import { ToolsForInnovationSection, GetHelpSection, type CaseStudy, type InnovationSuggestion } from "@/components/InnovationHelp";
-import { isNonCompliant, isSumIndicator } from "@/lib/measurements";
+import { isNonCompliant, isSumIndicator, aggregateValue, pickCategoryCounts, rowsForChannel, type MeasRow } from "@/lib/measurements";
 
 const ITEMS_PER_PAGE = 9;
 
@@ -23,8 +24,6 @@ type ServiceMeta = {
   csat: number | null;
   nResponses: number | null;
 };
-
-type MeasRow = { channel: string | null; geo_level: string | null; month: number | null; value: number | string | null; category_counts: Record<string, number> | null };
 
 type IndicatorItem = {
   id: string;
@@ -44,47 +43,43 @@ type IndicatorItem = {
   relatedMeasures: string[] | null;
 };
 
+type RawIndicator = {
+  id: string;
+  description: string;
+  is_mandatory: boolean;
+  value_type: string;
+  type_of_indicator: string | null;
+  value_scale_max: number | null;
+  escala_descricao: string | null;
+  target_value: number | null;
+  target_direction: "above" | "below" | null;
+  parent_indicator_id: string | null;
+  thematic_priority_id: string | null;
+  channel_scope: string | null;
+  priorityName: string;
+  priorityOrder: number;
+};
+
 // Deteta perguntas de seguimento condicional ("Se sim, ...") — distintas de
 // indicadores-irmão que avaliam separadamente critérios já mencionados numa
 // pergunta combinada (ex.: "clareza, conhecimento, encaminhamento").
 const CONDITIONAL_RE = /^\s*(se\s+(sim|n[ãa]o|afirmativo|negativo)\b|caso\s+(sim|n[ãa]o)\b)/i;
 
-// Agrega as medições de um indicador num único valor:
-// prefere a linha "todos os canais" (channel = null); senão, média dos canais.
-function aggregateValue(rows: MeasRow[], isSum = false): number | null {
-  // Linha "agregada" real: sem canal E sem segmentação geográfica (as linhas por distrito
-  // também têm channel=null, por isso é preciso excluir geo_level para não as confundir com
-  // o total — mesmo critério da página de detalhe do indicador).
-  const nullRow = rows.find((r) => r.channel === null && r.geo_level === null);
-  let source = nullRow ? [nullRow] : rows;
-  if (!nullRow) {
-    // Indicadores só com quebra geográfica (ex.: Lojas de Cidadão) nunca têm linha sem
-    // geo_level — usar a linha-snapshot (month=null) de cada geografia, agregando entre elas.
-    const snapshot = rows.filter((r) => r.geo_level !== null && r.month === null);
-    if (snapshot.length) source = snapshot;
-  }
-  const nums = source
-    .filter((r) => r.value !== null && r.value !== undefined)
-    .map((r) => Number(r.value))
-    .filter((v) => !Number.isNaN(v));
-  if (nums.length === 0) return null;
-  const total = nums.reduce((a, b) => a + b, 0);
-  return Math.round((isSum ? total : total / nums.length) * 100) / 100;
-}
-
-function pickCategoryCounts(rows: MeasRow[]): Record<string, number> | null {
-  const row = rows.find((r) => r.channel === null && r.geo_level === null && r.category_counts)
-    ?? rows.find((r) => r.category_counts);
-  return row?.category_counts ?? null;
-}
-
 export default function ServiceDetailPage() {
   const params = useParams();
   const serviceId = params.id as string;
   const { openSwap } = useSelectedService();
+  const { selectedChannel } = useSelectedChannel();
 
   const [service, setService] = useState<ServiceMeta | null>(null);
-  const [indicatorItems, setIndicatorItems] = useState<IndicatorItem[]>([]);
+  const [rawInds, setRawInds] = useState<RawIndicator[]>([]);
+  const [rawByIndicator, setRawByIndicator] = useState<Map<string, MeasRow[]>>(new Map());
+  const [descriptionById, setDescriptionById] = useState<Map<string, string>>(new Map());
+  const [siblingsByParent, setSiblingsByParent] = useState<Map<string, string[]>>(new Map());
+  const [csatScope, setCsatScope] = useState<string | null>(null);
+  const [rawCsatRows, setRawCsatRows] = useState<
+    { channel: string | null; geo_level: string | null; month: number | null; value: number | string | null; category_counts: Record<string, number> | null; total_inquiridos: number | null }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [notFound, setNotFound] = useState(false);
@@ -133,12 +128,14 @@ export default function ServiceDetailPage() {
       }
 
       const ids = [...new Set((meas ?? []).map((m) => m.indicator_id as string))];
-      if (ids.length === 0) { setIndicatorItems([]); setLoading(false); return; }
+      if (ids.length === 0) {
+        setRawInds([]); setRawByIndicator(new Map()); setRawCsatRows([]); setLoading(false); return;
+      }
 
       // 3. Catálogo de indicadores (dimensão via embed)
       const { data: inds, error: indErr } = await supabase
         .from("indicators")
-        .select("id, description, is_mandatory, value_type, type_of_indicator, value_scale_max, escala_descricao, target_value, target_direction, parent_indicator_id, thematic_priority_id, thematic_priorities(name_pt, display_order)")
+        .select("id, description, is_mandatory, value_type, type_of_indicator, value_scale_max, escala_descricao, target_value, target_direction, parent_indicator_id, thematic_priority_id, channel_scope, thematic_priorities(name_pt, display_order)")
         .in("id", ids);
 
       if (!active) return;
@@ -159,69 +156,68 @@ export default function ServiceDetailPage() {
           category_counts: (m.category_counts as Record<string, number> | null) ?? null,
         });
       }
+      setRawByIndicator(byIndicator);
 
       // Métricas de cabeçalho do serviço: CSAT (ux_csat) e nº de respostas — mesmo indicador
       // oficial (etl_column_key) usado em SelectedServiceContext/catalogo, não qualquer
-      // indicador de escala 1-10 do serviço.
+      // indicador de escala 1-10 do serviço. Guardadas em bruto (não agregadas aqui) para que
+      // o memo abaixo as possa refiltrar sempre que o canal selecionado no topo mudar.
       const { data: csatIndData } = await supabase
-        .from("indicators").select("id").eq("etl_column_key", "ux_csat").maybeSingle();
+        .from("indicators").select("id, channel_scope").eq("etl_column_key", "ux_csat").maybeSingle();
       if (!active) return;
       const csatId = csatIndData?.id as string | undefined;
-      const csatRows = csatId ? (meas ?? []).filter((m) => m.indicator_id === csatId) : [];
-      // Linha "agregada" real: sem canal E sem segmentação geográfica.
-      const csatNullRow = csatRows.find((r) => r.channel === null && r.geo_level === null) ?? csatRows[0];
-      const csatVal = csatNullRow?.value != null ? Number(csatNullRow.value) : null;
-      const nResp = csatNullRow ? ((csatNullRow.total_inquiridos as number | null) ?? null) : null;
-      setService((prev) => (prev ? { ...prev, csat: csatVal, nResponses: nResp } : prev));
+      setCsatScope((csatIndData?.channel_scope as string | null) ?? null);
+      setRawCsatRows(
+        csatId
+          ? (meas ?? [])
+              .filter((m) => m.indicator_id === csatId)
+              .map((m) => ({
+                channel: (m.channel as string | null) ?? null,
+                geo_level: (m.geo_level as string | null) ?? null,
+                month: (m.month as number | null) ?? null,
+                value: m.value as number | string | null,
+                category_counts: (m.category_counts as Record<string, number> | null) ?? null,
+                total_inquiridos: (m.total_inquiridos as number | null) ?? null,
+              }))
+          : []
+      );
 
-      const descriptionById = new Map((inds ?? []).map((i) => [i.id as string, i.description as string]));
+      const descById = new Map((inds ?? []).map((i) => [i.id as string, i.description as string]));
+      setDescriptionById(descById);
 
       // Indicadores-irmão (não seguimento condicional) agrupados pelo pai comum,
       // para explicar perguntas combinadas que já existem também medidas em separado.
-      const siblingsByParent = new Map<string, string[]>();
+      const siblings = new Map<string, string[]>();
       for (const i of inds ?? []) {
         const parentId = i.parent_indicator_id as string | null;
         const desc = i.description as string;
         if (!parentId || CONDITIONAL_RE.test(desc)) continue;
-        if (!siblingsByParent.has(parentId)) siblingsByParent.set(parentId, []);
-        siblingsByParent.get(parentId)!.push(desc);
+        if (!siblings.has(parentId)) siblings.set(parentId, []);
+        siblings.get(parentId)!.push(desc);
       }
+      setSiblingsByParent(siblings);
 
-      const items: IndicatorItem[] = (inds ?? []).map((i) => {
-        const tp = (i.thematic_priorities ?? {}) as { name_pt?: string; display_order?: number };
-        const rows = byIndicator.get(i.id as string) ?? [];
-        const value = aggregateValue(rows, isSumIndicator(i.description as string));
-        return {
-          id: i.id as string,
-          name: i.description as string,
-          priority: tp.name_pt ?? "—",
-          priorityOrder: tp.display_order ?? 99,
-          metric: (i.escala_descricao as string) ?? "—",
-          valueType: (i.value_type as string) ?? null,
-          value,
-          scaleMax: (i.value_scale_max as number | null) ?? null,
-          categoryCounts: pickCategoryCounts(rows),
-          missingData: false,
-          nonCompliance: isNonCompliant(
-            i.type_of_indicator as string | null,
-            value,
-            i.target_value as number | null,
-            i.target_direction as "above" | "below" | null,
-          ),
-          mandatory: Boolean(i.is_mandatory),
-          typeOfIndicator: (i.type_of_indicator as string | null) ?? null,
-          // "Seguimento a" só se aplica a perguntas de seguimento condicional
-          // ("Se sim, ..."); indicadores-irmão de uma pergunta combinada usam
-          // antes a nota "Avaliação combinada" (relatedMeasures, no pai).
-          followUpTo: CONDITIONAL_RE.test(i.description as string)
-            ? (descriptionById.get(i.parent_indicator_id as string) ?? null)
-            : null,
-          relatedMeasures: siblingsByParent.get(i.id as string) ?? null,
-        };
-      });
-
-      items.sort((a, b) => a.priorityOrder - b.priorityOrder || a.name.localeCompare(b.name));
-      setIndicatorItems(items);
+      setRawInds(
+        (inds ?? []).map((i) => {
+          const tp = (i.thematic_priorities ?? {}) as { name_pt?: string; display_order?: number };
+          return {
+            id: i.id as string,
+            description: i.description as string,
+            is_mandatory: Boolean(i.is_mandatory),
+            value_type: (i.value_type as string) ?? "",
+            type_of_indicator: (i.type_of_indicator as string | null) ?? null,
+            value_scale_max: (i.value_scale_max as number | null) ?? null,
+            escala_descricao: (i.escala_descricao as string | null) ?? null,
+            target_value: (i.target_value as number | null) ?? null,
+            target_direction: (i.target_direction as "above" | "below" | null) ?? null,
+            parent_indicator_id: (i.parent_indicator_id as string | null) ?? null,
+            thematic_priority_id: (i.thematic_priority_id as string | null) ?? null,
+            channel_scope: (i.channel_scope as string | null) ?? null,
+            priorityName: tp.name_pt ?? "—",
+            priorityOrder: tp.display_order ?? 99,
+          };
+        })
+      );
 
       // Dimensões relevantes a este serviço (as dos seus indicadores medidos), ordenadas
       // por display_order — usadas para escolher, de seguida, 3 dimensões diferentes tanto
@@ -313,6 +309,53 @@ export default function ServiceDetailPage() {
     return () => { active = false; };
   }, [serviceId]);
 
+  // Recalcula os valores exibidos sempre que o canal selecionado no topo mudar — sem isto,
+  // esta página ignorava por completo o filtro global de canal (ao contrário do Dashboard,
+  // da página de detalhe do indicador e das Prioridades Temáticas), mostrando sempre o
+  // agregado de "Todos os canais" mesmo com um canal escolhido no topo (auditoria de dados,
+  // 2026-07-29).
+  const indicatorItems: IndicatorItem[] = useMemo(() => {
+    const items = rawInds.map((i) => {
+      const rows = rowsForChannel(rawByIndicator.get(i.id) ?? [], selectedChannel, i.channel_scope);
+      const value = aggregateValue(rows, isSumIndicator(i.description));
+      return {
+        id: i.id,
+        name: i.description,
+        priority: i.priorityName,
+        priorityOrder: i.priorityOrder,
+        metric: i.escala_descricao ?? "—",
+        valueType: i.value_type || null,
+        value,
+        scaleMax: i.value_scale_max,
+        categoryCounts: pickCategoryCounts(rows),
+        missingData: false,
+        nonCompliance: isNonCompliant(i.type_of_indicator, value, i.target_value, i.target_direction),
+        mandatory: i.is_mandatory,
+        typeOfIndicator: i.type_of_indicator,
+        // "Seguimento a" só se aplica a perguntas de seguimento condicional
+        // ("Se sim, ..."); indicadores-irmão de uma pergunta combinada usam
+        // antes a nota "Avaliação combinada" (relatedMeasures, no pai).
+        followUpTo: CONDITIONAL_RE.test(i.description)
+          ? (descriptionById.get(i.parent_indicator_id ?? "") ?? null)
+          : null,
+        relatedMeasures: siblingsByParent.get(i.id) ?? null,
+      };
+    });
+    items.sort((a, b) => a.priorityOrder - b.priorityOrder || a.name.localeCompare(b.name));
+    return items;
+  }, [rawInds, rawByIndicator, descriptionById, siblingsByParent, selectedChannel]);
+
+  // Métricas de cabeçalho (CSAT + nº respostas): mesmo critério de filtro por canal do
+  // resto da página, usando as linhas em bruto guardadas no fetch.
+  const headerCsat = useMemo(() => {
+    const rows = rowsForChannel(rawCsatRows, selectedChannel, csatScope);
+    const row = rows.find((r) => r.channel === null && r.geo_level === null) ?? rows[0];
+    return {
+      csat: row?.value != null ? Number(row.value) : null,
+      nResponses: row ? row.total_inquiridos : null,
+    };
+  }, [rawCsatRows, csatScope, selectedChannel]);
+
   const PRIORITIES = useMemo(
     () => [...new Set(indicatorItems.map((i) => i.priority))].sort(),
     [indicatorItems]
@@ -396,12 +439,12 @@ export default function ServiceDetailPage() {
               <div className="bg-secondary-300 flex gap-[8px] items-center h-[40px] px-[16px] rounded-full">
                 <AgoraIcon name="like" className="size-[20px] text-secondary-900" />
                 <span className="text-[15px] font-medium text-primary-700">CSAT</span>
-                <span className="text-[18px] font-bold text-primary-900">{service.csat != null ? service.csat.toLocaleString("pt-PT") : "–"}</span>
+                <span className="text-[18px] font-bold text-primary-900">{headerCsat.csat != null ? headerCsat.csat.toLocaleString("pt-PT") : "–"}</span>
               </div>
             </Tooltip>
             <Tooltip label="Número de respostas ao questionário">
               <div className="bg-secondary-300 flex gap-[8px] items-center h-[40px] px-[16px] rounded-full">
-                <span className="text-[18px] font-bold text-primary-900">{service.nResponses != null ? service.nResponses.toLocaleString("pt-PT") : "–"}</span>
+                <span className="text-[18px] font-bold text-primary-900">{headerCsat.nResponses != null ? headerCsat.nResponses.toLocaleString("pt-PT") : "–"}</span>
                 <span className="text-[15px] font-medium text-primary-700">respostas</span>
               </div>
             </Tooltip>
