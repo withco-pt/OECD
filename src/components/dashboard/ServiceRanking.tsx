@@ -6,7 +6,7 @@ import { AgoraIcon } from "@/components/icons/AgoraIcon";
 import DashboardCard from "./DashboardCard";
 import EmptyChartState from "@/components/EmptyChartState";
 import { useRevealed } from "./Reveal";
-import { type DashboardData, isAggRow, wavg } from "@/lib/dashboardData";
+import { type DashboardData, channelRowsForIndicator, wavg } from "@/lib/dashboardData";
 
 /* ─────────────────────────────────────────────────────────────
    Bloco 3 — Ranking de serviços por satisfação global (1–10).
@@ -79,7 +79,11 @@ export default function ServiceRanking({ data, selectedChannel }: { data: Dashbo
     const semDados: { id: string; name: string }[] = [];
     for (const s of data.services) {
       const rows = csatInd
-        ? data.rows.filter((r) => r.service_id === s.id && r.indicator_id === csatInd.id && isAggRow(r, selectedChannel))
+        ? channelRowsForIndicator(
+            data.rows.filter((r) => r.service_id === s.id && r.indicator_id === csatInd.id),
+            selectedChannel,
+            csatInd.channelScope,
+          )
         : [];
       const agg = wavg(rows);
       if (agg) all.push({ id: s.id, name: s.name, csat: agg.avg, n: agg.n });

@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { channelMatches } from "@/lib/measurements";
+import { channelMatches, scopeCoversChannel } from "@/lib/measurements";
 
 /* ─────────────────────────────────────────────────────────────
    Camada de dados do Dashboard: carrega tudo o que a página
@@ -145,6 +145,29 @@ export function isAggRow(r: MeasurementRow, channel: string | null = null): bool
   if (channel === null) return r.channel === null && r.geo_name === null;
   // channelMatches: filtrar por "Presencial" inclui "Loja de Cidadão" (ver measurements.ts).
   return channelMatches(r.channel, channel) && r.geo_name === null;
+}
+
+/** Linhas do canal ativo para UM indicador (as `rows` recebidas já vêm filtradas por
+ * indicador), com o mesmo critério da listagem de indicadores (`rowsForChannel`).
+ *
+ * Sem isto, cada bloco do dashboard aplicava só o critério estrito do `isAggRow` — que
+ * exige a linha ter o canal marcado — e escondia indicadores que a página de detalhe do
+ * mesmo indicador mostrava. Na ARTE, sobreviviam 12 de 1348 linhas ao filtro "Presencial".
+ *
+ * Ordem: primeiro as linhas do canal pedido; se não houver nenhuma, e o indicador não
+ * tiver quebra por canal nenhuma, cai no agregado quando o âmbito declarado do indicador
+ * cobre o canal filtrado (ver scopeCoversChannel). Um indicador COM quebra real por canal
+ * nunca cai no fallback: aí a ausência do canal pedido é mesmo falta de dados. */
+export function channelRowsForIndicator(
+  rows: MeasurementRow[],
+  channel: string | null,
+  channelScope: string | null,
+): MeasurementRow[] {
+  const direct = rows.filter((r) => isAggRow(r, channel));
+  if (direct.length || channel === null) return direct;
+  if (rows.some((r) => r.channel !== null)) return direct;
+  if (!scopeCoversChannel(channelScope, channel)) return direct;
+  return rows.filter((r) => r.channel === null && r.geo_name === null);
 }
 
 function weight(r: MeasurementRow): number {

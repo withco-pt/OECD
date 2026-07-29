@@ -5,7 +5,7 @@ import DashboardCard from "./DashboardCard";
 import EmptyChartState from "@/components/EmptyChartState";
 import { useRevealed } from "./Reveal";
 import { type DashboardData, isAggRow, MONTHS_PT } from "@/lib/dashboardData";
-import { channelMatches } from "@/lib/measurements";
+import { channelMatches, scopeCoversChannel } from "@/lib/measurements";
 
 /* ─────────────────────────────────────────────────────────────
    Bloco 5 — Evolução temporal dos indicadores operacionais.
@@ -37,8 +37,8 @@ function computeSeries(data: DashboardData, channel: string | null): Series[] {
           r.value != null
       );
     }
-    if (!rows.length && channel !== null && ind.channelScope === channel) {
-      // Indicador cujos dados não têm canal atribuído mas cujo âmbito é exatamente este
+    if (!rows.length && channel !== null && scopeCoversChannel(ind.channelScope, channel)) {
+      // Indicador cujos dados não têm canal atribuído mas cujo âmbito declarado cobre este
       // canal (ex.: "Número de atendimentos presenciais por serviço", âmbito "Presencial"):
       // o agregado É o valor deste canal. Mesmo critério de rowsForChannel, para o gráfico
       // não divergir das listagens de indicadores.

@@ -6,7 +6,7 @@ import Reveal from "./Reveal";
 import {
   type DashboardData,
   type MeasurementRow,
-  isAggRow,
+  channelRowsForIndicator,
   wavg,
   sumCategories,
   formatPeriod,
@@ -31,7 +31,11 @@ type Kpi = {
 function aggRowsFor(data: DashboardData, etlKey: string, channel: string | null): MeasurementRow[] {
   const ind = data.indicators.find((i) => i.etlKey === etlKey);
   if (!ind) return [];
-  return data.rows.filter((r) => r.indicator_id === ind.id && isAggRow(r, channel));
+  return channelRowsForIndicator(
+    data.rows.filter((r) => r.indicator_id === ind.id),
+    channel,
+    ind.channelScope,
+  );
 }
 
 /** Delta entre o último mês e o anterior (média ponderada), se existirem ≥2 meses. */

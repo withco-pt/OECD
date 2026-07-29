@@ -5,7 +5,7 @@ import Link from "next/link";
 import DashboardCard from "./DashboardCard";
 import EmptyChartState from "@/components/EmptyChartState";
 import { useRevealed } from "./Reveal";
-import { type DashboardData, isAggRow, wavg, normalizeScore } from "@/lib/dashboardData";
+import { type DashboardData, channelRowsForIndicator, wavg, normalizeScore } from "@/lib/dashboardData";
 import { channelMatches } from "@/lib/measurements";
 
 /* ─────────────────────────────────────────────────────────────
@@ -47,15 +47,18 @@ function computeScores(data: DashboardData, channel: string | null): DimScore[] 
     let weighted = 0;
     let totalW = 0;
     for (const ind of inds) {
-      let rows = data.rows.filter((r) => r.indicator_id === ind.id && isAggRow(r, channel));
+      const indRows = data.rows.filter((r) => r.indicator_id === ind.id);
+      // Inclui o fallback de âmbito de canal (indicadores sem canal nos dados mas com
+      // âmbito que cobre o canal filtrado) — o mesmo critério das páginas de indicador.
+      let rows = channelRowsForIndicator(indRows, channel, ind.channelScope);
       if (!rows.length) {
         // Fallback: indicadores só com quebra geográfica (ex.: Lojas de Cidadão,
         // migration 062 — channel='Loja de Cidadão', service_id=NULL) nunca têm linha
         // totalizadora sem geo_name — agregamos entre lojas tal como já se agrega entre
         // serviços. channel === null ("Todos") aceita qualquer canal aqui, porque estas
         // linhas têm sempre um channel-etiqueta, não uma quebra por vários canais reais.
-        rows = data.rows.filter(
-          (r) => r.indicator_id === ind.id && (channel === null || channelMatches(r.channel, channel)) && r.geo_name != null
+        rows = indRows.filter(
+          (r) => (channel === null || channelMatches(r.channel, channel)) && r.geo_name != null
         );
       }
       const agg = wavg(rows);

@@ -33,6 +33,51 @@ export function channelMatches(rowChannel: string | null, selected: string): boo
   return (CHANNEL_INCLUDES[selected] ?? []).includes(rowChannel);
 }
 
+/** Âmbito de canal declarado do indicador (`indicators.channel_scope`, texto livre com
+ * 9 valores distintos no catálogo) → canais reais usados nas medições
+ * (`measurements.channel`, os valores que alimentam a dropdown de canal).
+ *
+ * Serve um caso concreto e frequente: indicadores cujos dados NÃO têm canal atribuído,
+ * mas cujo âmbito declarado nomeia canais específicos. Aí a linha agregada é, de facto,
+ * o valor desses canais, e o indicador tem de aparecer quando se filtra por um deles.
+ * Antes disto a correspondência era por igualdade exata da string do âmbito, pelo que
+ * qualquer âmbito com mais do que um canal nunca correspondia a nada — as 6 perguntas de
+ * "Imparcialidade e Profissionalismo" (âmbito "Presencial + Telefone + Videochamada +
+ * Outro com atendimento") desapareciam por completo do filtro "Presencial".
+ *
+ * Deliberadamente FORA do mapa (não mapear é o comportamento seguro — o indicador
+ * continua escondido em vez de aparecer com um valor mal atribuído):
+ *  - "Todos os canais": o agregado mistura canais digitais e presenciais; apresentá-lo
+ *    como valor de um canal só seria inventar uma quebra que os dados não têm.
+ *  - "Presencial, telefone, atendimento virtual (different values for different
+ *    channels)": o próprio âmbito avisa que o valor difere entre canais, logo o agregado
+ *    não representa nenhum deles.
+ *  - "Portal" e "Assistente digital": não existe canal com estes nomes em nenhuma
+ *    entidade. O equivalente provável é "Digital/Online" e "Chatbox", mas é suposição —
+ *    [NEEDS_CLARIFICATION] a confirmar com a cliente antes de mapear.
+ */
+export const CHANNEL_SCOPE_CHANNELS: Record<string, string[]> = {
+  Presencial: ["Presencial"],
+  Telefone: ["Telefone"],
+  "Loja de Cidadão": ["Loja de Cidadão"],
+  "Telefone, email": ["Telefone", "E-mail"],
+  "Presencial + Telefone + Videochamada + Outro com atendimento": [
+    "Presencial",
+    "Telefone",
+    "Videochamada",
+    "Outro",
+  ],
+};
+
+/** O âmbito declarado do indicador cobre o canal filtrado? Usa channelMatches em cada
+ * canal do âmbito, para que "Loja de Cidadão" continue a contar como presencial. */
+export function scopeCoversChannel(channelScope: string | null | undefined, channel: string): boolean {
+  if (!channelScope) return false;
+  const scoped = CHANNEL_SCOPE_CHANNELS[channelScope];
+  if (!scoped) return false;
+  return scoped.some((s) => channelMatches(s, channel));
+}
+
 export function aggregateValue(rows: MeasRow[], isSum = false): number | null {
   // Linha "agregada" real: sem canal E sem segmentação geográfica (as linhas por distrito
   // também têm channel=null, por isso é preciso excluir geo_level para não as confundir com
@@ -102,12 +147,12 @@ export function rowsForChannel(
     (r) => r.geo_level === null && r.channel !== null && !channelMatches(r.channel, channel),
   );
   if (!otherRealChannels && geoOnly.length && geoOnly.every((r) => channelMatches(r.channel, channel))) return geoOnly;
-  // Indicador cujos dados não têm canal nenhum atribuído, mas cujo âmbito declarado é
-  // exatamente este canal (ex.: "Número de atendimentos presenciais por serviço", âmbito
-  // "Presencial"): o valor agregado É o valor deste canal, logo deve aparecer no filtro.
-  // Só se aplica quando o âmbito nomeia um único canal igual ao filtrado — nunca com
-  // "Todos os canais", onde seria atribuir dados multicanal a um canal só.
+  // Indicador cujos dados não têm canal nenhum atribuído, mas cujo âmbito declarado cobre
+  // este canal (ex.: "Número de atendimentos presenciais por serviço", âmbito "Presencial"):
+  // o valor agregado É o valor deste canal, logo deve aparecer no filtro. Só se aplica aos
+  // âmbitos que nomeiam canais concretos — nunca a "Todos os canais", onde seria atribuir
+  // dados multicanal a um canal só (ver CHANNEL_SCOPE_CHANNELS).
   const hasAnyChannel = rows.some((r) => r.channel !== null);
-  if (!hasAnyChannel && channelScope && channelScope === channel) return rows;
+  if (!hasAnyChannel && scopeCoversChannel(channelScope, channel)) return rows;
   return [];
 }
