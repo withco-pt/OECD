@@ -52,6 +52,37 @@ EXCLUDE = {"nao utilizei este canal", "nao se aplica", "nao se aplica.", "prefir
 # nota: "neutro" está em FACILIDADE como 3; removê-lo do exclude
 EXCLUDE.discard("neutro")
 
+# ── Canal único do respondente (coluna 13) ───────────────────────────────────
+# "Que canais utilizou para realizar o seu serviço?" — pergunta de escolha múltipla
+# ("Escolha todas as opções que se aplicam"), valores separados por ";". Confirmado
+# em 2026-07-29 (auditoria do ficheiro enviado pela cliente): ~90% dos respondentes
+# assinala EXATAMENTE um canal. Para esses, a resposta às perguntas "sem canal" do
+# COLMAP (satisfação global, NPS, resolução, facilidade, etc.) pertence inequivocamente
+# a esse canal — não é uma suposição, é o que o próprio respondente indicou.
+CHANNEL_USADO_COL = 13
+CHANNEL_LABEL_MAP = {
+    "atendimento presencial": "Presencial",
+    "telefone": "Telefone",
+    "digital/online (website)": "Digital/Online",
+    "app": "App",
+    "videochamada": "Videochamada",
+    "chatbox": "Chatbox",
+    "outro": "Outro",
+}
+
+
+def single_channel_of(row):
+    """Canal único do respondente, só quando exatamente UM canal foi assinalado —
+    inequívoco. Multicanal, vazio, ou rótulo não reconhecido devolve None (a resposta
+    fica só na agregação 'Todos os canais', como sempre)."""
+    raw = row[CHANNEL_USADO_COL - 1]
+    if not raw:
+        return None
+    labels = [norm(tok) for tok in str(raw).split(";") if tok.strip()]
+    if len(labels) != 1:
+        return None
+    return CHANNEL_LABEL_MAP.get(labels[0])
+
 # ── Mapa coluna Excel (1-indexed) → indicador ────────────────────────────────
 # kind: likert | scale10 | nps | sim_nao | agendamento
 # channel: fixo para as colunas do matriz de canais (17-23)
@@ -178,11 +209,20 @@ def load():
             else:
                 skipped["distrito_em_branco"] += 1
 
+            single_chan = single_channel_of(row)
             for col, etl, kind, scale, chan in COLMAP:
                 raw = row[col - 1]
                 if raw in (None, ""):
                     continue
-                key = (ent, sn, y, m, chan, etl, kind)
+                # Canal(is) para os quais esta resposta conta. Colunas com canal fixo no
+                # COLMAP (matriz de canais, 17-23) só contam para esse canal, como sempre.
+                # Colunas "sem canal" (chan=None — pergunta feita uma só vez sobre toda a
+                # experiência) contam SEMPRE para o agregado "Todos os canais" (chan=None,
+                # inclui multicanal) e, ADICIONALMENTE, para o canal único do respondente
+                # quando existir — as duas agregações coexistem, não se substituem.
+                target_chans = [chan] if chan is not None else (
+                    [None, single_chan] if single_chan else [None]
+                )
                 # Segunda agregação, em paralelo: por distrito, sem canal (respondente
                 # não é dividido por canal E distrito ao mesmo tempo — amostras já pequenas).
                 geo_key = (ent, sn, y, m, geo_name, etl, kind) if geo_name else None
@@ -200,7 +240,8 @@ def load():
                     if cat is None:
                         unmapped[etl][str(raw).strip()] += 1
                     else:
-                        agg[key]["cats"][cat] += 1
+                        for tc in target_chans:
+                            agg[(ent, sn, y, m, tc, etl, kind)]["cats"][cat] += 1
                         if geo_key:
                             agg_geo[geo_key]["cats"][cat] += 1
                 elif kind == "likert":
@@ -211,7 +252,8 @@ def load():
                     if code is None:
                         unmapped[etl][str(raw).strip()] += 1
                     else:
-                        agg[key]["codes"].append(code)
+                        for tc in target_chans:
+                            agg[(ent, sn, y, m, tc, etl, kind)]["codes"].append(code)
                         label_map[etl][str(raw).strip()] = code
                         if geo_key:
                             agg_geo[geo_key]["codes"].append(code)
@@ -221,7 +263,8 @@ def load():
                     except Exception:
                         unmapped[etl][str(raw).strip()] += 1
                     else:
-                        agg[key]["codes"].append(fv)
+                        for tc in target_chans:
+                            agg[(ent, sn, y, m, tc, etl, kind)]["codes"].append(fv)
                         if geo_key:
                             agg_geo[geo_key]["codes"].append(fv)
     return dict(agg), dict(agg_geo), pop, geo_pop, display, unmapped, label_map, skipped, files
@@ -273,7 +316,7 @@ def emit_sql(out):
     L = []
     L.append("-- Gerado por scripts/ingest_survey.py — NÃO editar à mão.")
     L.append(f"-- Fontes: {', '.join(p.split('/')[-1] for p in files)}")
-    L.append("-- Substitui as medições de amostra pelas agregações reais do questionário.\n")
+    L.append("-- Regenera as medições deste questionário a partir dos ficheiros-fonte atuais.\n")
 
     # 1) Criar serviços em falta (por entidade), idempotente
     L.append("-- 1) Serviços em falta")
@@ -285,10 +328,13 @@ def emit_sql(out):
             f"WHERE NOT EXISTS (SELECT 1 FROM {sch}.services WHERE name_normalized = {q(sn)});"
         )
 
-    # 2) Limpar medições existentes (todas de questionário/amostra)
-    L.append("\n-- 2) Limpar medições de amostra")
+    # 2) Limpar medições deste questionário (só as deste source_file — a tabela também
+    # tem dados operacionais, de compliance e de outros inquéritos, que não podem ser
+    # apagados aqui; um DELETE sem filtro já existiu nesta linha e teria destruído
+    # ~2000 linhas de outras fontes se corrido hoje contra a BD atual).
+    L.append("\n-- 2) Limpar medições deste questionário (só source_file='questionario_2026')")
     for ent in ("at", "ec", "iss"):
-        L.append(f"DELETE FROM {SCHEMA[ent]}.measurements;")
+        L.append(f"DELETE FROM {SCHEMA[ent]}.measurements WHERE source_file = 'questionario_2026';")
 
     # 3) Inserir agregações — 1 statement por entidade (VALUES + JOIN aos ids)
     # Duas famílias de linhas, em paralelo (não se substituem):

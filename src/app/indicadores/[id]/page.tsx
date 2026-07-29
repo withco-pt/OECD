@@ -19,7 +19,7 @@ import { useSelectedService } from "@/context/SelectedServiceContext";
 import { useSelectedChannel } from "@/context/SelectedChannelContext";
 import { useSelectedEntity } from "@/context/SelectedEntityContext";
 import { supabase } from "@/lib/supabase";
-import { hasCategoryData, isSumIndicator } from "@/lib/measurements";
+import { hasCategoryData, isSumIndicator, scopeCoversChannel } from "@/lib/measurements";
 
 // Abaixo deste nº de respondentes, um NPS calculado (só pode dar ±100 com n=1)
 // é estatisticamente pouco fiável — mostra-se um aviso junto ao valor em vez
@@ -658,6 +658,18 @@ export default function IndicatorDetailPage() {
         categoryCounts,
       }));
 
+      // Há um canal escolhido na barra do topo, mas este indicador não tem quebra real por
+      // canal (channelData vazio): o valor "Todos" só pode representar esse canal quando o
+      // âmbito declarado do indicador o cobre (ex.: "Número de atendimentos presenciais",
+      // âmbito "Presencial") — mesmo critério de rowsForChannel, já usado na listagem de
+      // indicadores e no dashboard. Nos restantes casos (ex.: satisfação global, âmbito
+      // "Todos os canais", pergunta feita uma só vez sobre toda a experiência do utilizador),
+      // o valor não pertence a este canal. Sem isto, a Visualização Simples mostrava sempre o
+      // agregado de todos os canais mesmo com "Presencial" escolhido no topo — ao contrário da
+      // listagem de indicadores, que já escondia corretamente o valor nesse caso.
+      const noChannelMatch =
+        !!globalChannel && channelData.length === 0 && !scopeCoversChannel(ind.channel_scope as string | null, globalChannel);
+
       // Valor médio real por distrito, só para o serviço selecionado (nunca inventado; só
       // distritos com medições reais aparecem).
       const geoValues = new Map<string, number[]>();
@@ -708,17 +720,17 @@ export default function IndicatorDetailPage() {
         priority: tp.name_pt ?? "—",
         legalBasis: (ind.base_legal as string) ?? null,
         legalBasisUrl: (ind.base_legal_url as string) ?? null,
-        missingData: value === null && !hasCategoryData(categoryCounts),
+        missingData: (value === null && !hasCategoryData(categoryCounts)) || noChannelMatch,
         metric: (ind.escala_descricao as string) ?? "—",
         valueType: vt,
-        value,
-        previousValue,
-        previousPeriodLabel,
-        valueText,
+        value: noChannelMatch ? null : value,
+        previousValue: noChannelMatch ? null : previousValue,
+        previousPeriodLabel: noChannelMatch ? null : previousPeriodLabel,
+        valueText: noChannelMatch ? null : valueText,
         respondents: resp,
         scaleMin,
         scaleMax,
-        categoryCounts,
+        categoryCounts: noChannelMatch ? null : categoryCounts,
         channelData,
         districtData,
       });
